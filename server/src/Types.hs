@@ -4,6 +4,7 @@ import Control.Concurrent.STM
 
 import Data.ByteString (ByteString)
 import Data.Map (Map)
+import Data.Set (Set)
 import Data.Time
 
 import Network
@@ -23,8 +24,8 @@ data User = User
   }
 
 data Userflag = Operator | Voice
-  deriving Show
-  
+  deriving (Show, Eq, Ord)
+
 data Server = Server
   { srv_host :: String
   , srv_port :: PortID
@@ -37,8 +38,18 @@ data Message
   = PrivMsg { privmsg_from    :: Either UserInfo ServerName
             , privmsg_to      :: ByteString
             , privmsg_content :: ByteString }
+
+  | JoinMsg { joinmsg_channel :: Channel
+            , joinmsg_who     :: Maybe UserInfo }
+
   | PartMsg { partmsg_channel :: Channel
-            , partmsg_who     :: Maybe UserInfo }
+            , partmsg_who     :: Maybe UserInfo } -- Nothing if current user is
+                                                  -- leaving channel
+                                                  --
+  | KickMsg { kickmsg_channel :: Channel
+            , kickmsg_who     :: Maybe ByteString -- Nothing if current user is
+                                                  -- being kicked
+            , kickmsg_comment :: Maybe ByteString }
 
 data Connection = Connection
   { con_user            :: User
@@ -53,5 +64,5 @@ data Connection = Connection
 
 data ChannelSettings = ChannelSettings
   { chan_topic  :: Maybe ByteString
-  , chan_names  :: [(Nickname, Maybe Userflag)]
+  , chan_names  :: Set (Nickname, Maybe Userflag)
   }

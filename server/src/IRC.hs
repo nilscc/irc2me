@@ -28,7 +28,7 @@ import Control.Monad
 
 import qualified Data.Map as M
 import           Data.Map (Map)
-import qualified Data.List as L
+import qualified Data.Set as S
 import qualified Data.ByteString as BL
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
@@ -206,11 +206,12 @@ connect' usr srv channels debug_out = handleExceptions $ do
   -- send username to IRC server
   sendUser connection
   sendNick connection
-  waitForOK connection (usr_nick_alt usr)
+  mcon <- waitForOK connection (usr_nick_alt usr)
 
-  mapM_ (uncurry $ sendJoin connection) $ M.toList channels
+  maybe (return ()) `flip` mcon $ \con' ->
+    mapM_ (uncurry $ sendJoin con') $ M.toList channels
 
-  return $ Just connection
+  return mcon
 
  where
   handleExceptions = handle $ \(_ :: IOException) -> return Nothing
@@ -223,7 +224,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
       Right (msgCmd -> cmd)
 
         -- everything OK, we're done:
-        | cmd == "001" -> return ()
+        | cmd == "001" -> return $ Just con
 
         -- pick different nickname:
         | cmd `isError` err_NICKCOLLISION ||
@@ -244,6 +245,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
                        \Try to supply a list of alternative nicknames. \
                        \(connection closed)"
               closeConnection con Nothing
+              return Nothing
 
       -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
       Right msg -> do
@@ -253,7 +255,9 @@ connect' usr srv channels debug_out = handleExceptions $ do
       -- something went wrong
       Left  err -> do logC con $ "wait001: " ++ B8.unpack err
                       open <- isOpenConnection con
-                      when open $ waitForOK con alt_nicks
+                      if open
+                        then waitForOK con alt_nicks
+                        else return Nothing
 
   isError bs err = bs == (B8.pack $ show err)
 
@@ -285,21 +289,46 @@ handleIncoming con = do
       -- join channels
       | cmd == "JOIN" -> do
 
-        let channels = B8.split ',' $ msgTrail msg
-        logC con $ "JOIN channels: " ++ concatMap B8.unpack channels
+        let (trail:_)       = B8.words $ msgTrail msg
+            channels        = B8.split ',' trail
+            Just (Left who) = msgPrefix msg
 
-        -- add all channels to channel settings map and return new connection:
-        return $ addChannels con channels
+        forM_ channels $ \chan ->
+          addMessage con $
+            JoinMsg chan (if isCurrentUser con who then Nothing else Just who)
+
+        -- check if we joined a channel or if somebody else joined
+        if isCurrentUser con who
+          then return $ addChannels con channels
+          else return $ addUser con who channels
 
       | cmd == "PART" -> do
 
-        let Just who = msgPrefix msg
+        let Just (Left who@UserInfo { userNick }) = msgPrefix msg
             (chan:_) = msgParams msg
 
+        logC con $ "nick_cur = " ++ show (con_nick_cur con) ++ ", "
+                   ++ "who = " ++ show who
+
         -- send part message
-        addMessage con $ PartMsg chan (either Just (const Nothing) who)
+        addMessage con $
+          PartMsg chan (if isCurrentUser con who then Nothing else Just who)
 
         if isCurrentUser con who
+          then return $ leaveChannel con chan
+          else return $ removeUser con chan userNick
+
+      | cmd == "KICK" -> do
+
+        let (chan:who:_) = msgParams msg
+            comment      = msgTrail msg
+
+        -- send kick message
+        addMessage con $
+          KickMsg chan (if isCurrentNick con who then Nothing else Just who)
+                       (if BL.null comment       then Nothing else Just comment)
+
+        if isCurrentNick con who
           then return $ leaveChannel con chan
           else return $ removeUser con chan who
 
@@ -384,7 +413,7 @@ handleIncoming con = do
   -- connection
   addChannels con' channels =
     foldr (\chan con'' -> changeChannelSettings con'' $
-                            M.insert chan (ChannelSettings Nothing []))
+                            M.insert chan (ChannelSettings Nothing S.empty))
           con'
           channels
 
@@ -401,13 +430,22 @@ handleIncoming con = do
   -- | Set channel names
   setChanNames con' channel namesWithFlags =
     adjustChannelSettings con' channel $ \s ->
-      s { chan_names = namesWithFlags }
+      s { chan_names = S.fromList namesWithFlags }
+
+  addUser con' who channels =
+    foldr (\chan con'' -> adjustChannelSettings con'' chan $ \s ->
+                            s { chan_names = S.insert (userNick who, Nothing)
+                                                      (chan_names s) })
+          con'
+          channels
 
   -- | Compare a IRC message prefix with current nickname & username
-  isCurrentUser con' (Left UserInfo{ userNick, userName }) =
+  isCurrentUser con' (UserInfo{ userNick, userName }) =
     userNick == con_nick_cur con' &&
     userName == Just (usr_name (con_user con'))
-  isCurrentUser _ _ =  False
+
+  -- | Compare nicknames only
+  isCurrentNick con' nick = con_nick_cur con' == nick
 
   -- | Leave and remove a channel from current connection
   leaveChannel con' channel =
@@ -416,8 +454,7 @@ handleIncoming con = do
          }
 
   -- | Remove user from channel settings
-  removeUser con' channel (Left UserInfo{ userNick }) =
+  removeUser con' channel nick =
     adjustChannelSettings con' channel $ \s ->
-      s { chan_names = L.filter ((userNick /=) . fst)
+      s { chan_names = S.filter ((nick /=) . fst)
                                 (chan_names s) }
-  removeUser con' _ _ = con'
