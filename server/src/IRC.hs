@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module IRC
   ( -- * Connection management
@@ -25,8 +26,10 @@ import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
 
+import           Data.Function
 import qualified Data.Map as M
 import           Data.Map (Map)
+import qualified Data.List as L
 import qualified Data.ByteString as BL
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
@@ -289,6 +292,15 @@ handleIncoming con = do
         -- add all channels to channel settings map and return new connection:
         return $ addChannels con channels
 
+      | cmd == "PART" -> do
+
+        let Just who = msgPrefix msg
+            (chan:_) = msgParams msg
+
+        if isCurrentUser con who
+          then return $ leaveChannel con chan
+          else return $ removeUser con chan who
+
       -- private messages
       | cmd == "PRIVMSG" -> do
 
@@ -384,3 +396,23 @@ handleIncoming con = do
              M.adjust (\s -> s { chan_names = namesWithFlags })
                       channel
                       (con_channelsettings con') }
+
+  -- | Compare a IRC message prefix with current nickname & username
+  isCurrentUser con' (Left UserInfo{ userNick, userName, userHost }) =
+    userNick == con_nick_cur con' &&
+    userName == Just (usr_name (con_user con'))
+  isCurrentUser _ _ =  False
+
+  leaveChannel con' channel =
+    con' { con_channels        = M.delete channel (con_channels con')
+         , con_channelsettings = M.delete channel (con_channelsettings con')
+         }
+
+  -- | Remove user from channel settings
+  removeUser con' channel (Left UserInfo{ userNick }) =
+    con' { con_channelsettings =
+             M.adjust removeUser' channel (con_channelsettings con') }
+   where
+    removeUser' chansettings = chansettings { chan_names =
+                                 L.filter ((userNick /=) . fst)
+                                          (chan_names chansettings) }
