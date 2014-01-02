@@ -21,6 +21,8 @@ data User = User
   , usr_realname :: Realname
   }
 
+data Userflag = Operator | Voice
+  
 data Server = Server
   { srv_host :: String
   , srv_port :: PortID
@@ -41,5 +43,5 @@ data Connection = Connection
 
 data ChannelSettings = ChannelSettings
   { chan_topic  :: Maybe ByteString
-  , chan_names  :: [Nickname]
+  , chan_names  :: [(Nickname, Maybe Userflag)]
   }
