@@ -4,7 +4,6 @@ import Control.Concurrent.STM
 
 import Data.ByteString (ByteString)
 import Data.Map (Map)
-import Data.Set (Set)
 import Data.Time
 
 import Network
@@ -57,6 +56,11 @@ data Message
 
   | MOTDMsg { motd_content :: ByteString }
 
+  | NickMsg { nickmsg_old :: Maybe UserInfo
+            , nickmsg_new :: Nickname }
+
+  | ErrorMsg { errormsg_code :: Integer }
+
 data Connection = Connection
   { con_user            :: User
   , con_nick_cur        :: Nickname
@@ -70,5 +74,5 @@ data Connection = Connection
 
 data ChannelSettings = ChannelSettings
   { chan_topic  :: Maybe ByteString
-  , chan_names  :: Set (Nickname, Maybe Userflag)
+  , chan_names  :: Map Nickname (Maybe Userflag)
   }

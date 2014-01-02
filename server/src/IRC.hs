@@ -20,6 +20,7 @@ module IRC
   , sendPrivMsg
   , sendJoin
   , sendPart
+  , sendNick
   ) where
 
 import Control.Concurrent.STM
@@ -28,7 +29,6 @@ import Control.Monad
 
 import qualified Data.Map as M
 import           Data.Map (Map)
-import qualified Data.Set as S
 import qualified Data.ByteString as BL
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
@@ -138,11 +138,11 @@ send con msg = handleExceptions $ do
 --------------------------------------------------------------------------------
 -- Specific messages
 
-sendNick :: Connection -> IO ()
-sendNick con = do
+sendNick :: Connection -> ByteString -> IO ()
+sendNick con nick = do
   send con userNickMsg
  where
-  userNickMsg = ircMsg "NICK" [ con_nick_cur con ] ""
+  userNickMsg = ircMsg "NICK" [ nick ] ""
 
 sendUser :: Connection -> IO ()
 sendUser con = do
@@ -218,7 +218,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
 
   -- send username to IRC server
   sendUser connection
-  sendNick connection
+  sendNick connection (con_nick_cur connection)
   mcon <- waitForOK connection (usr_nick_alt usr)
 
   maybe (return ()) `flip` mcon $ \con' ->
@@ -249,7 +249,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
                                    ++ B8.unpack alt ++ "\"."
               -- use alternative nick names:
               let con' = con { con_nick_cur = alt }
-              sendNick con'
+              sendNick con' alt
               waitForOK con' rst
 
             [] -> do
@@ -378,6 +378,16 @@ handleIncoming con = do
         addMessage con $ NoticeMsg from to txt
         return con
 
+      -- nick changes
+      | cmd == "NICK" -> do
+
+        let (new:_)         = msgParams msg
+            Just (Left who) = msgPrefix msg
+
+        addMessage con $
+          NickMsg (if isCurrentUser con who then Nothing else Just who) new
+
+        return $ changeNickname con who new
 
       --
       -- REPLIES
@@ -431,6 +441,17 @@ handleIncoming con = do
 
         return con -- do nothing
 
+      --
+      -- ERROR codes
+      --
+
+      -- nick name change failure
+      | cmd `isCode` err_NICKCOLLISION ||
+        cmd `isCode` err_NICKNAMEINUSE -> do
+
+        addMessage con $ ErrorMsg (read $ B8.unpack cmd)
+        return con
+
       -- catch all unknown messages
       | otherwise -> do
         logW con "handleIncoming" $
@@ -468,7 +489,7 @@ handleIncoming con = do
   -- connection
   addChannels con' channels =
     foldr (\chan con'' -> changeChannelSettings con'' $
-                            M.insert chan (ChannelSettings Nothing S.empty))
+                            M.insert chan (ChannelSettings Nothing M.empty))
           con'
           channels
 
@@ -485,11 +506,11 @@ handleIncoming con = do
   -- | Set channel names
   setChanNames con' channel namesWithFlags =
     adjustChannelSettings con' channel $ \s ->
-      s { chan_names = S.fromList namesWithFlags }
+      s { chan_names = M.fromList namesWithFlags }
 
   addUser con' who channels =
     foldr (\chan con'' -> adjustChannelSettings con'' chan $ \s ->
-                            s { chan_names = S.insert (userNick who, Nothing)
+                            s { chan_names = M.insert (userNick who) Nothing
                                                       (chan_names s) })
           con'
           channels
@@ -511,5 +532,20 @@ handleIncoming con = do
   -- | Remove user from channel settings
   removeUser con' channel nick =
     adjustChannelSettings con' channel $ \s ->
-      s { chan_names = S.filter ((nick /=) . fst)
-                                (chan_names s) }
+      s { chan_names = M.delete nick (chan_names s) }
+
+  -- | Change all occurrences of a given nickname
+  changeNickname con' who@UserInfo{ userNick = old } new =
+
+    let con'' = changeChannelSettings con' $ M.map $ \s ->
+          let names = chan_names s
+              flag  = join $ M.lookup old names
+           in if old `M.member` names
+                then s { chan_names = M.insert new flag $
+                                      M.delete old names }
+                else s
+
+     in -- also check whether we have to change our own nickname
+        if isCurrentUser con' who
+          then con'' { con_nick_cur = new }
+          else con''
