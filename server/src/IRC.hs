@@ -37,7 +37,7 @@ import Network.IRC.ByteString.Parser
 
 import System.IO
 
-import IRC.ErrorCodes
+import IRC.Codes
 import Types
 
 --------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 {-# OPTIONS -fno-warn-missing-signatures #-}
 {-# OPTIONS -fno-warn-type-defaults #-}
 
-module IRC.ErrorCodes where
+module IRC.Codes where
 
 err_NOSUCHNICK = 401
 err_NOSUCHSERVER = 402
