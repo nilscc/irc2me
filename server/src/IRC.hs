@@ -43,7 +43,7 @@ import System.IO
 
 import IRC.Codes
 import IRC.Connection
-import Types
+import IRC.Types
 
 --------------------------------------------------------------------------------
 -- Debugging

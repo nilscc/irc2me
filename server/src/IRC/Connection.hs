@@ -14,7 +14,7 @@ import           Data.Time
 
 import Network.IRC.ByteString.Parser
 
-import Types
+import IRC.Types
 
 changeChannelSettings
   :: Connection

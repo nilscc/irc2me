@@ -1,4 +1,4 @@
-module Types where
+module IRC.Types where
 
 import Control.Concurrent.STM
 

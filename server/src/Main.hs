@@ -14,7 +14,7 @@ import Network.IRC.ByteString.Parser
 -- our imports:
 import IRC
 import IRC.Codes
-import Types
+import IRC.Types
 
 user :: User
 user = User { usr_nick     = "McManiaC"
