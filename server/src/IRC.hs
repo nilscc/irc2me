@@ -11,10 +11,12 @@ module IRC
   , getDebugOutput
     -- * Messages
   , send, receive
+    -- ** Incoming messages
   , handleIncoming
     -- ** Specific messages
   , sendPing, sendPong
   , sendPrivMsg
+  , sendJoin
   ) where
 
 import Control.Concurrent.STM
@@ -60,7 +62,106 @@ connect usr srv channels = do
   -- create debugging output chan for connection
   debug_out <- newTChanIO
 
+  -- see implementation of connect' below (-> Handling incoming messages)
   connect' usr srv (M.fromList channels) debug_out
+
+-- | Try to reestablish an old (closed) connection
+reconnect :: Connection -> IO (Maybe Connection)
+reconnect con = do
+
+  -- reuse server, user and debugging chan
+  let usr       = con_user con
+      srv       = con_server con
+      chans     = con_channels con
+      debug_out = con_debug_output con
+
+  -- see implementation of connect' below (-> Handling incoming messages)
+  connect' usr srv chans debug_out
+
+-- | Send \"QUIT\" to server and close connection
+closeConnection :: Connection -> Maybe ByteString -> IO ()
+closeConnection con quitmsg = do
+  open <- isOpenConnection con
+  when open $ do
+    sendQuit con quitmsg
+    hClose (con_handle con)
+
+isOpenConnection :: Connection -> IO Bool
+isOpenConnection con = do
+  hIsOpen (con_handle con)
+
+--------------------------------------------------------------------------------
+-- Sending & receiving
+
+receive :: Connection -> IO (Either ByteString IRCMsg)
+receive con = handleExceptions $ do
+  bs <- BL.hGetLine (con_handle con)
+  case toIRCMsg bs of
+    Done _ msg -> return $ Right msg
+    _          -> return $ Left bs
+ where
+  handleExceptions = handle $ \(e :: SomeException) -> do
+                              hClose (con_handle con)
+                              return $ Left $ B8.pack $ "Exception: " ++ show e
+                                                      ++ " (connection closed)"
+
+send :: Connection -> IRCMsg -> IO ()
+send con msg = do
+  open <- isOpenConnection con
+  if open
+     then BL.hPutStr (con_handle con) $ fromIRCMsg msg
+     else logC con "Error (send): Connection to IRC server is closed!"
+
+--------------------------------------------------------------------------------
+-- Specific messages
+
+sendNick :: Connection -> IO ()
+sendNick con = do
+  send con userNickMsg
+ where
+  userNickMsg = ircMsg "NICK" [ con_nick_cur con ] ""
+
+sendUser :: Connection -> IO ()
+sendUser con = do
+  send con userMsg
+ where
+  usr     = con_user con
+  userMsg = ircMsg "USER" [ usr_name usr
+                          , "*", "*"
+                          , usr_realname usr ] ""
+
+sendPing :: Connection -> IO ()
+sendPing con = send con $ ircMsg "PING" [] ""
+
+sendPong :: Connection -> IO ()
+sendPong con = send con $ ircMsg "PONG" [] ""
+
+sendJoin :: Connection -> Channel -> Maybe Key -> IO Connection
+sendJoin con chan mpw = do
+
+  -- send JOIN request to server
+  send con $ ircMsg "JOIN" (chan : maybe [] return mpw) ""
+
+  -- Add channel + key to channels map and return new connection:
+  return $ con { con_channels = M.insert chan mpw (con_channels con) }
+
+sendPrivMsg
+  :: Connection
+  -> ByteString       -- ^ Target (user/channel)
+  -> ByteString       -- ^ Text
+  -> IO ()
+sendPrivMsg con to txt = send con $ ircMsg "PRIVMSG" [to] txt
+
+-- | Send "QUIT" command and closes connection to server. Do not re-use this
+-- connection!
+sendQuit :: Connection -> Maybe ByteString -> IO ()
+sendQuit con mquitmsg = do
+  send con quitMsg
+ where
+  quitMsg = ircMsg "QUIT" (maybe [] return mquitmsg) ""
+
+--------------------------------------------------------------------------------
+-- Handeling incoming messages
 
 connect'
   :: User
@@ -134,33 +235,6 @@ connect' usr srv channels debug_out = handleExceptions $ do
 
   isError bs err = bs == (B8.pack $ show err)
 
--- | Try to reestablish an old (closed) connection
-reconnect :: Connection -> IO (Maybe Connection)
-reconnect con = do
-
-  -- reuse server, user and debugging chan
-  let usr       = con_user con
-      srv       = con_server con
-      chans     = con_channels con
-      debug_out = con_debug_output con
-
-  connect' usr srv chans debug_out
-
--- | Send \"QUIT\" to server and close connection
-closeConnection :: Connection -> Maybe ByteString -> IO ()
-closeConnection con quitmsg = do
-  open <- isOpenConnection con
-  when open $ do
-    sendQuit con quitmsg
-    hClose (con_handle con)
-
-isOpenConnection :: Connection -> IO Bool
-isOpenConnection con = do
-  hIsOpen (con_handle con)
-
---------------------------------------------------------------------------------
--- Handeling incoming messages
-
 -- | Handle incoming messages, change connection details if necessary
 handleIncoming :: Connection -> IO Connection
 handleIncoming con = do
@@ -205,73 +279,3 @@ handleIncoming con = do
         logC con $ "Warning (handleIncoming): Unknown message command: \""
                    ++ (init . init . B8.unpack $ fromIRCMsg msg) ++ "\""
         return con
-
---------------------------------------------------------------------------------
--- Sending & receiving
-
-receive :: Connection -> IO (Either ByteString IRCMsg)
-receive con = handleExceptions $ do
-  bs <- BL.hGetLine (con_handle con)
-  case toIRCMsg bs of
-    Done _ msg -> return $ Right msg
-    _          -> return $ Left bs
- where
-  handleExceptions = handle $ \(e :: SomeException) -> do
-                              hClose (con_handle con)
-                              return $ Left $ B8.pack $ "Exception: " ++ show e
-                                                      ++ " (connection closed)"
-
-send :: Connection -> IRCMsg -> IO ()
-send con msg = do
-  open <- isOpenConnection con
-  if open
-     then BL.hPutStr (con_handle con) $ fromIRCMsg msg
-     else logC con "Error (send): Connection to IRC server is closed!"
-
---------------------------------------------------------------------------------
--- Specific messages
-
-sendNick :: Connection -> IO ()
-sendNick con = do
-  send con userNickMsg
- where
-  userNickMsg = ircMsg "NICK" [ con_nick_cur con ] ""
-
-sendUser :: Connection -> IO ()
-sendUser con = do
-  send con userMsg
- where
-  usr     = con_user con
-  userMsg = ircMsg "USER" [ usr_name usr
-                          , "*", "*"
-                          , usr_realname usr ] ""
-
-sendPing :: Connection -> IO ()
-sendPing con = send con $ ircMsg "PING" [] ""
-
-sendPong :: Connection -> IO ()
-sendPong con = send con $ ircMsg "PONG" [] ""
-
-sendJoin :: Connection -> Channel -> Maybe Key -> IO Connection
-sendJoin con chan mpw = do
-
-  -- send JOIN request to server
-  send con $ ircMsg "JOIN" (chan : maybe [] return mpw) ""
-
-  -- Add channel + key to channels map and return new connection:
-  return $ con { con_channels = M.insert chan mpw (con_channels con) }
-
-sendPrivMsg
-  :: Connection
-  -> ByteString       -- ^ Target (user/channel)
-  -> ByteString       -- ^ Text
-  -> IO ()
-sendPrivMsg con to txt = send con $ ircMsg "PRIVMSG" [to] txt
-
--- | Send "QUIT" command and closes connection to server. Do not re-use this
--- connection!
-sendQuit :: Connection -> Maybe ByteString -> IO ()
-sendQuit con mquitmsg = do
-  send con quitMsg
- where
-  quitMsg = ircMsg "QUIT" (maybe [] return mquitmsg) ""
