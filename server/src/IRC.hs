@@ -223,7 +223,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
                        \(connection closed)"
               closeConnection con Nothing
 
-      -- unknown message (e.g. NOTICE)
+      -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
       Right msg -> do
         logC con $ "wait001: " ++ B8.unpack (fromIRCMsg msg)
         waitForOK con alt_nicks
