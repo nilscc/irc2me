@@ -37,6 +37,8 @@ data Message
   = PrivMsg { privmsg_from    :: Either UserInfo ServerName
             , privmsg_to      :: ByteString
             , privmsg_content :: ByteString }
+  | PartMsg { partmsg_channel :: Channel
+            , partmsg_who     :: Maybe UserInfo }
 
 data Connection = Connection
   { con_user            :: User

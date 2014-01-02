@@ -26,7 +26,6 @@ import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
 
-import           Data.Function
 import qualified Data.Map as M
 import           Data.Map (Map)
 import qualified Data.List as L
@@ -297,6 +296,9 @@ handleIncoming con = do
         let Just who = msgPrefix msg
             (chan:_) = msgParams msg
 
+        -- send part message
+        addMessage con $ PartMsg chan (either Just (const Nothing) who)
+
         if isCurrentUser con who
           then return $ leaveChannel con chan
           else return $ removeUser con chan who
@@ -362,6 +364,16 @@ handleIncoming con = do
 
   isCode bs code = bs == (B8.pack $ show code)
 
+  changeChannelSettings
+    :: Connection
+    -> (Map Channel ChannelSettings -> Map Channel ChannelSettings)
+    -> Connection
+  changeChannelSettings con' f =
+    con' { con_channelsettings = f (con_channelsettings con') }
+
+  adjustChannelSettings con' channel f =
+    changeChannelSettings con' (M.adjust f channel)
+
   -- | Add new message with current time
   addMessage con' msg = do
 
@@ -371,18 +383,14 @@ handleIncoming con = do
   -- | Add a list of channels with new (empty) ChannelSettings to current
   -- connection
   addChannels con' channels =
-    foldr (\chan con'' -> con'' { con_channelsettings =
-                                    M.insert chan (ChannelSettings Nothing [])
-                                                  (con_channelsettings con'') })
+    foldr (\chan con'' -> changeChannelSettings con'' $
+                            M.insert chan (ChannelSettings Nothing []))
           con'
           channels
 
   -- | Set topic for a given channel
   setTopic con' channel mtopic =
-    con' { con_channelsettings =
-             M.adjust (\s -> s { chan_topic = mtopic })
-                      channel
-                      (con_channelsettings con') }
+    adjustChannelSettings con' channel $ \s -> s { chan_topic = mtopic }
 
   -- | Split "[@|+]<nick>"
   getUserflag n = case B8.uncons n of
@@ -392,17 +400,16 @@ handleIncoming con = do
 
   -- | Set channel names
   setChanNames con' channel namesWithFlags =
-    con' { con_channelsettings =
-             M.adjust (\s -> s { chan_names = namesWithFlags })
-                      channel
-                      (con_channelsettings con') }
+    adjustChannelSettings con' channel $ \s ->
+      s { chan_names = namesWithFlags }
 
   -- | Compare a IRC message prefix with current nickname & username
-  isCurrentUser con' (Left UserInfo{ userNick, userName, userHost }) =
+  isCurrentUser con' (Left UserInfo{ userNick, userName }) =
     userNick == con_nick_cur con' &&
     userName == Just (usr_name (con_user con'))
   isCurrentUser _ _ =  False
 
+  -- | Leave and remove a channel from current connection
   leaveChannel con' channel =
     con' { con_channels        = M.delete channel (con_channels con')
          , con_channelsettings = M.delete channel (con_channelsettings con')
@@ -410,9 +417,7 @@ handleIncoming con = do
 
   -- | Remove user from channel settings
   removeUser con' channel (Left UserInfo{ userNick }) =
-    con' { con_channelsettings =
-             M.adjust removeUser' channel (con_channelsettings con') }
-   where
-    removeUser' chansettings = chansettings { chan_names =
-                                 L.filter ((userNick /=) . fst)
-                                          (chan_names chansettings) }
+    adjustChannelSettings con' channel $ \s ->
+      s { chan_names = L.filter ((userNick /=) . fst)
+                                (chan_names s) }
+  removeUser con' _ _ = con'
