@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
+-- | Handle IRC connections, send and respond to incoming messages
 module IRC
   ( -- * Connection management
     connect, reconnect

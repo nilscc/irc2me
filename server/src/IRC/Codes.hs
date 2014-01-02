@@ -1,6 +1,7 @@
 {-# OPTIONS -fno-warn-missing-signatures #-}
 {-# OPTIONS -fno-warn-type-defaults #-}
 
+-- | Error and reply codes defined by http://www.ietf.org/rfc/rfc1459.txt
 module IRC.Codes where
 
 err_NOSUCHNICK = 401

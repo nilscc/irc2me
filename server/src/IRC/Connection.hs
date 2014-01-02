@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
+-- | Module with helper functions for "Connection" state modifications
 module IRC.Connection where
 
 import Control.Concurrent.STM
@@ -55,13 +56,14 @@ getUserflag n = case B8.uncons n of
                   Just ('+', nick) -> (nick, Just Voice)
                   _                -> (n, Nothing)
 
--- | Set channel names
+-- | Set channel nicknames
 setChanNames
   :: Connection -> Channel -> [(Nickname, Maybe Userflag)] -> Connection
 setChanNames con' channel namesWithFlags =
   adjustChannelSettings con' channel $ \s ->
     s { chan_names = M.fromList namesWithFlags }
 
+-- | Add a user to a list of channels
 addUser :: Connection -> UserInfo -> [Channel] -> Connection
 addUser con' who channels =
   foldr (\chan con'' -> adjustChannelSettings con'' chan $ \s ->
