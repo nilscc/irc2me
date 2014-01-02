@@ -29,6 +29,7 @@ import qualified Data.ByteString as BL
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 import           Data.Attoparsec
+import           Data.Time
 
 import Network
 import Network.IRC.ByteString.Parser
@@ -177,9 +178,13 @@ connect' usr srv channels debug_out = handleExceptions $ do
   hSetBinaryMode h False
   hSetEncoding h utf8
 
+  -- prepare message chan
+  msg_chan <- newTChanIO
+
   -- connection is established at this point
   let connection = Connection usr (usr_nick usr)
-                              srv channels M.empty h debug_out
+                              srv channels M.empty
+                              h debug_out msg_chan
 
   -- send username to IRC server
   sendUser connection
@@ -249,6 +254,10 @@ handleIncoming con = do
 
     Right msg@(msgCmd -> cmd)
 
+      --
+      -- Commands
+      --
+
       -- ping/pong game
       | cmd == "PING" -> do
         sendPong con
@@ -265,6 +274,11 @@ handleIncoming con = do
 
       -- private messages
       | cmd == "PRIVMSG" -> do
+
+        let to  = head $ msgParams msg
+            txt = msgTrail msg
+        
+        addMessage con $ PrivMsg to txt
         return con
 
       --
@@ -310,6 +324,12 @@ handleIncoming con = do
 
  where
   isCode bs code = bs == (B8.pack $ show code)
+
+  -- | Add new message with current time
+  addMessage con' msg = do
+
+    now <- getCurrentTime
+    atomically $ writeTChan (con_messages con') (now, msg)
 
   -- | Add a list of channels with new (empty) ChannelSettings to current
   -- connection

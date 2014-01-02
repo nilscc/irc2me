@@ -4,6 +4,7 @@ import Control.Concurrent.STM
 
 import Data.ByteString (ByteString)
 import Data.Map (Map)
+import Data.Time
 
 import Network
 --import Network.IRC.ByteString.Parser
@@ -22,6 +23,7 @@ data User = User
   }
 
 data Userflag = Operator | Voice
+  deriving Show
   
 data Server = Server
   { srv_host :: String
@@ -31,6 +33,10 @@ data Server = Server
 type Channel = ByteString
 type Key     = ByteString
 
+data Message
+  = PrivMsg { privmsg_to      :: ByteString
+            , privmsg_content :: ByteString }
+
 data Connection = Connection
   { con_user            :: User
   , con_nick_cur        :: Nickname
@@ -39,6 +45,7 @@ data Connection = Connection
   , con_channelsettings :: Map Channel ChannelSettings
   , con_handle          :: Handle
   , con_debug_output    :: TChan String
+  , con_messages        :: TChan (UTCTime, Message)
   }
 
 data ChannelSettings = ChannelSettings
