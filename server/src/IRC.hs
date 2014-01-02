@@ -13,6 +13,7 @@ module IRC
   , send, receive
     -- ** Incoming messages
   , handleIncoming
+  , getIncomingMessage
     -- ** Specific messages
   , sendPing, sendPong
   , sendPrivMsg
@@ -164,6 +165,12 @@ sendQuit con mquitmsg = do
 --------------------------------------------------------------------------------
 -- Handeling incoming messages
 
+getIncomingMessage :: Connection -> IO (Maybe (UTCTime, Message))
+getIncomingMessage con = handleExceptions $
+  Just `fmap` atomically (readTChan (con_messages con))
+ where
+  handleExceptions = handle (\(_ :: BlockedIndefinitelyOnSTM) -> return Nothing)
+
 connect'
   :: User
   -> Server
@@ -243,8 +250,10 @@ connect' usr srv channels debug_out = handleExceptions $ do
 -- | Handle incoming messages, change connection details if necessary
 handleIncoming :: Connection -> IO Connection
 handleIncoming con = do
+
   mmsg <- receive con
-  case mmsg of
+
+  handleExceptions mmsg $ case mmsg of
 
     -- parsing error
     Left err -> do
@@ -275,10 +284,11 @@ handleIncoming con = do
       -- private messages
       | cmd == "PRIVMSG" -> do
 
-        let to  = head $ msgParams msg
-            txt = msgTrail msg
+        let (to:_)    = msgParams msg
+            Just from = msgPrefix msg
+            txt       = msgTrail msg
         
-        addMessage con $ PrivMsg to txt
+        addMessage con $ PrivMsg from to txt
         return con
 
       --
@@ -323,6 +333,13 @@ handleIncoming con = do
         return con
 
  where
+
+  handleExceptions mmsg =
+    handle (\(_ :: PatternMatchFail) -> do
+             logC con $ "Error (handleIncoming): Pattern match failure: "
+                        ++ show mmsg
+             return con)
+
   isCode bs code = bs == (B8.pack $ show code)
 
   -- | Add new message with current time

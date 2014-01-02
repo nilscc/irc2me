@@ -7,7 +7,7 @@ import Data.Map (Map)
 import Data.Time
 
 import Network
---import Network.IRC.ByteString.Parser
+import Network.IRC.ByteString.Parser
 
 import System.IO
 
@@ -34,7 +34,8 @@ type Channel = ByteString
 type Key     = ByteString
 
 data Message
-  = PrivMsg { privmsg_to      :: ByteString
+  = PrivMsg { privmsg_from    :: Either UserInfo ServerName
+            , privmsg_to      :: ByteString
             , privmsg_content :: ByteString }
 
 data Connection = Connection

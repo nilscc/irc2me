@@ -4,6 +4,8 @@
 import Control.Concurrent
 import Control.Monad
 
+import qualified Data.ByteString.Char8 as B8
+
 import Network
 
 --import System.IO
@@ -39,6 +41,18 @@ main = do
                   Just s  -> do
                     putStrLn s
                     loop
+   in void $ forkIO loop
+
+  -- output incoming messages
+  let loop = do
+        mmsg <- getIncomingMessage con
+        case mmsg of
+          Nothing -> return ()
+          Just (_time, PrivMsg from to msg) -> do
+            putStrLn $ B8.unpack to ++ ": "
+                       ++ "<" ++ show from ++ "> "
+                       ++ B8.unpack msg
+            loop
    in void $ forkIO loop
 
   -- loop over incoming messages
