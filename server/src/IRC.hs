@@ -18,6 +18,7 @@ module IRC
   , sendPing, sendPong
   , sendPrivMsg
   , sendJoin
+  , sendPart
   ) where
 
 import Control.Concurrent.STM
@@ -158,6 +159,9 @@ sendPrivMsg
   -> ByteString       -- ^ Text
   -> IO ()
 sendPrivMsg con to txt = send con $ ircMsg "PRIVMSG" [to] txt
+
+sendPart :: Connection -> Channel -> IO ()
+sendPart con channel = send con $ ircMsg "PART" [channel] ""
 
 -- | Send "QUIT" command and closes connection to server. Do not re-use this
 -- connection!
