@@ -19,11 +19,12 @@ executable irc2mobile-server
   main-is:             Main.hs
   hs-source-dirs:      src/
   -- other-modules:       
-  build-depends:       base ==4.5.*,
+  build-depends:       base == 4.*,
                        bytestring,
                        containers,
                        network,
                        time,
                        stm,
                        attoparsec,
-                       irc-bytestring
+                       irc-bytestring,
+                       protobuf
