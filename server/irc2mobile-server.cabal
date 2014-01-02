@@ -23,6 +23,7 @@ executable irc2mobile-server
                        bytestring,
                        containers,
                        network,
+                       time,
                        stm,
                        attoparsec,
                        irc-bytestring
