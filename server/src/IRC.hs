@@ -288,6 +288,20 @@ handleIncoming con = do
 
         return $ setTopic con chan Nothing
 
+      -- channel names
+      | cmd `isCode` rpl_NAMREPLY -> do
+
+        let (_:_:chan:_)   = msgParams msg
+            namesWithFlags = map getUserflag $ B8.words $ msgTrail msg
+        logC con $ "NAMREPLY for " ++ B8.unpack chan ++ ": " ++ show namesWithFlags
+
+        return $ setChanNames con chan namesWithFlags
+
+      -- end of channel names
+      | cmd `isCode` rpl_ENDOFNAMES -> do
+
+        return con -- do nothing
+
       -- catch all unknown messages
       | otherwise -> do
         logC con $ "Warning (handleIncoming): Unknown message command: \""
@@ -310,5 +324,18 @@ handleIncoming con = do
   setTopic con' channel mtopic =
     con' { con_channelsettings =
              M.adjust (\s -> s { chan_topic = mtopic })
+                      channel
+                      (con_channelsettings con') }
+
+  -- | Split "[@|+]<nick>"
+  getUserflag n = case B8.uncons n of
+                    Just ('@', nick) -> (nick, Just Operator)
+                    Just ('+', nick) -> (nick, Just Voice)
+                    _                -> (n, Nothing)
+
+  -- | Set channel names
+  setChanNames con' channel namesWithFlags =
+    con' { con_channelsettings =
+             M.adjust (\s -> s { chan_names = namesWithFlags })
                       channel
                       (con_channelsettings con') }
