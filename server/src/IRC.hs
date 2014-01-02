@@ -111,11 +111,13 @@ receive con = handleExceptions $ do
                                                       ++ " (connection closed)"
 
 send :: Connection -> IRCMsg -> IO ()
-send con msg = do
-  open <- isOpenConnection con
-  if open
-     then BL.hPutStr (con_handle con) $ fromIRCMsg msg
-     else logC con "Error (send): Connection to IRC server is closed!"
+send con msg = handleExceptions $ do
+  BL.hPutStr (con_handle con) $ fromIRCMsg msg
+ where
+  handleExceptions =
+    handle (\(_ :: IOException) ->
+             logC con "Error (send): Is the connection open?")
+
 
 --------------------------------------------------------------------------------
 -- Specific messages
