@@ -6,15 +6,23 @@ module IRC
   ( -- * Connection management
     connect, reconnect
   , closeConnection, isOpenConnection
-    -- ** Messages
     -- ** Debugging
+  , logC
   , getDebugOutput
+    -- * Messages
+  , send, receive
+  , handleIncoming
+    -- ** Specific messages
+  , sendPing, sendPong
+  , sendPrivMsg
   ) where
 
 import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
 
+import qualified Data.Map as M
+import           Data.Map (Map)
 import qualified Data.ByteString as BL
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
@@ -45,16 +53,22 @@ getDebugOutput con = handleExceptions $ do
 --------------------------------------------------------------------------------
 -- Connection management
 
-connect :: User -> Server -> IO (Maybe Connection)
-connect usr srv = do
+connect
+  :: User -> Server -> [(Channel, Maybe Key)] -> IO (Maybe Connection)
+connect usr srv channels = do
 
   -- create debugging output chan for connection
   debug_out <- newTChanIO
 
-  connect' usr srv debug_out
+  connect' usr srv (M.fromList channels) debug_out
 
-connect' :: User -> Server -> TChan String -> IO (Maybe Connection)
-connect' usr srv debug_out = handleExceptions $ do
+connect'
+  :: User
+  -> Server
+  -> Map Channel (Maybe Key)
+  -> TChan String
+  -> IO (Maybe Connection)
+connect' usr srv channels debug_out = handleExceptions $ do
 
   -- acquire IRC connection
   h <- connectTo (srv_host srv) (srv_port srv)
@@ -63,18 +77,22 @@ connect' usr srv debug_out = handleExceptions $ do
   hSetEncoding h utf8
 
   -- connection is established at this point
-  let connection = Connection usr (usr_nick usr) (usr_nick_alt usr)
-                              srv h debug_out
+  let connection = Connection usr (usr_nick usr)
+                              srv channels M.empty h debug_out
 
   -- send username to IRC server
   sendUser connection
   sendNick connection
-  waitForOK connection
+  waitForOK connection (usr_nick_alt usr)
+
+  mapM_ (uncurry $ sendJoin connection) $ M.toList channels
 
   return $ Just connection
+
  where
   handleExceptions = handle $ \(_ :: IOException) -> return Nothing
-  waitForOK con = do
+
+  waitForOK con alt_nicks = do
     mmsg <- receive con
     case mmsg of
 
@@ -88,15 +106,14 @@ connect' usr srv debug_out = handleExceptions $ do
         | cmd `isError` err_NICKCOLLISION ||
           cmd `isError` err_NICKNAMEINUSE ->
 
-          case con_nick_alt con of
+          case alt_nicks of
             (alt:rst) -> do
               logC con $ "Notify (connect): Nickname changed to \""
-                         ++ alt ++ "\"."
+                         ++ B8.unpack alt ++ "\"."
               -- use alternative nick names:
-              let con' = con { con_nick_cur = alt
-                             , con_nick_alt = rst }
+              let con' = con { con_nick_cur = alt }
               sendNick con'
-              waitForOK con'
+              waitForOK con' rst
 
             [] -> do
               -- no alternative nicks!
@@ -108,12 +125,12 @@ connect' usr srv debug_out = handleExceptions $ do
       -- unknown message (e.g. NOTICE)
       Right msg -> do
         logC con $ "wait001: " ++ B8.unpack (fromIRCMsg msg)
-        waitForOK con
+        waitForOK con alt_nicks
 
       -- something went wrong
       Left  err -> do logC con $ "wait001: " ++ B8.unpack err
                       open <- isOpenConnection con
-                      when open $ waitForOK con
+                      when open $ waitForOK con alt_nicks
 
   isError bs err = bs == (B8.pack $ show err)
 
@@ -124,12 +141,13 @@ reconnect con = do
   -- reuse server, user and debugging chan
   let usr       = con_user con
       srv       = con_server con
+      chans     = con_channels con
       debug_out = con_debug_output con
 
-  connect' usr srv debug_out
+  connect' usr srv chans debug_out
 
 -- | Send \"QUIT\" to server and close connection
-closeConnection :: Connection -> Maybe String -> IO ()
+closeConnection :: Connection -> Maybe ByteString -> IO ()
 closeConnection con quitmsg = do
   open <- isOpenConnection con
   when open $ do
@@ -139,6 +157,54 @@ closeConnection con quitmsg = do
 isOpenConnection :: Connection -> IO Bool
 isOpenConnection con = do
   hIsOpen (con_handle con)
+
+--------------------------------------------------------------------------------
+-- Handeling incoming messages
+
+-- | Handle incoming messages, change connection details if necessary
+handleIncoming :: Connection -> IO Connection
+handleIncoming con = do
+  mmsg <- receive con
+  case mmsg of
+
+    -- parsing error
+    Left err -> do
+      logC con $ "Error (handleIncoming): Impossible parse: \""
+                 ++ B8.unpack err ++ "\""
+      return con
+
+    Right msg@(msgCmd -> cmd)
+
+      -- ping/pong game
+      | cmd == "PING" -> do
+        sendPong con
+        return con
+
+      -- join channels
+      | cmd == "JOIN" -> do
+
+        let channels = B8.split ',' $ msgTrail msg
+        logC con $ "JOIN channels: " ++ concatMap B8.unpack channels
+
+        -- add all channels to channel settings map and return new connection:
+        return $
+          foldr (\chan con' -> con' { con_channelsettings =
+                                        M.insert chan
+                                                 (ChannelSettings Nothing [])
+                                                 (con_channelsettings con')
+                                    })
+                con      -- connection to update
+                channels -- fold over channel list
+
+      -- private messages
+      | cmd == "PRIVMSG" -> do
+        return con
+
+      -- catch all unknown messages
+      | otherwise -> do
+        logC con $ "Warning (handleIncoming): Unknown message command: \""
+                   ++ (init . init . B8.unpack $ fromIRCMsg msg) ++ "\""
+        return con
 
 --------------------------------------------------------------------------------
 -- Sending & receiving
@@ -169,21 +235,43 @@ sendNick :: Connection -> IO ()
 sendNick con = do
   send con userNickMsg
  where
-  userNickMsg = ircMsg "NICK" [ B8.pack $ con_nick_cur con ] ""
+  userNickMsg = ircMsg "NICK" [ con_nick_cur con ] ""
 
 sendUser :: Connection -> IO ()
 sendUser con = do
   send con userMsg
  where
   usr     = con_user con
-  userMsg = ircMsg "USER" [ B8.pack $ usr_name usr
+  userMsg = ircMsg "USER" [ usr_name usr
                           , "*", "*"
-                          , B8.pack $ usr_realname usr ] ""
+                          , usr_realname usr ] ""
+
+sendPing :: Connection -> IO ()
+sendPing con = send con $ ircMsg "PING" [] ""
+
+sendPong :: Connection -> IO ()
+sendPong con = send con $ ircMsg "PONG" [] ""
+
+sendJoin :: Connection -> Channel -> Maybe Key -> IO Connection
+sendJoin con chan mpw = do
+
+  -- send JOIN request to server
+  send con $ ircMsg "JOIN" (chan : maybe [] return mpw) ""
+
+  -- Add channel + key to channels map and return new connection:
+  return $ con { con_channels = M.insert chan mpw (con_channels con) }
+
+sendPrivMsg
+  :: Connection
+  -> ByteString       -- ^ Target (user/channel)
+  -> ByteString       -- ^ Text
+  -> IO ()
+sendPrivMsg con to txt = send con $ ircMsg "PRIVMSG" [to] txt
 
 -- | Send "QUIT" command and closes connection to server. Do not re-use this
 -- connection!
-sendQuit :: Connection -> Maybe String -> IO ()
+sendQuit :: Connection -> Maybe ByteString -> IO ()
 sendQuit con mquitmsg = do
   send con quitMsg
  where
-  quitMsg = ircMsg "QUIT" (maybe [] (return . B8.pack) mquitmsg) ""
+  quitMsg = ircMsg "QUIT" (maybe [] return mquitmsg) ""

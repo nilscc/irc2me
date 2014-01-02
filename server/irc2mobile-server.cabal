@@ -21,6 +21,7 @@ executable irc2mobile-server
   -- other-modules:       
   build-depends:       base ==4.5.*,
                        bytestring,
+                       containers,
                        network,
                        stm,
                        attoparsec,

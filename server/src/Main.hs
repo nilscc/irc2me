@@ -1,9 +1,12 @@
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 import Control.Concurrent
 import Control.Monad
 
 import Network
 
-import System.IO
+--import System.IO
 
 -- our imports:
 import IRC
@@ -21,17 +24,28 @@ server = Server { srv_host = "irc.xinutec.org"
                 , srv_port = PortNumber 6667
                 }
 
+channels :: [(Channel, Maybe Key)]
+channels = [ ("##test", Nothing) ]
+
 main :: IO ()
 main = do
 
-  Just con <- connect user server
+  Just con <- connect user server channels
 
-  closeConnection con Nothing
-
+  -- output all debugging messages
   let loop = do ms <- getDebugOutput con
                 case ms of
                   Nothing -> return ()
                   Just s  -> do
                     putStrLn s
                     loop
-   in loop
+   in void $ forkIO loop
+
+  -- loop over incoming messages
+  let loop con' = do
+        open <- isOpenConnection con'
+        when open $ do
+          con'' <- handleIncoming con'
+
+          loop con''
+   in loop con
