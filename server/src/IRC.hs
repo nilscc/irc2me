@@ -261,21 +261,54 @@ handleIncoming con = do
         logC con $ "JOIN channels: " ++ concatMap B8.unpack channels
 
         -- add all channels to channel settings map and return new connection:
-        return $
-          foldr (\chan con' -> con' { con_channelsettings =
-                                        M.insert chan
-                                                 (ChannelSettings Nothing [])
-                                                 (con_channelsettings con')
-                                    })
-                con      -- connection to update
-                channels -- fold over channel list
+        return $ addChannels con channels
 
       -- private messages
       | cmd == "PRIVMSG" -> do
         return con
+
+      --
+      -- REPLIES
+      --
+
+      -- topic reply
+      | cmd `isCode` rpl_TOPIC -> do
+
+        let chan  = head $ msgParams msg
+            topic = msgTrail msg
+        logC con $ "TOPIC for " ++ B8.unpack chan ++ ": " ++ B8.unpack topic
+
+        return $ setTopic con chan (Just topic)
+
+      -- remove old topic (if any)
+      | cmd `isCode` rpl_NOTOPIC -> do
+
+        let chan = head $ msgParams msg
+        logC con $ "NOTOPIC for " ++ B8.unpack chan ++ "."
+
+        return $ setTopic con chan Nothing
 
       -- catch all unknown messages
       | otherwise -> do
         logC con $ "Warning (handleIncoming): Unknown message command: \""
                    ++ (init . init . B8.unpack $ fromIRCMsg msg) ++ "\""
         return con
+
+ where
+  isCode bs code = bs == (B8.pack $ show code)
+
+  -- | Add a list of channels with new (empty) ChannelSettings to current
+  -- connection
+  addChannels con' channels =
+    foldr (\chan con'' -> con'' { con_channelsettings =
+                                    M.insert chan (ChannelSettings Nothing [])
+                                                  (con_channelsettings con'') })
+          con'
+          channels
+
+  -- | Set topic for a given channel
+  setTopic con' channel mtopic =
+    con' { con_channelsettings =
+             M.adjust (\s -> s { chan_topic = mtopic })
+                      channel
+                      (con_channelsettings con') }
