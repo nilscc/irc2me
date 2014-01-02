@@ -8,7 +8,7 @@ module IRC
   , closeConnection, isOpenConnection
     -- ** Messages
     -- ** Debugging
-  , logC, getDebugOutput
+  , getDebugOutput
   ) where
 
 import Control.Concurrent.STM
@@ -78,7 +78,7 @@ connect' usr srv debug_out = handleExceptions $ do
     mmsg <- receive con
     case mmsg of
 
-      -- check commands
+      -- check for authentication errors
       Right (msgCmd -> cmd)
 
         -- everything OK, we're done:
@@ -90,7 +90,7 @@ connect' usr srv debug_out = handleExceptions $ do
 
           case con_nick_alt con of
             (alt:rst) -> do
-              logC con $ "Notify (connect): Nick name changed to \""
+              logC con $ "Notify (connect): Nickname changed to \""
                          ++ alt ++ "\"."
               -- use alternative nick names:
               let con' = con { con_nick_cur = alt
@@ -100,12 +100,12 @@ connect' usr srv debug_out = handleExceptions $ do
 
             [] -> do
               -- no alternative nicks!
-              logC con "Error (connect): Nick name collision: \
+              logC con "Error (connect): Nickname collision: \
                        \Try to supply a list of alternative nicknames. \
                        \(connection closed)"
               closeConnection con Nothing
 
-      -- check for authentication errors
+      -- unknown message (e.g. NOTICE)
       Right msg -> do
         logC con $ "wait001: " ++ B8.unpack (fromIRCMsg msg)
         waitForOK con
