@@ -185,8 +185,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
   -- acquire IRC connection
   h <- connectTo (srv_host srv) (srv_port srv)
   hSetBuffering h LineBuffering
-  hSetBinaryMode h False
-  hSetEncoding h utf8
+  hSetBinaryMode h True
 
   -- prepare message chan
   msg_chan <- newTChanIO
