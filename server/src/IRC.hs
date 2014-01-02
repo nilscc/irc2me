@@ -342,6 +342,17 @@ handleIncoming con = do
         addMessage con $ PrivMsg from to txt
         return con
 
+      -- notice messages
+      | cmd == "NOTICE" -> do
+
+        let (to:_)    = msgParams msg
+            Just from = msgPrefix msg
+            txt       = msgTrail msg
+        
+        addMessage con $ NoticeMsg from to txt
+        return con
+
+
       --
       -- REPLIES
       --

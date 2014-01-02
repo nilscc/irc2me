@@ -39,6 +39,10 @@ data Message
             , privmsg_to      :: ByteString
             , privmsg_content :: ByteString }
 
+  | NoticeMsg { noticemsg_from    :: Either UserInfo ServerName
+              , noticemsg_to      :: ByteString
+              , noticemsg_content :: ByteString }
+
   | JoinMsg { joinmsg_channel :: Channel
             , joinmsg_who     :: Maybe UserInfo }
 
