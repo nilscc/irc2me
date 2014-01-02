@@ -41,6 +41,7 @@ import Network.IRC.ByteString.Parser
 import System.IO
 
 import IRC.Codes
+import IRC.Connection
 import Types
 
 --------------------------------------------------------------------------------
@@ -468,84 +469,3 @@ handleIncoming con = do
              return con)
 
   isCode bs code = bs == (B8.pack $ show code)
-
-  changeChannelSettings
-    :: Connection
-    -> (Map Channel ChannelSettings -> Map Channel ChannelSettings)
-    -> Connection
-  changeChannelSettings con' f =
-    con' { con_channelsettings = f (con_channelsettings con') }
-
-  adjustChannelSettings con' channel f =
-    changeChannelSettings con' (M.adjust f channel)
-
-  -- | Add new message with current time
-  addMessage con' msg = do
-
-    now <- getCurrentTime
-    atomically $ writeTChan (con_messages con') (now, msg)
-
-  -- | Add a list of channels with new (empty) ChannelSettings to current
-  -- connection
-  addChannels con' channels =
-    foldr (\chan con'' -> changeChannelSettings con'' $
-                            M.insert chan (ChannelSettings Nothing M.empty))
-          con'
-          channels
-
-  -- | Set topic for a given channel
-  setTopic con' channel mtopic =
-    adjustChannelSettings con' channel $ \s -> s { chan_topic = mtopic }
-
-  -- | Split "[@|+]<nick>"
-  getUserflag n = case B8.uncons n of
-                    Just ('@', nick) -> (nick, Just Operator)
-                    Just ('+', nick) -> (nick, Just Voice)
-                    _                -> (n, Nothing)
-
-  -- | Set channel names
-  setChanNames con' channel namesWithFlags =
-    adjustChannelSettings con' channel $ \s ->
-      s { chan_names = M.fromList namesWithFlags }
-
-  addUser con' who channels =
-    foldr (\chan con'' -> adjustChannelSettings con'' chan $ \s ->
-                            s { chan_names = M.insert (userNick who) Nothing
-                                                      (chan_names s) })
-          con'
-          channels
-
-  -- | Compare a IRC message prefix with current nickname & username
-  isCurrentUser con' (UserInfo{ userNick, userName }) =
-    userNick == con_nick_cur con' &&
-    userName == Just (usr_name (con_user con'))
-
-  -- | Compare nicknames only
-  isCurrentNick con' nick = con_nick_cur con' == nick
-
-  -- | Leave and remove a channel from current connection
-  leaveChannel con' channel =
-    con' { con_channels        = M.delete channel (con_channels con')
-         , con_channelsettings = M.delete channel (con_channelsettings con')
-         }
-
-  -- | Remove user from channel settings
-  removeUser con' channel nick =
-    adjustChannelSettings con' channel $ \s ->
-      s { chan_names = M.delete nick (chan_names s) }
-
-  -- | Change all occurrences of a given nickname
-  changeNickname con' who@UserInfo{ userNick = old } new =
-
-    let con'' = changeChannelSettings con' $ M.map $ \s ->
-          let names = chan_names s
-              flag  = join $ M.lookup old names
-           in if old `M.member` names
-                then s { chan_names = M.insert new flag $
-                                      M.delete old names }
-                else s
-
-     in -- also check whether we have to change our own nickname
-        if isCurrentUser con' who
-          then con'' { con_nick_cur = new }
-          else con''
