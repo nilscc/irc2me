@@ -100,6 +100,9 @@ receive con = handleExceptions $ do
   bs <- BL.hGetLine (con_handle con)
   case toIRCMsg bs of
     Done _ msg -> return $ Right msg
+    Partial f  -> case f "" of
+                    Done _ msg -> return $ Right msg
+                    _          -> return $ Left bs
     _          -> return $ Left bs
  where
   handleExceptions = handle $ \(e :: SomeException) -> do
