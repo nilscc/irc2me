@@ -8,7 +8,7 @@ module IRC
     connect, reconnect
   , closeConnection, isOpenConnection
     -- ** Debugging
-  , logC
+  , logE, logW, logI
   , getDebugOutput
     -- * Messages
   , send, receive
@@ -50,6 +50,17 @@ logC :: Connection -> String -> IO ()
 logC con s = do
   atomically $ writeTChan (con_debug_output con) s
 
+logE, logW, logI :: Connection -> String -> String -> IO ()
+
+logE con where_ what =
+  logC con $ "Error (" ++ where_ ++ "): " ++ what
+
+logW con where_ what =
+  logC con $ "Warning (" ++ where_ ++ "): " ++ what
+
+logI con where_ what =
+  logC con $ "Info (" ++ where_ ++ "): " ++ what
+
 getDebugOutput :: Connection -> IO (Maybe String)
 getDebugOutput con = handleExceptions $ do
   s <- atomically $ readTChan (con_debug_output con)
@@ -86,10 +97,8 @@ reconnect con = do
 -- | Send \"QUIT\" to server and close connection
 closeConnection :: Connection -> Maybe ByteString -> IO ()
 closeConnection con quitmsg = do
-  open <- isOpenConnection con
-  when open $ do
-    sendQuit con quitmsg
-    hClose (con_handle con)
+  sendQuit con quitmsg
+  hClose (con_handle con)
 
 isOpenConnection :: Connection -> IO Bool
 isOpenConnection con = do
@@ -105,13 +114,17 @@ receive con = handleExceptions $ do
     Done _ msg -> return $ Right msg
     Partial f  -> case f "" of
                     Done _ msg -> return $ Right msg
-                    _          -> return $ Left bs
-    _          -> return $ Left bs
+                    _          -> return $ Left $ impossibleParseError bs
+    _          -> return $ Left $ impossibleParseError bs
  where
-  handleExceptions = handle $ \(e :: SomeException) -> do
+  handleExceptions = handle $ \(e :: IOException) -> do
                               hClose (con_handle con)
-                              return $ Left $ B8.pack $ "Exception: " ++ show e
-                                                      ++ " (connection closed)"
+                              return $ Left $
+                                 "Exception (receive): "
+                                 `BL.append` B8.pack (show e)
+                                 `BL.append` " (connection closed)"
+  impossibleParseError bs =
+    "Error (receive): Impossible parse: \"" `BL.append` bs `BL.append` "\""
 
 send :: Connection -> IRCMsg -> IO ()
 send con msg = handleExceptions $ do
@@ -119,7 +132,7 @@ send con msg = handleExceptions $ do
  where
   handleExceptions =
     handle (\(_ :: IOException) ->
-             logC con "Error (send): Is the connection open?")
+             logE con "send" "Is the connection open?")
 
 
 --------------------------------------------------------------------------------
@@ -221,7 +234,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
     case mmsg of
 
       -- check for authentication errors
-      Right (msgCmd -> cmd)
+      Right msg@(msgCmd -> cmd)
 
         -- everything OK, we're done:
         | cmd == "001" -> return $ Just con
@@ -232,8 +245,8 @@ connect' usr srv channels debug_out = handleExceptions $ do
 
           case alt_nicks of
             (alt:rst) -> do
-              logC con $ "Notify (connect): Nickname changed to \""
-                         ++ B8.unpack alt ++ "\"."
+              logI con "connect" $ "Nickname changed to \""
+                                   ++ B8.unpack alt ++ "\"."
               -- use alternative nick names:
               let con' = con { con_nick_cur = alt }
               sendNick con'
@@ -241,19 +254,27 @@ connect' usr srv channels debug_out = handleExceptions $ do
 
             [] -> do
               -- no alternative nicks!
-              logC con "Error (connect): Nickname collision: \
+              logE con "connect"
+                       "Nickname collision: \
                        \Try to supply a list of alternative nicknames. \
                        \(connection closed)"
               closeConnection con Nothing
               return Nothing
 
+        | cmd == "NOTICE" -> do
+
+           let txt = msgTrail msg
+
+           logI con "connect" $ "NOTICE: " ++ show txt
+           waitForOK con alt_nicks
+
       -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
       Right msg -> do
-        logC con $ "wait001: " ++ B8.unpack (fromIRCMsg msg)
+        logI con "connect" (init (B8.unpack (fromIRCMsg msg)))
         waitForOK con alt_nicks
 
       -- something went wrong
-      Left  err -> do logC con $ "wait001: " ++ B8.unpack err
+      Left  err -> do logE con "connect" (B8.unpack err)
                       open <- isOpenConnection con
                       if open
                         then waitForOK con alt_nicks
@@ -271,8 +292,7 @@ handleIncoming con = do
 
     -- parsing error
     Left err -> do
-      logC con $ "Error (handleIncoming): Impossible parse: \""
-                 ++ B8.unpack err ++ "\""
+      logE con "handleIncoming" $ B8.unpack err
       return con
 
     Right msg@(msgCmd -> cmd)
@@ -307,8 +327,9 @@ handleIncoming con = do
         let Just (Left who@UserInfo { userNick }) = msgPrefix msg
             (chan:_) = msgParams msg
 
-        logC con $ "nick_cur = " ++ show (con_nick_cur con) ++ ", "
-                   ++ "who = " ++ show who
+        logI con "handleIncoming" $
+                 "nick_cur = " ++ show (con_nick_cur con) ++ ", "
+                 ++ "who = " ++ show who
 
         -- send part message
         addMessage con $
@@ -331,6 +352,11 @@ handleIncoming con = do
         if isCurrentNick con who
           then return $ leaveChannel con chan
           else return $ removeUser con chan who
+
+      | cmd == "KILL" -> do
+
+        hClose (con_handle con)
+        return con
 
       -- private messages
       | cmd == "PRIVMSG" -> do
@@ -357,12 +383,23 @@ handleIncoming con = do
       -- REPLIES
       --
 
+      -- message of the day (MOTD)
+      | cmd `isCode` rpl_MOTDSTART ||
+        cmd `isCode` rpl_MOTD      -> do
+
+        addMessage con $ MOTDMsg (msgTrail msg)
+
+        return con
+
       -- topic reply
       | cmd `isCode` rpl_TOPIC -> do
 
         let chan  = head $ msgParams msg
             topic = msgTrail msg
-        logC con $ "TOPIC for " ++ B8.unpack chan ++ ": " ++ B8.unpack topic
+
+        -- TODO: send TOPIC message
+        logI con "handleIncoming" $
+                 "TOPIC for " ++ B8.unpack chan ++ ": " ++ B8.unpack topic
 
         return $ setTopic con chan (Just topic)
 
@@ -370,7 +407,10 @@ handleIncoming con = do
       | cmd `isCode` rpl_NOTOPIC -> do
 
         let chan = head $ msgParams msg
-        logC con $ "NOTOPIC for " ++ B8.unpack chan ++ "."
+
+        -- TODO: send NOTOPIC message
+        logI con "handleIncoming" $
+                 "NOTOPIC for " ++ B8.unpack chan ++ "."
 
         return $ setTopic con chan Nothing
 
@@ -379,7 +419,10 @@ handleIncoming con = do
 
         let (_:_:chan:_)   = msgParams msg
             namesWithFlags = map getUserflag $ B8.words $ msgTrail msg
-        logC con $ "NAMREPLY for " ++ B8.unpack chan ++ ": " ++ show namesWithFlags
+
+        logI con "handleIncoming" $
+                 "NAMREPLY for " ++ B8.unpack chan ++ ": "
+                 ++ show namesWithFlags
 
         return $ setChanNames con chan namesWithFlags
 
@@ -390,16 +433,17 @@ handleIncoming con = do
 
       -- catch all unknown messages
       | otherwise -> do
-        logC con $ "Warning (handleIncoming): Unknown message command: \""
-                   ++ (init . init . B8.unpack $ fromIRCMsg msg) ++ "\""
+        logW con "handleIncoming" $
+                 "Unknown message command: \""
+                 ++ (init . init . B8.unpack $ fromIRCMsg msg) ++ "\""
         return con
 
  where
 
   handleExceptions mmsg =
     handle (\(_ :: PatternMatchFail) -> do
-             logC con $ "Error (handleIncoming): Pattern match failure: "
-                        ++ show mmsg
+             logE con "handleIncoming" $
+                      "Pattern match failure: " ++ show mmsg
              return con)
 
   isCode bs code = bs == (B8.pack $ show code)

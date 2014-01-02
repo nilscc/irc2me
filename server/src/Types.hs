@@ -55,6 +55,8 @@ data Message
                                                   -- being kicked
             , kickmsg_comment :: Maybe ByteString }
 
+  | MOTDMsg { motd_content :: ByteString }
+
 data Connection = Connection
   { con_user            :: User
   , con_nick_cur        :: Nickname
