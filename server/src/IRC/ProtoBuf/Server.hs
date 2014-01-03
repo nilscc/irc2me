@@ -6,11 +6,11 @@ module IRC.ProtoBuf.Server where
 
 import Data.ProtocolBuffers
 import Data.TypeLevel.Num
-import Data.Text
 import Data.Word
 import Data.Monoid
 
 import           Data.ByteString    (ByteString)
+import           Data.Text          (Text)
 import qualified Data.Text.Encoding as E
 
 import GHC.Generics (Generic)
@@ -27,16 +27,16 @@ data MsgType
   | Ty_JoinMsg
   | Ty_PartMsg
   | Ty_KickMsg
+  | Ty_QuitMsg
   | Ty_MOTDMsg
   | Ty_NickMsg
   | Ty_ErrorMsg
   deriving (Eq, Enum, Show)
 
 data PB_IrcMessage = PB_IrcMessage
-  { -- msg type, irc codes etc.
+  { -- message type
     irc_msg_type        :: Required D1  (Enumeration MsgType)
-  , irc_msg_code        :: Optional D2  (Value Word32)
-    -- content
+    -- privmsg/notice
   , irc_msg_from        :: Optional D10 (Value Text)
   , irc_msg_servername  :: Optional D11 (Value Text)
   , irc_msg_to          :: Optional D12 (Value Text)
@@ -44,14 +44,16 @@ data PB_IrcMessage = PB_IrcMessage
     -- nick change
   , irc_msg_nick_old    :: Optional D20 (Value Text)
   , irc_msg_nick_new    :: Optional D21 (Value Text)
-    -- join/part/kick
-  , irc_msg_channel     :: Optional D30 (Value Text)
+    -- join/part/kick/quit
+  , irc_msg_channels    :: Repeated D30 (Value Text)
   , irc_msg_who         :: Optional D31 (Value Text)
   , irc_msg_comment     :: Optional D32 (Value Text)
     -- motd/topic
   , irc_msg_motd        :: Optional D40 (Value Text)
   , irc_msg_topic       :: Optional D41 (Value Text)
   , irc_msg_notopic     :: Optional D42 (Value Bool)
+    -- errors
+  , irc_msg_code        :: Optional D99  (Value Word32)
   }
   deriving (Show, Generic)
 
@@ -72,7 +74,7 @@ emptyIrcMessage ty = PB_IrcMessage
   , irc_msg_nick_old    = mempty
   , irc_msg_nick_new    = mempty
     -- join/part/kick
-  , irc_msg_channel     = mempty
+  , irc_msg_channels    = mempty
   , irc_msg_who         = mempty
   , irc_msg_comment     = mempty
     -- motd/topic
@@ -102,19 +104,25 @@ encodeIrcMessage msg =
             }
     IRC.JoinMsg chan (fmap I.userNick -> who) ->
       (emptyIrcMessage Ty_JoinMsg)
-        { irc_msg_channel = putBS chan
-        , irc_msg_who     = putBSMaybe who
+        { irc_msg_channels = putBSs [chan]
+        , irc_msg_who      = putBSMaybe who
         }
     IRC.PartMsg chan (fmap I.userNick -> who) ->
       (emptyIrcMessage Ty_PartMsg)
-        { irc_msg_channel = putBS chan
-        , irc_msg_who     = putBSMaybe who
+        { irc_msg_channels = putBSs [chan]
+        , irc_msg_who      = putBSMaybe who
         }
     IRC.KickMsg chan who comment ->
       (emptyIrcMessage Ty_KickMsg)
-        { irc_msg_channel = putBS chan
-        , irc_msg_who     = putBSMaybe who
-        , irc_msg_comment = putBSMaybe comment
+        { irc_msg_channels = putBSs [chan]
+        , irc_msg_who      = putBSMaybe who
+        , irc_msg_comment  = putBSMaybe comment
+        }
+    IRC.QuitMsg chans who comment ->
+      (emptyIrcMessage Ty_KickMsg)
+        { irc_msg_channels = putBSs chans
+        , irc_msg_who      = putBSMaybe (I.userNick `fmap` who)
+        , irc_msg_comment  = putBSMaybe comment
         }
     IRC.MOTDMsg motd ->
       (emptyIrcMessage Ty_MOTDMsg)
@@ -144,6 +152,9 @@ splitFrom from =
 
 putBS :: ByteString -> Optional a (Value Text)
 putBS = putField . Just . E.decodeUtf8
+
+putBSs :: [ByteString] -> Repeated a (Value Text)
+putBSs = putField . map E.decodeUtf8
 
 putBSMaybe :: Maybe ByteString -> Optional a (Value Text)
 putBSMaybe = putField . fmap E.decodeUtf8
