@@ -15,6 +15,7 @@ import Network.IRC.ByteString.Parser
 import IRC
 import IRC.Codes
 import IRC.Types
+import qualified IRC.ProtoBuf as P ()
 
 user :: User
 user = User { usr_nick     = "McManiaC"
@@ -52,7 +53,7 @@ main = do
           Nothing -> return ()
 
           Just (_time, MOTDMsg motd) -> do
-            putStrLn $ "MOTD: " ++ B8.unpack motd
+            putStrLn $ "> MOTD: " ++ B8.unpack motd
             loop
 
           Just (_time, PrivMsg (Left from) to msg) -> do
@@ -86,12 +87,20 @@ main = do
             loop
 
           Just (_time, PartMsg chan who) -> do
-            putStrLn $ show who ++ " left " ++ show chan ++ "."
+            putStrLn $ "> " ++ show who ++ " left " ++ show chan ++ "."
             loop
 
           Just (_time, KickMsg chan who comment) -> do
-            putStrLn $ "Kick! " ++ show who ++ " from " ++ show chan ++ "."
+            putStrLn $ "> Kick! " ++ show who ++ " from " ++ show chan ++ "."
                        ++ " Reason: " ++ show comment
+            loop
+
+          Just (_time, QuitMsg _chans (Just who) comment) -> do
+            putStrLn $ "> " ++ show (userNick who) ++ " disconnected."
+                       ++ maybe "" ((" Reason: " ++) . show) comment
+            loop
+          Just (_time, QuitMsg _chans Nothing comment) -> do
+            putStrLn $ "> Disconnected."
             loop
 
           Just (_time, NickMsg (Just old) new) -> do
@@ -105,10 +114,10 @@ main = do
           Just (_time, ErrorMsg code)
             | code == err_NICKNAMEINUSE ||
               code == err_NICKCOLLISION -> do
-              putStrLn $ "Nickname already taken."
+              putStrLn $ "! Nickname already taken."
               loop
             | otherwise -> do
-              putStrLn $ "EROR: " ++ show code
+              putStrLn $ "! EROR: " ++ show code
               loop
 
    in void $ forkIO loop
