@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- | Module with helper functions for "Connection" state modifications
 module IRC.Connection where
@@ -95,6 +96,13 @@ removeUser con' channel nick =
   adjustChannelSettings con' channel $ \s ->
     s { chan_names = M.delete nick (chan_names s) }
 
+-- | Remove user from all channels
+userQuit :: Connection -> [Channel] -> Nickname -> Connection
+userQuit con chans nick =
+  foldr (\chan con' -> removeUser con' chan nick)
+        con
+        chans
+
 -- | Change all occurrences of a given nickname
 changeNickname :: Connection -> UserInfo -> Nickname -> Connection
 changeNickname con' who@UserInfo{ userNick = old } new =
@@ -111,3 +119,9 @@ changeNickname con' who@UserInfo{ userNick = old } new =
       if isCurrentUser con' who
         then con'' { con_nick_cur = new }
         else con''
+
+-- | Get all channels with a certain user
+getChannelsWithUser :: Connection -> Nickname -> [Channel]
+getChannelsWithUser con nick =
+  M.keys $ M.filter (\s -> nick `M.member` chan_names s)
+                    (con_channelsettings con)

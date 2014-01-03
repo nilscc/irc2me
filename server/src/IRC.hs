@@ -329,10 +329,6 @@ handleIncoming con = do
         let Just (Left who@UserInfo { userNick }) = msgPrefix msg
             (chan:_) = msgParams msg
 
-        logI con "handleIncoming" $
-                 "nick_cur = " ++ show (con_nick_cur con) ++ ", "
-                 ++ "who = " ++ show who
-
         -- send part message
         addMessage con $
           PartMsg chan (if isCurrentUser con who then Nothing else Just who)
@@ -340,6 +336,23 @@ handleIncoming con = do
         if isCurrentUser con who
           then return $ leaveChannel con chan
           else return $ removeUser con chan userNick
+
+      | cmd == "QUIT" -> do
+
+        let Just (Left who@UserInfo { userNick }) = msgPrefix msg
+            comment = msgTrail msg
+            chans = getChannelsWithUser con userNick
+
+        -- send part message
+        addMessage con $
+          QuitMsg chans (if isCurrentUser con who then Nothing else Just who)
+                        (if BL.null comment       then Nothing else Just comment)
+
+        if isCurrentUser con who
+          then do
+            hClose (con_handle con)
+            return con
+          else return $ userQuit con chans userNick
 
       | cmd == "KICK" -> do
 
