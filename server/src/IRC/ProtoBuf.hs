@@ -5,26 +5,34 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS -fno-warn-unused-binds #-}
-module IRC.ProtoBuf where
+
+module IRC.ProtoBuf
+  ( -- * Protocol buffer encoding/decoding
+    encodeIrcMessage, PB_IrcMessage
+    -- ** Serialization
+  , messageToBS, bsToMessage
+  ) where
 
 import Data.ProtocolBuffers
 import Data.TypeLevel           hiding (Bool)
 import Data.Text
 import Data.Word
 import Data.Monoid
---import Data.Serialize
+import Data.Serialize
 
-import           Data.ByteString              (ByteString)
---import qualified Data.ByteString              as BS
---import qualified Data.ByteString.Lazy         as BL
---import qualified Data.ByteString.Lazy.Builder as BUILDER
-
+import           Data.ByteString    (ByteString)
 import qualified Data.Text.Encoding as E
 
 import GHC.Generics (Generic)
 
 import qualified Network.IRC.ByteString.Parser as I
 import qualified IRC.Types                     as IRC
+
+messageToBS :: Encode a => a -> ByteString
+messageToBS = runPut . encodeMessage
+
+bsToMessage :: Decode a => ByteString -> Either String a
+bsToMessage = runGet decodeMessage
 
 --------------------------------------------------------------------------------
 -- Type
@@ -40,7 +48,7 @@ data MsgType
   | Ty_ErrorMsg
   deriving (Prelude.Eq, Enum, Show)
 
-data IrcMessage = IrcMessage
+data PB_IrcMessage = PB_IrcMessage
   { -- msg type, irc codes etc.
     irc_msg_type        :: Required D1  (Enumeration MsgType)
   , irc_msg_code        :: Optional D2  (Value Word32)
@@ -63,11 +71,11 @@ data IrcMessage = IrcMessage
   }
   deriving (Show, Generic)
 
-instance Encode IrcMessage
-instance Decode IrcMessage
+instance Encode PB_IrcMessage
+instance Decode PB_IrcMessage
 
-emptyIrcMessage :: MsgType -> IrcMessage
-emptyIrcMessage ty = IrcMessage
+emptyIrcMessage :: MsgType -> PB_IrcMessage
+emptyIrcMessage ty = PB_IrcMessage
   { -- msg type, irc codes etc.
     irc_msg_type        = putField ty
   , irc_msg_code        = mempty
@@ -89,7 +97,7 @@ emptyIrcMessage ty = IrcMessage
   , irc_msg_notopic     = mempty
   }
 
-encodeIrcMessage :: IRC.Message -> IrcMessage
+encodeIrcMessage :: IRC.Message -> PB_IrcMessage
 encodeIrcMessage msg =
   case msg of
     IRC.PrivMsg from to cont ->
