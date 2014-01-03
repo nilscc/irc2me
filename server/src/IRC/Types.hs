@@ -48,7 +48,7 @@ data Message
   | PartMsg { partmsg_channel :: Channel
             , partmsg_who     :: Maybe UserInfo } -- Nothing if current user is
                                                   -- leaving channel
-                                                  --
+
   | KickMsg { kickmsg_channel :: Channel
             , kickmsg_who     :: Maybe ByteString -- Nothing if current user is
                                                   -- being kicked
