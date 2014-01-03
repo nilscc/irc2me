@@ -5,7 +5,7 @@
 module IRC.ProtoBuf.Server where
 
 import Data.ProtocolBuffers
-import Data.TypeLevel           hiding (Bool, (+))
+import Data.TypeLevel.Num
 import Data.Text
 import Data.Word
 import Data.Monoid
@@ -30,7 +30,7 @@ data MsgType
   | Ty_MOTDMsg
   | Ty_NickMsg
   | Ty_ErrorMsg
-  deriving (Prelude.Eq, Enum, Show)
+  deriving (Eq, Enum, Show)
 
 data PB_IrcMessage = PB_IrcMessage
   { -- msg type, irc codes etc.
