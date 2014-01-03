@@ -79,7 +79,7 @@ emptyIrcMessage ty = PB_IrcMessage
   { -- msg type, irc codes etc.
     irc_msg_type        = putField ty
   , irc_msg_code        = mempty
-    -- content
+    -- privmsg/notice
   , irc_msg_from        = mempty
   , irc_msg_servername  = mempty
   , irc_msg_to          = mempty
