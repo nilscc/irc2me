@@ -27,4 +27,7 @@ executable irc2mobile-server
                        stm,
                        attoparsec,
                        irc-bytestring,
-                       protobuf
+                       protobuf,
+                       cereal,
+                       text,
+                       type-level
