@@ -429,6 +429,13 @@ handleIncoming con = do
 
         return $ changeNickname con who new
 
+      | cmd == "ERROR" -> do
+
+        let err = msgTrail msg
+        logE con "handleIncoming" $ "ERROR: \"" ++ B8.unpack err
+                                                ++ "\" (connection closed)"
+        closeConnection con
+
       --
       -- REPLIES
       --
