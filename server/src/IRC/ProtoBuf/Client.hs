@@ -11,6 +11,21 @@ import GHC.Generics (Generic)
 
 import IRC.ProtoBuf.Instances ()
 
+data ClientMsgType
+  = ClntMsg_Request
+  deriving (Eq, Show, Enum)
+
+data PB_ClientMessage = PB_ClientMessage
+  { client_msg_type     :: Required D1  (Enumeration ClientMsgType)
+  }
+  deriving (Eq, Show, Generic)
+
+instance Encode PB_ClientMessage
+instance Decode PB_ClientMessage
+
+--------------------------------------------------------------------------------
+-- Requests
+
 data Request
   = SetOpMode
   | GetBacklog
