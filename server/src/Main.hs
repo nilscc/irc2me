@@ -1,5 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternGuards #-}
 
 import Control.Concurrent
 import Control.Monad
@@ -57,28 +58,25 @@ main = do
           Nothing -> return ()
 
           Just (_time, MOTDMsg motd) -> do
-            putStrLn $ "> MOTD: " ++ B8.unpack motd
+            putStrLn $ "> MOTD : " ++ B8.unpack motd
             loop
 
           Just (_time, PrivMsg (Left from) to msg) -> do
-            putStrLn $ B8.unpack to ++ ": "
+            putStrLn $ "> " ++ B8.unpack to ++ " : "
                        ++ "<" ++ B8.unpack (userNick from) ++ "> "
                        ++ B8.unpack msg
             loop
-          Just (_time, PrivMsg (Right srvname) to msg) -> do
-            putStrLn $ B8.unpack to ++ ": "
-                       ++ "[" ++ B8.unpack srvname ++ "] "
-                       ++ B8.unpack msg
+          Just (_time, PrivMsg (Right _) to msg) -> do
+            putStrLn $ "> " ++ B8.unpack to ++ " : " ++ B8.unpack msg
             loop
 
           Just (_time, NoticeMsg (Left from) to msg) -> do
-            putStrLn $ "NOTICE (" ++ B8.unpack to ++ "): "
+            putStrLn $ "> NOTICE " ++ B8.unpack to ++ " : "
                        ++ "<" ++ B8.unpack (userNick from) ++ "> "
                        ++ B8.unpack msg
             loop
-          Just (_time, NoticeMsg (Right srvname) to msg) -> do
-            putStrLn $ "NOTICE (" ++ B8.unpack to ++ "): "
-                       ++ "[" ++ B8.unpack srvname ++ "] "
+          Just (_time, NoticeMsg (Right _) to msg) -> do
+            putStrLn $ "> NOTICE " ++ B8.unpack to ++ " : "
                        ++ B8.unpack msg
             loop
 
@@ -121,18 +119,37 @@ main = do
               putStrLn $ "! Nickname already taken."
               loop
             | otherwise -> do
-              putStrLn $ "! EROR: " ++ show code
+              putStrLn $ "! EROR : " ++ show code
               loop
+
+          Just (_time, OtherMsg from cmd params content) -> do
+
+            let who | Just (Left (userNick -> nick)) <- from =
+                      "<" ++ B8.unpack nick ++ "> "
+                    | otherwise = ""
+
+                pars | (h:t) <- params, con_nick_cur con == h = t
+                     | otherwise = params
+
+                cont | null pars = B8.unpack content
+                     | otherwise = B8.unpack (B8.unwords pars) ++ " "
+                                ++ B8.unpack content
+
+            putStrLn $ "? [" ++ B8.unpack cmd ++ "] " ++ who ++ cont
+            loop
 
    in void $ forkIO loop
 
   -- loop over incoming messages
   let loop con' = do
-        when (isOpenConnection con') $ do
+        if isOpenConnection con' then do
           con'' <- handleIncoming con'
           loop con''
-   in void $ forkIO $ loop con
+         else
+          putStrLn "Connection closed!"
+   in loop con
 
+  {-
   void getLine
   sendNick con "irc2mobmob"
   void getLine
@@ -140,3 +157,4 @@ main = do
   void getLine
   sendQuit con $ Just "bye!"
   void $ closeConnection con
+  -}
