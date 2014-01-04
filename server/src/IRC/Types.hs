@@ -6,8 +6,9 @@ import Data.ByteString (ByteString)
 import Data.Map (Map)
 import Data.Time
 
-import Network
-import Network.IRC.ByteString.Parser
+import           Network
+import qualified Network.TLS                    as TLS
+import           Network.IRC.ByteString.Parser
 
 import System.IO
 
@@ -74,6 +75,7 @@ data Connection = Connection
   , con_channels        :: Map Channel (Maybe Key)
   , con_channelsettings :: Map Channel ChannelSettings
   , con_handle          :: Handle
+  , con_tls_context     :: Maybe TLS.Context
   , con_debug_output    :: TChan String
   , con_messages        :: TChan (UTCTime, Message)
   }

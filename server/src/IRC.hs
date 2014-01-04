@@ -31,19 +31,22 @@ import Control.Monad
 import qualified Data.Map as M
 import           Data.Map (Map)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 import           Data.Attoparsec
 import           Data.Time
 
-import Network
-import Network.IRC.ByteString.Parser
+import           Network
+import qualified Network.TLS as TLS
+import           Network.IRC.ByteString.Parser
 
 import System.IO
 
 import IRC.Codes
 import IRC.Connection
 import IRC.Types
+import IRC.TLS
 
 --------------------------------------------------------------------------------
 -- Debugging
@@ -111,7 +114,9 @@ isOpenConnection con = do
 
 receive :: Connection -> IO (Either ByteString IRCMsg)
 receive con = handleExceptions $ do
-  bs <- BS.hGetLine (con_handle con)
+  bs <- case con_tls_context con of
+          Nothing   -> BS.hGetLine (con_handle con)
+          Just ctxt -> tlsGetLine ctxt
   case toIRCMsg bs of
     Done _ msg -> return $ Right msg
     Partial f  -> case f "" of
@@ -127,15 +132,18 @@ receive con = handleExceptions $ do
                                  `BS.append` " (connection closed)"
   impossibleParseError bs =
     "Error (receive): Impossible parse: \"" `BS.append` bs `BS.append` "\""
+  tlsGetLine ctxt = TLS.recvData ctxt -- FIXME
 
 send :: Connection -> IRCMsg -> IO ()
 send con msg = handleExceptions $ do
-  BS.hPutStr (con_handle con) $ fromIRCMsg msg
+  case con_tls_context con of
+    Nothing   -> BS.hPutStr (con_handle con) bs
+    Just ctxt -> TLS.sendData ctxt (BL.fromStrict bs)
  where
+  bs = fromIRCMsg msg
   handleExceptions =
     handle (\(_ :: IOException) ->
              logE con "send" "Is the connection open?")
-
 
 --------------------------------------------------------------------------------
 -- Specific messages
@@ -216,12 +224,16 @@ connect' usr srv channels debug_out = handleExceptions $ do
   -- connection is established at this point
   let connection = Connection usr (usr_nick usr)
                               srv channels M.empty
-                              h debug_out msg_chan
+                              h Nothing
+                              debug_out msg_chan
+
+  -- try to establish TLS encryption
+  con <- startTLS connection
 
   -- send username to IRC server
-  sendUser connection
-  sendNick connection (con_nick_cur connection)
-  mcon <- waitForOK connection (usr_nick_alt usr)
+  sendUser con
+  sendNick con (con_nick_cur con)
+  mcon <- waitForOK con (usr_nick_alt usr)
 
   maybe (return ()) `flip` mcon $ \con' ->
     mapM_ (uncurry $ sendJoin con') $ M.toList channels
