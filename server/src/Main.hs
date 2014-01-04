@@ -25,7 +25,7 @@ user = User { usr_nick     = "McManiaC"
             }
 
 server :: Server
-server = Server { srv_host = "irc.xinutec.org"
+server = Server { srv_host = "irc.xinutec.net"
                 , srv_port = PortNumber 6667
                 }
 
@@ -35,7 +35,11 @@ channels = [ ("##test", Nothing) ]
 main :: IO ()
 main = do
 
-  Just con <- connect user server channels
+  putStrLn "Connecting..."
+
+  Just con <- connect server STARTTLS user
+
+  mapM_ (uncurry $ sendJoin con) channels
 
   -- output all debugging messages
   let loop = do ms <- getDebugOutput con
@@ -99,7 +103,7 @@ main = do
             putStrLn $ "> " ++ show (userNick who) ++ " disconnected."
                        ++ maybe "" ((" Reason: " ++) . show) comment
             loop
-          Just (_time, QuitMsg _chans Nothing comment) -> do
+          Just (_time, QuitMsg _chans Nothing _comment) -> do
             putStrLn $ "> Disconnected."
             loop
 
@@ -112,8 +116,8 @@ main = do
             loop
 
           Just (_time, ErrorMsg code)
-            | code == err_NICKNAMEINUSE ||
-              code == err_NICKCOLLISION -> do
+            | code == read err_NICKNAMEINUSE ||
+              code == read err_NICKCOLLISION -> do
               putStrLn $ "! Nickname already taken."
               loop
             | otherwise -> do
@@ -124,8 +128,7 @@ main = do
 
   -- loop over incoming messages
   let loop con' = do
-        open <- isOpenConnection con'
-        when open $ do
+        when (isOpenConnection con') $ do
           con'' <- handleIncoming con'
           loop con''
    in void $ forkIO $ loop con
@@ -135,4 +138,5 @@ main = do
   void getLine
   sendNick con "McManiaC"
   void getLine
-  closeConnection con (Just "Bye!")
+  sendQuit con $ Just "bye!"
+  void $ closeConnection con
