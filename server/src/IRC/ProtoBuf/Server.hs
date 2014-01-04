@@ -21,7 +21,7 @@ import qualified IRC.Types                     as IRC
 --------------------------------------------------------------------------------
 -- IRC messages
 
-data MsgType
+data IrcMsgType
   = Ty_PrivMsg
   | Ty_NoticeMsg
   | Ty_JoinMsg
@@ -35,7 +35,7 @@ data MsgType
 
 data PB_IrcMessage = PB_IrcMessage
   { -- message type
-    irc_msg_type        :: Required D1  (Enumeration MsgType)
+    irc_msg_type        :: Required D1  (Enumeration IrcMsgType)
     -- privmsg/notice
   , irc_msg_from        :: Optional D10 (Value Text)
   , irc_msg_servername  :: Optional D11 (Value Text)
@@ -60,7 +60,7 @@ data PB_IrcMessage = PB_IrcMessage
 instance Encode PB_IrcMessage
 instance Decode PB_IrcMessage
 
-emptyIrcMessage :: MsgType -> PB_IrcMessage
+emptyIrcMessage :: IrcMsgType -> PB_IrcMessage
 emptyIrcMessage ty = PB_IrcMessage
   { -- msg type, irc codes etc.
     irc_msg_type        = putField ty
