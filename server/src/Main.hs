@@ -148,13 +148,3 @@ main = do
          else
           putStrLn "Connection closed!"
    in loop con
-
-  {-
-  void getLine
-  sendNick con "irc2mobmob"
-  void getLine
-  sendNick con "McManiaC"
-  void getLine
-  sendQuit con $ Just "bye!"
-  void $ closeConnection con
-  -}
