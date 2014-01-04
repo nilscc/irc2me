@@ -127,12 +127,13 @@ receive con = handleExceptions $ do
                     _          -> return $ Left $ impossibleParseError bs
     _          -> return $ Left $ impossibleParseError bs
  where
-  handleExceptions = handle $ \(e :: IOException) -> do
-                              _ <- closeConnection con
-                              return $ Left $
-                                 "Exception (receive): "
-                                 `BS.append` B8.pack (show e)
-                                 `BS.append` " (connection closed)"
+  handleExceptions = handle (\(e :: IOException) -> onExc e)
+                   . handle (\(e :: BlockedIndefinitelyOnSTM) -> onExc e)
+   where
+    onExc e = do _ <- closeConnection con
+                 return $ Left $
+                   "Exception (receive): " `BS.append` B8.pack (show e)
+                                           `BS.append` " (connection closed)"
   impossibleParseError bs =
     "Error (receive): Impossible parse: \"" `BS.append` bs `BS.append` "\""
 
