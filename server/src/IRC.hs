@@ -241,7 +241,9 @@ connect' usr srv channels debug_out = handleExceptions $ do
   return mcon
 
  where
-  handleExceptions = handle $ \(_ :: IOException) -> return Nothing
+  handleExceptions = handle $ \(e :: IOException) -> do
+    hPutStrLn stderr $ "IOException on connect: " ++ show e
+    return Nothing
 
   waitForOK con alt_nicks = do
     mmsg <- receive con
@@ -294,7 +296,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
                         then waitForOK con alt_nicks
                         else return $ Just con
 
-  isError bs err = bs == (B8.pack $ show err)
+  isError bs err = bs == (B8.pack err)
 
 -- | Handle incoming messages, change connection details if necessary
 handleIncoming :: Connection -> IO Connection
@@ -494,4 +496,4 @@ handleIncoming con = do
                       "Pattern match failure: " ++ show mmsg
              return con)
 
-  isCode bs code = bs == (B8.pack $ show code)
+  isCode bs code = bs == (B8.pack code)
