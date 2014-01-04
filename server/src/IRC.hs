@@ -81,14 +81,14 @@ reconnect con = do
 -- | Send \"QUIT\" to server and close connection
 closeConnection :: Connection -> IO Connection
 closeConnection con = do
-  --sendQuit con quitmsg
-  sendBye con
-  hClose (con_handle con)
+  handleException $ sendBye con
+  handleException $ hClose (con_handle con)
   return $ con { con_is_open = False }
+ where
+  handleException = handle (\(_ :: IOException) -> return ())
 
 isOpenConnection :: Connection -> Bool
 isOpenConnection = con_is_open
-
 
 --------------------------------------------------------------------------------
 -- Sending & receiving
@@ -103,13 +103,13 @@ receive con = handleExceptions $ do
                     _          -> return $ Left $ impossibleParseError bs
     _          -> return $ Left $ impossibleParseError bs
  where
-  handleExceptions = handle (\(e :: IOException) -> onExc e)
+  handleExceptions = handle (\(e :: IOException)              -> onExc e)
                    . handle (\(e :: BlockedIndefinitelyOnSTM) -> onExc e)
-   where
-    onExc e = do _ <- closeConnection con
-                 return $ Left $
-                   "Exception (receive): " `BS.append` B8.pack (show e)
-                                           `BS.append` " (connection closed)"
+  onExc e = do
+    _ <- closeConnection con
+    return $ Left $
+      "Exception (receive): " `BS.append` B8.pack (show e)
+                              `BS.append` " (connection closed)"
   impossibleParseError bs =
     "Error (receive): Impossible parse: \"" `BS.append` bs `BS.append` "\""
 
@@ -118,8 +118,7 @@ send con msg = handleExceptions $ do
   tlsSend con $ fromIRCMsg msg
  where
   handleExceptions =
-    handle (\(_ :: IOException) ->
-             logE con "send" "Is the connection open?")
+    handle (\(_ :: IOException) -> logE con "send" "Is the connection open?")
 
 --------------------------------------------------------------------------------
 -- Specific messages

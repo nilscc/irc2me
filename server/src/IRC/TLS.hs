@@ -1,12 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module IRC.TLS where
 
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
+import Control.Exception
 
 import Crypto.Random
 
@@ -45,11 +47,13 @@ establishTLS con@Connection{ con_tls_context = Nothing } = do
   buff <- newTVarIO BS.empty
 
   -- receive data in background
-  tid <- forkIO $ forever $ do
+  tid <- forkIO $ forever $ handleException $ do
     bs <- recvData ctxt
     atomically $ modifyTVar buff (`BS.append` bs)
 
   return con{ con_tls_context = Just (ctxt, buff, tid) }
+ where
+  handleException = handle (\(_ :: IOException) -> return ())
 
 tlsGetLine :: Connection -> IO ByteString
 tlsGetLine Connection{ con_tls_context = Just (_, buff, _) } = do
@@ -62,18 +66,18 @@ tlsGetLine Connection{ con_tls_context = Just (_, buff, _) } = do
           writeTVar buff rest
           return $ line `B8.append` "\r\n"
       _ -> retry
-
 tlsGetLine con = do
   BS.hGetLine (con_handle con)
 
 tlsSend :: Connection -> ByteString -> IO ()
-tlsSend Connection{ con_tls_context = Just (ctxt, _, _) } bs = do
-  sendData ctxt (BL.fromStrict bs)
 tlsSend con bs = do
-  BS.hPutStr (con_handle con) bs
+  case con_tls_context con of
+    Just (ctxt, _, _) -> sendData ctxt (BL.fromStrict bs)
+    Nothing           -> BS.hPutStr (con_handle con) bs
 
+-- | Close a TLS session. May fail is handle is already closed!
 sendBye :: Connection -> IO ()
-sendBye con =
+sendBye con = do
   case con_tls_context con of
     Nothing -> return ()
     Just (ctxt,_,tid) -> do
