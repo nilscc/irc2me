@@ -1,8 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
-{-# OPTIONS -fno-warn-orphans #-} -- FIXME
 
 -- | Module for client to server messages
 module IRC.ProtoBuf.Client where
@@ -10,13 +6,10 @@ module IRC.ProtoBuf.Client where
 import Data.ProtocolBuffers
 import Data.TypeLevel.Num
 import Data.Word
-import Data.Foldable
-import Data.Monoid
 
 import GHC.Generics (Generic)
 
--- FIXME: https://github.com/alphaHeavy/protobuf/issues/3
-deriving instance Foldable Last
+import IRC.ProtoBuf.Instances ()
 
 data Request
   = SetOpMode
