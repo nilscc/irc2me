@@ -28,19 +28,16 @@ import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
 
-import           Data.Maybe
 import qualified Data.Map as M
 import           Data.Map (Map)
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 import           Data.Attoparsec
 import           Data.Time
 
-import           Network
-import qualified Network.TLS as TLS
-import           Network.IRC.ByteString.Parser
+import Network
+import Network.IRC.ByteString.Parser
 
 import System.IO
 
@@ -78,14 +75,17 @@ getDebugOutput con = handleExceptions $ do
 -- Connection management
 
 connect
-  :: User -> Server -> [(Channel, Maybe Key)] -> IO (Maybe Connection)
-connect usr srv channels = do
+  :: Server
+  -> TLSSettings
+  -> User
+  -> IO (Maybe Connection)
+connect srv tls_set usr = do
 
   -- create debugging output chan for connection
   debug_out <- newTChanIO
 
   -- see implementation of connect' below (-> Handling incoming messages)
-  connect' usr srv (M.fromList channels) debug_out True
+  connect' srv tls_set usr M.empty debug_out
 
 -- | Try to reestablish an old (closed) connection
 reconnect :: Connection -> IO (Maybe Connection)
@@ -95,10 +95,11 @@ reconnect con = do
   let usr       = con_user con
       srv       = con_server con
       chans     = con_channels con
+      tls_set   = con_tls_settings con
       debug_out = con_debug_output con
 
   -- see implementation of connect' below (-> Handling incoming messages)
-  connect' usr srv chans debug_out (isJust $ con_tls_context con)
+  connect' srv tls_set usr chans debug_out
 
 -- | Send \"QUIT\" to server and close connection
 closeConnection :: Connection -> Maybe ByteString -> IO ()
@@ -203,13 +204,13 @@ getIncomingMessage con = handleExceptions $
   handleExceptions = handle (\(_ :: BlockedIndefinitelyOnSTM) -> return Nothing)
 
 connect'
-  :: User
-  -> Server
+  :: Server
+  -> TLSSettings
+  -> User
   -> Map Channel (Maybe Key)
   -> TChan String
-  -> Bool   -- ^ Use STARTTLS?
   -> IO (Maybe Connection)
-connect' usr srv channels debug_out useSTARTLS = handleExceptions $ do
+connect' srv tls_set usr channels debug_out = handleExceptions $ do
 
   -- acquire IRC connection
   h <- connectTo (srv_host srv) (srv_port srv)
@@ -222,22 +223,30 @@ connect' usr srv channels debug_out useSTARTLS = handleExceptions $ do
   -- connection is established at this point
   let con = Connection usr (usr_nick usr)
                        srv channels M.empty
-                       h Nothing
+                       h tls_set Nothing
                        debug_out msg_chan
 
-  -- check for STARTTLS
-  if useSTARTLS then do
-    logI con "connect" "Sending STARTTLS"
-    hPutStrLn (con_handle con) "STARTTLS"
-   else do
+  -- check TLS settings
+
+  when (tls_set == NoTLS) $ do
     sendUser con
     sendNick con (con_nick_cur con)
 
-  -- send username to IRC server
-  mcon <- waitForOK con (usr_nick_alt usr)
+  when (tls_set == STARTTLS || tls_set == OptionalSTARTTLS) $ do
+    logI con "connect" "Sending STARTTLS"
+    hPutStrLn (con_handle con) "STARTTLS"
 
-  maybe (return ()) `flip` mcon $ \con' ->
-    mapM_ (uncurry $ sendJoin con') $ M.toList channels
+  con' <- if (tls_set == TLS) then do
+            logI con "connect" "Starting TLS handshake"
+            establishTLS con
+           else
+            return con
+
+  -- send username to IRC server
+  mcon <- waitForOK con' (usr_nick_alt usr)
+
+  maybe (return ()) `flip` mcon $ \con'' ->
+    mapM_ (uncurry $ sendJoin con'') $ M.toList channels
 
   return mcon
 
@@ -257,7 +266,8 @@ connect' usr srv channels debug_out useSTARTLS = handleExceptions $ do
         | cmd == "001" -> return $ Just con
 
         -- "STARTTLS OK" reply
-        | cmd == "670" -> do
+        | cmd == "670" &&
+          (tls_set == STARTTLS || tls_set == OptionalSTARTTLS) -> do
 
           con' <- establishTLS con
 

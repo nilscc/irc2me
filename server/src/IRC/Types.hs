@@ -78,6 +78,7 @@ data Connection = Connection
   , con_channels        :: Map Channel (Maybe Key)
   , con_channelsettings :: Map Channel ChannelSettings
   , con_handle          :: Handle
+  , con_tls_settings    :: TLSSettings
   , con_tls_context     :: Maybe (TLS.Context, TLSBuffer, ThreadId)
   , con_debug_output    :: TChan String
   , con_messages        :: TChan (UTCTime, Message)
@@ -87,3 +88,11 @@ data ChannelSettings = ChannelSettings
   { chan_topic  :: Maybe ByteString
   , chan_names  :: Map Nickname (Maybe Userflag)
   }
+
+data TLSSettings
+  = NoTLS                     -- ^ No TLS, plaintext only
+  | TLS                       -- ^ Start with TLS handshake
+  | STARTTLS                  -- ^ Start plaintext and (try to) send STARTTLS
+  | OptionalSTARTTLS          -- ^ Try to use STARTTLS, use plaintext if not
+                              -- available
+  deriving (Eq, Show)
