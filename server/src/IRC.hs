@@ -280,7 +280,7 @@ connect' usr srv channels debug_out = handleExceptions $ do
                       open <- isOpenConnection con
                       if open
                         then waitForOK con alt_nicks
-                        else return Nothing
+                        else return $ Just con
 
   isError bs err = bs == (B8.pack $ show err)
 
