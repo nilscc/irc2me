@@ -236,11 +236,14 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     logI con "connect" "Sending STARTTLS"
     hPutStrLn (con_handle con) "STARTTLS"
 
-  con' <- if (tls_set == TLS) then do
-            logI con "connect" "Starting TLS handshake"
-            establishTLS con
-           else
-            return con
+  con' <- if (tls_set == TLS)
+    then do
+      logI con "connect" "Starting TLS handshake"
+      con' <- establishTLS con
+      sendUser con'
+      sendNick con' (con_nick_cur con)
+      return con'
+    else return con
 
   -- send username to IRC server
   mcon <- waitForOK con' (usr_nick_alt usr)
