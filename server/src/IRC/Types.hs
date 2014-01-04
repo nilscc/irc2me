@@ -78,6 +78,7 @@ data Connection = Connection
   , con_channels        :: Map Channel (Maybe Key)
   , con_channelsettings :: Map Channel ChannelSettings
   , con_handle          :: Handle
+  , con_is_open         :: Bool
   , con_tls_settings    :: TLSSettings
   , con_tls_context     :: Maybe (TLS.Context, TLSBuffer, ThreadId)
   , con_debug_output    :: TChan String

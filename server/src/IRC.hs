@@ -21,6 +21,7 @@ module IRC
   , sendPrivMsg
   , sendJoin
   , sendPart
+  , sendQuit
   , sendNick
   ) where
 
@@ -102,15 +103,16 @@ reconnect con = do
   connect' srv tls_set usr chans debug_out
 
 -- | Send \"QUIT\" to server and close connection
-closeConnection :: Connection -> Maybe ByteString -> IO ()
-closeConnection con quitmsg = do
-  sendQuit con quitmsg
+closeConnection :: Connection -> IO Connection
+closeConnection con = do
+  --sendQuit con quitmsg
   sendBye con
   hClose (con_handle con)
+  return $ con { con_is_open = False }
 
-isOpenConnection :: Connection -> IO Bool
-isOpenConnection con = do
-  hIsOpen (con_handle con)
+isOpenConnection :: Connection -> Bool
+isOpenConnection = con_is_open
+
 
 --------------------------------------------------------------------------------
 -- Sending & receiving
@@ -126,8 +128,7 @@ receive con = handleExceptions $ do
     _          -> return $ Left $ impossibleParseError bs
  where
   handleExceptions = handle $ \(e :: IOException) -> do
-                              sendBye con
-                              hClose (con_handle con)
+                              _ <- closeConnection con
                               return $ Left $
                                  "Exception (receive): "
                                  `BS.append` B8.pack (show e)
@@ -223,7 +224,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
   -- connection is established at this point
   let con = Connection usr (usr_nick usr)
                        srv channels M.empty
-                       h tls_set Nothing
+                       h True tls_set Nothing
                        debug_out msg_chan
 
   -- check TLS settings
@@ -300,8 +301,8 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
                        "Nickname collision: \
                        \Try to supply a list of alternative nicknames. \
                        \(connection closed)"
-              closeConnection con Nothing
-              return Nothing
+              sendQuit con Nothing
+              Just `fmap` closeConnection con
 
         | cmd == "NOTICE" -> do
 
@@ -323,13 +324,13 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
           sendNick con (con_nick_cur con)
           waitForOK con alt_nicks True
          else do
-          closeConnection con Nothing
-          return $ Just con
+          sendQuit con Nothing
+          con' <- closeConnection con
+          return $ Just con'
 
       -- something went wrong
       Left  err -> do logE con "connect" (B8.unpack err)
-                      open <- isOpenConnection con
-                      if open
+                      if isOpenConnection con
                         then waitForOK con alt_nicks is_authed
                         else return $ Just con
 
@@ -400,10 +401,7 @@ handleIncoming con = do
                         (if BS.null comment       then Nothing else Just comment)
 
         if isCurrentUser con who
-          then do
-            sendBye con
-            hClose (con_handle con)
-            return con
+          then closeConnection con
           else return $ userQuit con chans userNick
 
       | cmd == "KICK" -> do
@@ -422,9 +420,7 @@ handleIncoming con = do
 
       | cmd == "KILL" -> do
 
-        sendBye con
-        hClose (con_handle con)
-        return con
+        closeConnection con
 
       -- private messages
       | cmd == "PRIVMSG" -> do

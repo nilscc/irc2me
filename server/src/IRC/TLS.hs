@@ -53,8 +53,8 @@ establishTLS con@Connection{ con_tls_context = Nothing } = do
 
 tlsGetLine :: Connection -> IO ByteString
 tlsGetLine Connection{ con_tls_context = Just (_, buff, _) } = do
-  l <- atomically $ do
-    bs <- readTVar buff
+  atomically $ do
+    bs <- readTVar buff `orElse` retry
     case B8.span (/= '\r') bs of
       (line, bs1)
         | Just ('\r', bs2)  <- B8.uncons bs1
@@ -62,7 +62,7 @@ tlsGetLine Connection{ con_tls_context = Just (_, buff, _) } = do
           writeTVar buff rest
           return $ line `B8.append` "\r\n"
       _ -> retry
-  return l
+
 tlsGetLine con = do
   BS.hGetLine (con_handle con)
 
