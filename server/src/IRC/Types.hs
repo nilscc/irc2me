@@ -69,6 +69,11 @@ data Message
 
   | ErrorMsg { errormsg_code :: Integer }
 
+  | OtherMsg { othermsg_from    :: Maybe (Either UserInfo ServerName)
+             , othermsg_cmd     :: ByteString
+             , othermsg_params  :: [ByteString]
+             , othermsg_content :: ByteString }
+
 type TLSBuffer = TVar ByteString
 
 data Connection = Connection

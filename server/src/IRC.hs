@@ -282,10 +282,12 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
 
         | cmd == "NOTICE" -> do
 
-           let txt = msgTrail msg
-
-           logI con "connect" $ "NOTICE: " ++ show txt
-           waitForOK con alt_nicks is_authed
+          let (to:_)    = msgParams msg
+              Just from = msgPrefix msg
+              txt       = msgTrail msg
+        
+          addMessage con $ NoticeMsg from to txt
+          waitForOK con alt_nicks is_authed
 
       -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
       Right msg -> do
@@ -448,6 +450,12 @@ handleIncoming con = do
 
         return con
 
+      -- end of MOTD
+      | cmd `isCode` rpl_ENDOFMOTD -> do
+
+        -- do nothing
+        return con
+
       -- topic reply
       | cmd `isCode` rpl_TOPIC -> do
 
@@ -477,9 +485,10 @@ handleIncoming con = do
         let (_:_:chan:_)   = msgParams msg
             namesWithFlags = map getUserflag $ B8.words $ msgTrail msg
 
-        logI con "handleIncoming" $
-                 "NAMREPLY for " ++ B8.unpack chan ++ ": "
-                 ++ show namesWithFlags
+        addMessage con $ OtherMsg (msgPrefix msg)
+                                  "NAMREPLY"
+                                  (msgParams msg)
+                                  (msgTrail msg)
 
         return $ setChanNames con chan namesWithFlags
 
@@ -499,11 +508,17 @@ handleIncoming con = do
         addMessage con $ ErrorMsg (read $ B8.unpack cmd)
         return con
 
-      -- catch all unknown messages
+      --
+      -- Other
+      --
+
       | otherwise -> do
-        logW con "handleIncoming" $
-                 "Unknown message command: \""
-                 ++ (init . init . B8.unpack $ fromIRCMsg msg) ++ "\""
+
+        addMessage con $ OtherMsg (msgPrefix msg)
+                                  (msgCmd msg)
+                                  (msgParams msg)
+                                  (msgTrail msg)
+
         return con
 
  where
