@@ -92,7 +92,8 @@ data ChannelSettings = ChannelSettings
 data TLSSettings
   = NoTLS                     -- ^ No TLS, plaintext only
   | TLS                       -- ^ Start with TLS handshake
-  | STARTTLS                  -- ^ Start plaintext and (try to) send STARTTLS
+  | STARTTLS                  -- ^ Start plaintext and send STARTTLS. Close
+                              -- connection if TLS is not available.
   | OptionalSTARTTLS          -- ^ Try to use STARTTLS, use plaintext if not
                               -- available
   deriving (Eq, Show)

@@ -245,8 +245,10 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
       return con'
     else return con
 
+  let is_authed = tls_set `elem` [NoTLS, TLS]
+
   -- send username to IRC server
-  mcon <- waitForOK con' (usr_nick_alt usr)
+  mcon <- waitForOK con' (usr_nick_alt usr) is_authed
 
   maybe (return ()) `flip` mcon $ \con'' ->
     mapM_ (uncurry $ sendJoin con'') $ M.toList channels
@@ -258,7 +260,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     hPutStrLn stderr $ "IOException on connect: " ++ show e
     return Nothing
 
-  waitForOK con alt_nicks = do
+  waitForOK con alt_nicks is_authed = do
     mmsg <- receive con
     case mmsg of
 
@@ -277,7 +279,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
           sendUser con'
           sendNick con' (con_nick_cur con)
 
-          waitForOK con' alt_nicks
+          waitForOK con' alt_nicks True
 
         -- pick different nickname:
         | cmd `isError` err_NICKCOLLISION ||
@@ -290,7 +292,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
               -- use alternative nick names:
               let con' = con { con_nick_cur = alt }
               sendNick con' alt
-              waitForOK con' rst
+              waitForOK con' rst is_authed
 
             [] -> do
               -- no alternative nicks!
@@ -306,18 +308,29 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
            let txt = msgTrail msg
 
            logI con "connect" $ "NOTICE: " ++ show txt
-           waitForOK con alt_nicks
+           waitForOK con alt_nicks is_authed
 
       -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
       Right msg -> do
         logI con "connect" (init (B8.unpack (fromIRCMsg msg)))
-        waitForOK con alt_nicks
+
+        -- FIXME: workaround for authentication after a failed STARTTLS attempt
+        if is_authed then
+          waitForOK con alt_nicks is_authed
+         else if tls_set == OptionalSTARTTLS then do
+          -- STARTTLS failed, authenticate plaintext:
+          sendUser con
+          sendNick con (con_nick_cur con)
+          waitForOK con alt_nicks True
+         else do
+          closeConnection con Nothing
+          return $ Just con
 
       -- something went wrong
       Left  err -> do logE con "connect" (B8.unpack err)
                       open <- isOpenConnection con
                       if open
-                        then waitForOK con alt_nicks
+                        then waitForOK con alt_nicks is_authed
                         else return $ Just con
 
   isError bs err = bs == (B8.pack err)
