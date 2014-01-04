@@ -49,6 +49,13 @@ err_NOOPERHOST = "491"
 err_UMODEUNKNOWNFLAG = "501"
 err_USERSDONTMATCH = "502"
 
+rpl_WELCOME = "001"
+rpl_YOURHOST = "002"
+rpl_CREATED = "003"
+rpl_MYINFO = "004"
+rpl_BOUNCE = "005"
+rpl_ISSUPPORTED = "005"
+
 rpl_NONE = "300"
 rpl_USERHOST = "302"
 rpl_ISON = "303"
