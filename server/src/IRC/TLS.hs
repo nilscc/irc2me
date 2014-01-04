@@ -25,13 +25,6 @@ clientParams = defaultParamsClient
   { pConnectVersion = TLS12
   , pAllowedVersions = [SSL3, TLS10, TLS11, TLS12]
   , pCiphers = ciphersuite_all
-  {-
-  , pLogging = Logging { loggingPacketSent = \s     -> putStrLn $ "send > " ++ s
-                       , loggingPacketRecv = \s     -> putStrLn $ "recv < " ++ s
-                       , loggingIOSent     = \_bs   -> putStrLn $ "send > <binary data>"
-                       , loggingIORecv     = \h _bs -> putStrLn $ "recv < " ++ show h
-                       }
-  -}
   }
 
 establishTLS :: Connection -> IO Connection
