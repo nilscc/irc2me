@@ -30,7 +30,7 @@ import Control.Monad
 
 import qualified Data.Map as M
 import           Data.Map (Map)
-import qualified Data.ByteString as BL
+import qualified Data.ByteString as BS
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 import           Data.Attoparsec
@@ -111,7 +111,7 @@ isOpenConnection con = do
 
 receive :: Connection -> IO (Either ByteString IRCMsg)
 receive con = handleExceptions $ do
-  bs <- BL.hGetLine (con_handle con)
+  bs <- BS.hGetLine (con_handle con)
   case toIRCMsg bs of
     Done _ msg -> return $ Right msg
     Partial f  -> case f "" of
@@ -123,14 +123,14 @@ receive con = handleExceptions $ do
                               hClose (con_handle con)
                               return $ Left $
                                  "Exception (receive): "
-                                 `BL.append` B8.pack (show e)
-                                 `BL.append` " (connection closed)"
+                                 `BS.append` B8.pack (show e)
+                                 `BS.append` " (connection closed)"
   impossibleParseError bs =
-    "Error (receive): Impossible parse: \"" `BL.append` bs `BL.append` "\""
+    "Error (receive): Impossible parse: \"" `BS.append` bs `BS.append` "\""
 
 send :: Connection -> IRCMsg -> IO ()
 send con msg = handleExceptions $ do
-  BL.hPutStr (con_handle con) $ fromIRCMsg msg
+  BS.hPutStr (con_handle con) $ fromIRCMsg msg
  where
   handleExceptions =
     handle (\(_ :: IOException) ->
@@ -346,7 +346,7 @@ handleIncoming con = do
         -- send part message
         addMessage con $
           QuitMsg chans (if isCurrentUser con who then Nothing else Just who)
-                        (if BL.null comment       then Nothing else Just comment)
+                        (if BS.null comment       then Nothing else Just comment)
 
         if isCurrentUser con who
           then do
@@ -362,7 +362,7 @@ handleIncoming con = do
         -- send kick message
         addMessage con $
           KickMsg chan (if isCurrentNick con who then Nothing else Just who)
-                       (if BL.null comment       then Nothing else Just comment)
+                       (if BS.null comment       then Nothing else Just comment)
 
         if isCurrentNick con who
           then return $ leaveChannel con chan
