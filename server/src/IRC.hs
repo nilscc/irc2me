@@ -28,6 +28,7 @@ import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
 
+import           Data.Maybe
 import qualified Data.Map as M
 import           Data.Map (Map)
 import qualified Data.ByteString as BS
@@ -84,7 +85,7 @@ connect usr srv channels = do
   debug_out <- newTChanIO
 
   -- see implementation of connect' below (-> Handling incoming messages)
-  connect' usr srv (M.fromList channels) debug_out
+  connect' usr srv (M.fromList channels) debug_out True
 
 -- | Try to reestablish an old (closed) connection
 reconnect :: Connection -> IO (Maybe Connection)
@@ -97,12 +98,13 @@ reconnect con = do
       debug_out = con_debug_output con
 
   -- see implementation of connect' below (-> Handling incoming messages)
-  connect' usr srv chans debug_out
+  connect' usr srv chans debug_out (isJust $ con_tls_context con)
 
 -- | Send \"QUIT\" to server and close connection
 closeConnection :: Connection -> Maybe ByteString -> IO ()
 closeConnection con quitmsg = do
   sendQuit con quitmsg
+  sendBye con
   hClose (con_handle con)
 
 isOpenConnection :: Connection -> IO Bool
@@ -114,9 +116,7 @@ isOpenConnection con = do
 
 receive :: Connection -> IO (Either ByteString IRCMsg)
 receive con = handleExceptions $ do
-  bs <- case con_tls_context con of
-          Nothing   -> BS.hGetLine (con_handle con)
-          Just ctxt -> tlsGetLine ctxt
+  bs <- tlsGetLine con
   case toIRCMsg bs of
     Done _ msg -> return $ Right msg
     Partial f  -> case f "" of
@@ -125,6 +125,7 @@ receive con = handleExceptions $ do
     _          -> return $ Left $ impossibleParseError bs
  where
   handleExceptions = handle $ \(e :: IOException) -> do
+                              sendBye con
                               hClose (con_handle con)
                               return $ Left $
                                  "Exception (receive): "
@@ -132,15 +133,11 @@ receive con = handleExceptions $ do
                                  `BS.append` " (connection closed)"
   impossibleParseError bs =
     "Error (receive): Impossible parse: \"" `BS.append` bs `BS.append` "\""
-  tlsGetLine ctxt = TLS.recvData ctxt -- FIXME
 
 send :: Connection -> IRCMsg -> IO ()
 send con msg = handleExceptions $ do
-  case con_tls_context con of
-    Nothing   -> BS.hPutStr (con_handle con) bs
-    Just ctxt -> TLS.sendData ctxt (BL.fromStrict bs)
+  tlsSend con $ fromIRCMsg msg
  where
-  bs = fromIRCMsg msg
   handleExceptions =
     handle (\(_ :: IOException) ->
              logE con "send" "Is the connection open?")
@@ -210,8 +207,9 @@ connect'
   -> Server
   -> Map Channel (Maybe Key)
   -> TChan String
+  -> Bool   -- ^ Use STARTTLS?
   -> IO (Maybe Connection)
-connect' usr srv channels debug_out = handleExceptions $ do
+connect' usr srv channels debug_out useSTARTLS = handleExceptions $ do
 
   -- acquire IRC connection
   h <- connectTo (srv_host srv) (srv_port srv)
@@ -222,17 +220,20 @@ connect' usr srv channels debug_out = handleExceptions $ do
   msg_chan <- newTChanIO
 
   -- connection is established at this point
-  let connection = Connection usr (usr_nick usr)
-                              srv channels M.empty
-                              h Nothing
-                              debug_out msg_chan
+  let con = Connection usr (usr_nick usr)
+                       srv channels M.empty
+                       h Nothing
+                       debug_out msg_chan
 
-  -- try to establish TLS encryption
-  con <- startTLS connection
+  -- check for STARTTLS
+  if useSTARTLS then do
+    logI con "connect" "Sending STARTTLS"
+    hPutStrLn (con_handle con) "STARTTLS"
+   else do
+    sendUser con
+    sendNick con (con_nick_cur con)
 
   -- send username to IRC server
-  sendUser con
-  sendNick con (con_nick_cur con)
   mcon <- waitForOK con (usr_nick_alt usr)
 
   maybe (return ()) `flip` mcon $ \con' ->
@@ -254,6 +255,16 @@ connect' usr srv channels debug_out = handleExceptions $ do
 
         -- everything OK, we're done:
         | cmd == "001" -> return $ Just con
+
+        -- "STARTTLS OK" reply
+        | cmd == "670" -> do
+
+          con' <- establishTLS con
+
+          sendUser con'
+          sendNick con' (con_nick_cur con)
+
+          waitForOK con' alt_nicks
 
         -- pick different nickname:
         | cmd `isError` err_NICKCOLLISION ||
@@ -364,6 +375,7 @@ handleIncoming con = do
 
         if isCurrentUser con who
           then do
+            sendBye con
             hClose (con_handle con)
             return con
           else return $ userQuit con chans userNick
@@ -384,6 +396,7 @@ handleIncoming con = do
 
       | cmd == "KILL" -> do
 
+        sendBye con
         hClose (con_handle con)
         return con
 

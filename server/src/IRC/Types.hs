@@ -1,5 +1,6 @@
 module IRC.Types where
 
+import Control.Concurrent
 import Control.Concurrent.STM
 
 import Data.ByteString (ByteString)
@@ -68,6 +69,8 @@ data Message
 
   | ErrorMsg { errormsg_code :: Integer }
 
+type TLSBuffer = TVar ByteString
+
 data Connection = Connection
   { con_user            :: User
   , con_nick_cur        :: Nickname
@@ -75,7 +78,7 @@ data Connection = Connection
   , con_channels        :: Map Channel (Maybe Key)
   , con_channelsettings :: Map Channel ChannelSettings
   , con_handle          :: Handle
-  , con_tls_context     :: Maybe TLS.Context
+  , con_tls_context     :: Maybe (TLS.Context, TLSBuffer, ThreadId)
   , con_debug_output    :: TChan String
   , con_messages        :: TChan (UTCTime, Message)
   }
