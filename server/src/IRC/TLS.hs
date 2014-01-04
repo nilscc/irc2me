@@ -60,7 +60,7 @@ tlsGetLine Connection{ con_tls_context = Just (_, buff, _) } = do
         | Just ('\r', bs2)  <- B8.uncons bs1
         , Just ('\n', rest) <- B8.uncons bs2 -> do
           writeTVar buff rest
-          return $ line `B8.append` "\n\r"
+          return $ line `B8.append` "\r\n"
       _ -> retry
   return l
 tlsGetLine con = do
