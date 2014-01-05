@@ -12,14 +12,17 @@ import Control.Exception
 
 import Crypto.Random
 
+import           Data.Functor
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
 
+import Network.IRC.ByteString.Parser
 import Network.TLS
 import Network.TLS.Extra
 
+import IRC.Debug
+import IRC.Messages
 import IRC.Types
 
 clientParams :: Params
@@ -29,57 +32,112 @@ clientParams = defaultParamsClient
   , pCiphers = ciphersuite_all
   }
 
-establishTLS :: Connection -> IO Connection
-establishTLS con@Connection{ con_tls_context = Just _ }  = return con
-establishTLS con@Connection{ con_tls_context = Nothing } = do
+establishTLS :: Connection -> IO ()
+establishTLS con = do
+  tls_cont <- getTlsContext con
+  case tls_cont of
+    Just _ -> return ()
+    Nothing -> do
+      -- entropy & random gen
+      gen <- cprgCreate `fmap` createEntropyPool :: IO SystemRNG
 
-  -- entropy & random gen
-  gen <- cprgCreate `fmap` createEntropyPool :: IO SystemRNG
+      -- create TLS context
+      ctxt <- contextNewOnHandle (con_handle con)
+                                 clientParams
+                                 gen
 
-  -- create TLS context
-  ctxt <- contextNewOnHandle (con_handle con)
-                             clientParams
-                             gen
+      handshake ctxt
 
-  handshake ctxt
+      -- create incoming buffer
+      buff <- newTVarIO BS.empty
 
-  -- create incoming buffer
-  buff <- newTVarIO BS.empty
+      -- receive data in background
+      tid <- forkIO $ forever $ handleException $ do
+        bs <- recvData ctxt
+        atomically $ modifyTVar buff (`BS.append` bs)
 
-  -- receive data in background
-  tid <- forkIO $ forever $ handleException $ do
-    bs <- recvData ctxt
-    atomically $ modifyTVar buff (`BS.append` bs)
-
-  return con{ con_tls_context = Just (ctxt, buff, tid) }
+      atomically $ writeTVar (con_tls_context con) $ Just (ctxt, buff, tid)
  where
   handleException = handle (\(_ :: IOException) -> return ())
 
-tlsGetLine :: Connection -> IO ByteString
-tlsGetLine Connection{ con_tls_context = Just (_, buff, _) } = do
-  atomically $ do
-    bs <- readTVar buff `orElse` retry
-    case B8.span (/= '\r') bs of
-      (line, bs1)
-        | Just ('\r', bs2)  <- B8.uncons bs1
-        , Just ('\n', rest) <- B8.uncons bs2 -> do
-          writeTVar buff rest
-          return $ line `B8.append` "\r\n"
-      _ -> retry
-tlsGetLine con = do
-  BS.hGetLine (con_handle con)
+--------------------------------------------------------------------------------
+-- TLS initialization
 
-tlsSend :: Connection -> ByteString -> IO ()
-tlsSend con bs = do
-  case con_tls_context con of
-    Just (ctxt, _, _) -> sendData ctxt (BL.fromStrict bs)
-    Nothing           -> BS.hPutStr (con_handle con) bs
+initTLS
+  :: Connection
+  -> TLSSettings
+  -> IO ()
 
--- | Close a TLS session. May fail is handle is already closed!
-sendBye :: Connection -> IO ()
-sendBye con = do
-  case con_tls_context con of
-    Nothing -> return ()
-    Just (ctxt,_,tid) -> do
-      bye ctxt
-      killThread tid
+-- no TLS
+initTLS con NoTLS = do
+  logI con "initTLS" "Plain text"
+  sendUserAuth con
+
+-- start with TLS handshake immediately
+initTLS con TLS = do
+  logI con "initTLS" "TLS"
+  establishTLS con
+  sendUserAuth con
+
+-- enforce STARTTLS
+initTLS con STARTTLS = do
+  logI con "initTLS" "STARTTLS"
+  sendSTARTTLS con
+  tls_succ <- waitForTLS con
+  if tls_succ
+    then sendUserAuth con
+    else closeConnection con -- quit immediately
+
+-- try to find out if server supports TLS via CAP
+initTLS con OptionalSTARTTLS = do
+
+  sendCAPLS con
+  sendUserAuth con
+
+  cap <- waitForCAP con
+  if "tls" `elem` cap then do
+    logI con "initTLS" "STARTTLS via CAP"
+    sendSTARTTLS con
+    -- wait for TLS, fall back to plaintext by returning the old connection on
+    -- 'Nothing'
+    void $ waitForTLS con
+   else
+    logI con "initTLS" "STARTTLS via CAP failed, falling back to plain text"
+
+  sendCAPEnd con
+
+waitForTLS :: Connection -> IO Bool
+waitForTLS con = do
+  mmsg <- receive con
+  case mmsg of
+    Right msg@(msgCmd -> cmd)
+
+      -- TLS success
+      | cmd == "670" -> True <$ establishTLS con
+
+      -- TLS fail
+      | cmd == "691" -> return False
+
+      -- ignore NOTICE message, FIXME: add messages to message queue
+      | cmd == "NOTICE" -> waitForTLS con
+
+      -- unknown message
+      | otherwise -> do
+        logE con "waitForTLS" $ "Unexpected message: " ++ show msg ++ " (TLS init failed)"
+        return False
+
+    _ -> return False
+
+waitForCAP :: Connection -> IO [ByteString]
+waitForCAP con = do
+  mmsg <- receive con
+  case mmsg of
+    Right msg@(msgCmd -> cmd)
+
+      | cmd == "CAP" -> return $ B8.words (msgTrail msg)
+
+      | otherwise -> do
+        logE con "waitForTLS" $ "Unexpected message: " ++ show msg
+        waitForCAP con
+
+    _ -> return []

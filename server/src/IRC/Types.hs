@@ -76,18 +76,26 @@ data Message
 
 type TLSBuffer = TVar ByteString
 
+data ConnectionStatus
+  = ConnectionInitializing
+  | ConnectionEstablished
+  | ConnectionClosed
+  deriving (Eq, Show)
+
 data Connection = Connection
-  { con_user            :: User
-  , con_nick_cur        :: Nickname
+  { -- read only settings:
+    con_user            :: User
   , con_server          :: Server
-  , con_channels        :: Map Channel (Maybe Key)
-  , con_channelsettings :: Map Channel ChannelSettings
-  , con_handle          :: Handle
-  , con_is_open         :: Bool
   , con_tls_settings    :: TLSSettings
-  , con_tls_context     :: Maybe (TLS.Context, TLSBuffer, ThreadId)
-  , con_debug_output    :: TChan String
+    -- connection state variables:
+  , con_nick_cur        :: TVar Nickname
+  , con_channels        :: TVar (Map Channel (Maybe Key))
+  , con_channelsettings :: TVar (Map Channel ChannelSettings)
+  , con_handle          :: Handle
+  , con_status          :: TVar ConnectionStatus
+  , con_tls_context     :: TVar (Maybe (TLS.Context, TLSBuffer, ThreadId))
   , con_messages        :: TChan (UTCTime, Message)
+  , con_debug_output    :: TChan String
   }
 
 data ChannelSettings = ChannelSettings

@@ -8,6 +8,9 @@ module IRC
   ( -- * Connection management
     connect, reconnect
   , closeConnection, isOpenConnection
+  , waitForInitialization
+    -- ** Queries
+  , getCurrentNick, getCurrentNick'
     -- ** Debugging
   , logE, logW, logI
   , getDebugOutput
@@ -25,16 +28,16 @@ module IRC
   , sendNick
   ) where
 
+import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
+import Control.Applicative
 
 import qualified Data.Map as M
 import           Data.Map (Map)
 import qualified Data.ByteString as BS
-import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
-import           Data.Attoparsec
 import           Data.Time
 
 import Network
@@ -45,6 +48,7 @@ import System.IO
 import IRC.Codes
 import IRC.Connection
 import IRC.Debug
+import IRC.Messages
 import IRC.Types
 import IRC.TLS
 
@@ -68,108 +72,19 @@ connect srv tls_set usr = do
 reconnect :: Connection -> IO (Maybe Connection)
 reconnect con = do
 
+  -- just to make sure..
+  closeConnection con
+
   -- reuse server, user and debugging chan
   let usr       = con_user con
       srv       = con_server con
-      chans     = con_channels con
       tls_set   = con_tls_settings con
       debug_out = con_debug_output con
 
+  chans <- getChannels con
+
   -- see implementation of connect' below (-> Handling incoming messages)
   connect' srv tls_set usr chans debug_out
-
--- | Send \"QUIT\" to server and close connection
-closeConnection :: Connection -> IO Connection
-closeConnection con = do
-  handleException $ sendBye con
-  handleException $ hClose (con_handle con)
-  return $ con { con_is_open = False }
- where
-  handleException = handle (\(_ :: IOException) -> return ())
-
-isOpenConnection :: Connection -> Bool
-isOpenConnection = con_is_open
-
---------------------------------------------------------------------------------
--- Sending & receiving
-
-receive :: Connection -> IO (Either ByteString IRCMsg)
-receive con = handleExceptions $ do
-  bs <- tlsGetLine con
-  case toIRCMsg bs of
-    Done _ msg -> return $ Right msg
-    Partial f  -> case f "" of
-                    Done _ msg -> return $ Right msg
-                    _          -> return $ Left $ impossibleParseError bs
-    _          -> return $ Left $ impossibleParseError bs
- where
-  handleExceptions = handle (\(e :: IOException)              -> onExc e)
-                   . handle (\(e :: BlockedIndefinitelyOnSTM) -> onExc e)
-  onExc e = do
-    _ <- closeConnection con
-    return $ Left $
-      "Exception (receive): " `BS.append` B8.pack (show e)
-                              `BS.append` " (connection closed)"
-  impossibleParseError bs =
-    "Error (receive): Impossible parse: \"" `BS.append` bs `BS.append` "\""
-
-send :: Connection -> IRCMsg -> IO ()
-send con msg = handleExceptions $ do
-  tlsSend con $ fromIRCMsg msg
- where
-  handleExceptions =
-    handle (\(_ :: IOException) -> logE con "send" "Is the connection open?")
-
---------------------------------------------------------------------------------
--- Specific messages
-
-sendNick :: Connection -> ByteString -> IO ()
-sendNick con nick = do
-  send con userNickMsg
- where
-  userNickMsg = ircMsg "NICK" [ nick ] ""
-
-sendUser :: Connection -> IO ()
-sendUser con = do
-  send con userMsg
- where
-  usr     = con_user con
-  userMsg = ircMsg "USER" [ usr_name usr
-                          , "*", "*"
-                          , usr_realname usr ] ""
-
-sendPing :: Connection -> IO ()
-sendPing con = send con $ ircMsg "PING" [] ""
-
-sendPong :: Connection -> IO ()
-sendPong con = send con $ ircMsg "PONG" [] ""
-
-sendJoin :: Connection -> Channel -> Maybe Key -> IO Connection
-sendJoin con chan mpw = do
-
-  -- send JOIN request to server
-  send con $ ircMsg "JOIN" (chan : maybe [] return mpw) ""
-
-  -- Add channel + key to channels map and return new connection:
-  return $ con { con_channels = M.insert chan mpw (con_channels con) }
-
-sendPrivMsg
-  :: Connection
-  -> ByteString       -- ^ Target (user/channel)
-  -> ByteString       -- ^ Text
-  -> IO ()
-sendPrivMsg con to txt = send con $ ircMsg "PRIVMSG" [to] txt
-
-sendPart :: Connection -> Channel -> IO ()
-sendPart con channel = send con $ ircMsg "PART" [channel] ""
-
--- | Send "QUIT" command and closes connection to server. Do not re-use this
--- connection!
-sendQuit :: Connection -> Maybe ByteString -> IO ()
-sendQuit con mquitmsg = do
-  send con quitMsg
- where
-  quitMsg = ircMsg "QUIT" (maybe [] return mquitmsg) ""
 
 --------------------------------------------------------------------------------
 -- Handeling incoming messages
@@ -194,50 +109,47 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
   hSetBuffering h LineBuffering
   hSetBinaryMode h True
 
-  -- prepare message chan
-  msg_chan <- newTChanIO
+  -- prepare connection state variables
+  nick_tvar     <- newTVarIO $ usr_nick usr
+  chans_tvar    <- newTVarIO channels
+  chanset_tvar  <- newTVarIO M.empty
+  stat_tvar     <- newTVarIO ConnectionInitializing
+  tls_tvar      <- newTVarIO Nothing
+  msg_chan      <- newTChanIO
 
   -- connection is established at this point
-  let con = Connection usr (usr_nick usr)
-                       srv channels M.empty
-                       h True tls_set Nothing
-                       debug_out msg_chan
+  let con = Connection usr srv tls_set
+                       nick_tvar
+                       chans_tvar
+                       chanset_tvar
+                       h
+                       stat_tvar
+                       tls_tvar
+                       msg_chan
+                       debug_out
 
-  -- check TLS settings
+  -- initialize in background:
+  void $ forkIO $ do
+    -- check TLS settings
+    initTLS con tls_set
 
-  when (tls_set == NoTLS) $ do
-    sendUser con
-    sendNick con (con_nick_cur con)
+    -- send username to IRC server
+    waitForOK con (usr_nick_alt usr)
 
-  when (tls_set == STARTTLS || tls_set == OptionalSTARTTLS) $ do
-    logI con "connect" "Sending STARTTLS"
-    hPutStrLn (con_handle con) "STARTTLS"
+    mapM_ (uncurry $ sendJoin con) $ M.toList channels
 
-  con' <- if (tls_set == TLS)
-    then do
-      logI con "connect" "Starting TLS handshake"
-      con' <- establishTLS con
-      sendUser con'
-      sendNick con' (con_nick_cur con)
-      return con'
-    else return con
+    atomically $ do
+      is_init <- isInitConnection' con
+      when is_init $ setConnectionStatus' con ConnectionEstablished
 
-  let is_authed = tls_set `elem` [NoTLS, TLS]
-
-  -- send username to IRC server
-  mcon <- waitForOK con' (usr_nick_alt usr) is_authed
-
-  maybe (return ()) `flip` mcon $ \con'' ->
-    mapM_ (uncurry $ sendJoin con'') $ M.toList channels
-
-  return mcon
-
+  return $ Just con
+      
  where
   handleExceptions = handle $ \(e :: IOException) -> do
     hPutStrLn stderr $ "IOException on connect: " ++ show e
     return Nothing
 
-  waitForOK con alt_nicks is_authed = do
+  waitForOK con alt_nicks = do
     mmsg <- receive con
     case mmsg of
 
@@ -245,18 +157,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
       Right msg@(msgCmd -> cmd)
 
         -- everything OK, we're done:
-        | cmd == "001" -> return $ Just con
-
-        -- "STARTTLS OK" reply
-        | cmd == "670" &&
-          (tls_set == STARTTLS || tls_set == OptionalSTARTTLS) -> do
-
-          con' <- establishTLS con
-
-          sendUser con'
-          sendNick con' (con_nick_cur con)
-
-          waitForOK con' alt_nicks True
+        | cmd == "001" -> return ()
 
         -- pick different nickname:
         | cmd `isError` err_NICKCOLLISION ||
@@ -264,21 +165,23 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
 
           case alt_nicks of
             (alt:rst) -> do
+
+              -- use alternative nick names:
               logI con "connect" $ "Nickname changed to \""
                                    ++ B8.unpack alt ++ "\"."
-              -- use alternative nick names:
-              let con' = con { con_nick_cur = alt }
-              sendNick con' alt
-              waitForOK con' rst is_authed
+              setNick con alt
+              sendNick con alt
+              waitForOK con rst
 
             [] -> do
+
               -- no alternative nicks!
               logE con "connect"
                        "Nickname collision: \
                        \Try to supply a list of alternative nicknames. \
                        \(connection closed)"
               sendQuit con Nothing
-              Just `fmap` closeConnection con
+              closeConnection con
 
         | cmd == "NOTICE" -> do
 
@@ -287,45 +190,39 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
               txt       = msgTrail msg
         
           addMessage con $ NoticeMsg from to txt
-          waitForOK con alt_nicks is_authed
+          waitForOK con alt_nicks
 
       -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
       Right msg -> do
-        logI con "connect" (init (B8.unpack (fromIRCMsg msg)))
+        
+        addMessage con $ OtherMsg (msgPrefix msg)
+                                  (msgCmd msg)
+                                  (msgParams msg)
+                                  (msgTrail msg)
 
-        -- FIXME: workaround for authentication after a failed STARTTLS attempt
-        if is_authed then
-          waitForOK con alt_nicks is_authed
-         else if tls_set == OptionalSTARTTLS then do
-          -- STARTTLS failed, authenticate plaintext:
-          sendUser con
-          sendNick con (con_nick_cur con)
-          waitForOK con alt_nicks True
-         else do
-          sendQuit con Nothing
-          con' <- closeConnection con
-          return $ Just con'
+        waitForOK con alt_nicks
 
       -- something went wrong
       Left  err -> do logE con "connect" (B8.unpack err)
-                      if isOpenConnection con
-                        then waitForOK con alt_nicks is_authed
-                        else return $ Just con
+                      is_open <- isOpenConnection con
+                      if is_open
+                        then waitForOK con alt_nicks
+                        else return ()
 
   isError bs err = bs == (B8.pack err)
 
 -- | Handle incoming messages, change connection details if necessary
-handleIncoming :: Connection -> IO Connection
-handleIncoming con = do
+handleIncoming :: Connection -> IO ()
+handleIncoming con = handleRecvExceptions $ do
 
   mmsg <- receive con
 
-  handleExceptions mmsg $ case mmsg of
+  handleMsgExceptions mmsg $ case mmsg of
 
     -- parsing error
     Left err -> do
+
       logE con "handleIncoming" $ B8.unpack err
-      return con
 
     Right msg@(msgCmd -> cmd)
 
@@ -335,8 +232,8 @@ handleIncoming con = do
 
       -- ping/pong game
       | cmd == "PING" -> do
+
         sendPong con
-        return con
 
       -- join channels
       | cmd == "JOIN" -> do
@@ -345,42 +242,48 @@ handleIncoming con = do
             channels        = B8.split ',' trail
             Just (Left who) = msgPrefix msg
 
+        is_cur <- isCurrentUser con who
+
         forM_ channels $ \chan ->
           addMessage con $
-            JoinMsg chan (if isCurrentUser con who then Nothing else Just who)
+            JoinMsg chan (if is_cur then Nothing else Just who)
 
         -- check if we joined a channel or if somebody else joined
-        if isCurrentUser con who
-          then return $ addChannels con channels
-          else return $ addUser con who channels
+        if is_cur
+          then addChannels con channels
+          else addUser con who channels
 
       | cmd == "PART" -> do
 
         let Just (Left who@UserInfo { userNick }) = msgPrefix msg
             (chan:_) = msgParams msg
 
+        is_cur <- isCurrentUser con who
         -- send part message
         addMessage con $
-          PartMsg chan (if isCurrentUser con who then Nothing else Just who)
+          PartMsg chan (if is_cur then Nothing else Just who)
 
-        if isCurrentUser con who
-          then return $ leaveChannel con chan
-          else return $ removeUser con chan userNick
+        if is_cur
+          then leaveChannel con chan
+          else removeUser con chan userNick
 
       | cmd == "QUIT" -> do
 
         let Just (Left who@UserInfo { userNick }) = msgPrefix msg
             comment = msgTrail msg
-            chans = getChannelsWithUser con userNick
+
+        (chans, is_cur) <- atomically $
+          (,) <$> getChannelsWithUser' con userNick
+              <*> isCurrentUser' con who
 
         -- send part message
         addMessage con $
-          QuitMsg chans (if isCurrentUser con who then Nothing else Just who)
-                        (if BS.null comment       then Nothing else Just comment)
+          QuitMsg chans (if is_cur          then Nothing else Just who)
+                        (if BS.null comment then Nothing else Just comment)
 
-        if isCurrentUser con who
+        if is_cur
           then closeConnection con
-          else return $ userQuit con chans userNick
+          else userQuit con chans userNick
 
       | cmd == "KICK" -> do
 
@@ -388,13 +291,14 @@ handleIncoming con = do
             comment      = msgTrail msg
 
         -- send kick message
+        is_cur <- isCurrentNick con who
         addMessage con $
-          KickMsg chan (if isCurrentNick con who then Nothing else Just who)
-                       (if BS.null comment       then Nothing else Just comment)
+          KickMsg chan (if is_cur          then Nothing else Just who)
+                       (if BS.null comment then Nothing else Just comment)
 
-        if isCurrentNick con who
-          then return $ leaveChannel con chan
-          else return $ removeUser con chan who
+        if is_cur
+          then leaveChannel con chan
+          else removeUser con chan who
 
       | cmd == "KILL" -> do
 
@@ -408,7 +312,6 @@ handleIncoming con = do
             txt       = msgTrail msg
         
         addMessage con $ PrivMsg from to txt
-        return con
 
       -- notice messages
       | cmd == "NOTICE" -> do
@@ -418,7 +321,6 @@ handleIncoming con = do
             txt       = msgTrail msg
         
         addMessage con $ NoticeMsg from to txt
-        return con
 
       -- nick changes
       | cmd == "NICK" -> do
@@ -426,10 +328,11 @@ handleIncoming con = do
         let (new:_)         = msgParams msg
             Just (Left who) = msgPrefix msg
 
+        is_cur <- isCurrentUser con who
         addMessage con $
-          NickMsg (if isCurrentUser con who then Nothing else Just who) new
+          NickMsg (if is_cur then Nothing else Just who) new
 
-        return $ changeNickname con who new
+        changeNickname con who new
 
       | cmd == "ERROR" -> do
 
@@ -448,13 +351,11 @@ handleIncoming con = do
 
         addMessage con $ MOTDMsg (msgTrail msg)
 
-        return con
-
       -- end of MOTD
       | cmd `isCode` rpl_ENDOFMOTD -> do
 
         -- do nothing
-        return con
+        return ()
 
       -- topic reply
       | cmd `isCode` rpl_TOPIC -> do
@@ -466,7 +367,7 @@ handleIncoming con = do
         logI con "handleIncoming" $
                  "TOPIC for " ++ B8.unpack chan ++ ": " ++ B8.unpack topic
 
-        return $ setTopic con chan (Just topic)
+        setTopic con chan (Just topic)
 
       -- remove old topic (if any)
       | cmd `isCode` rpl_NOTOPIC -> do
@@ -477,7 +378,7 @@ handleIncoming con = do
         logI con "handleIncoming" $
                  "NOTOPIC for " ++ B8.unpack chan ++ "."
 
-        return $ setTopic con chan Nothing
+        setTopic con chan Nothing
 
       -- channel names
       | cmd `isCode` rpl_NAMREPLY -> do
@@ -490,12 +391,12 @@ handleIncoming con = do
                                   (msgParams msg)
                                   (msgTrail msg)
 
-        return $ setChanNames con chan namesWithFlags
+        setChanNames con chan namesWithFlags
 
       -- end of channel names
       | cmd `isCode` rpl_ENDOFNAMES -> do
 
-        return con -- do nothing
+        return () -- do nothing
 
       --
       -- ERROR codes
@@ -506,7 +407,6 @@ handleIncoming con = do
         cmd `isCode` err_NICKNAMEINUSE -> do
 
         addMessage con $ ErrorMsg (read $ B8.unpack cmd)
-        return con
 
       --
       -- Other
@@ -519,14 +419,16 @@ handleIncoming con = do
                                   (msgParams msg)
                                   (msgTrail msg)
 
-        return con
-
  where
 
-  handleExceptions mmsg =
+  handleRecvExceptions =
+    handle (\(e :: IOException) -> do
+             logE con "handleIncoming" $
+                      "IO exception: " ++ show e ++ " (connection closed)"
+             closeConnection con)
+  handleMsgExceptions mmsg =
     handle (\(_ :: PatternMatchFail) -> do
              logE con "handleIncoming" $
-                      "Pattern match failure: " ++ show mmsg
-             return con)
+                      "Pattern match failure: " ++ show mmsg)
 
   isCode bs code = bs == (B8.pack code)

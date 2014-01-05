@@ -40,8 +40,6 @@ main = do
 
   Just con <- connect server STARTTLS user
 
-  mapM_ (uncurry $ sendJoin con) channels
-
   -- output all debugging messages
   let loop = do ms <- getDebugOutput con
                 case ms of
@@ -124,11 +122,13 @@ main = do
 
           Just (_time, OtherMsg from cmd params content) -> do
 
+            cur_nick <- getCurrentNick con
+
             let who | Just (Left (userNick -> nick)) <- from =
                       "<" ++ B8.unpack nick ++ "> "
                     | otherwise = ""
 
-                pars | (h:t) <- params, con_nick_cur con == h = t
+                pars | (h:t) <- params, cur_nick == h = t
                      | otherwise = params
 
                 cont | null pars = B8.unpack content
@@ -140,11 +140,16 @@ main = do
 
    in void $ forkIO loop
 
+  waitForInitialization con
+
+  mapM_ (uncurry $ sendJoin con) channels
+
   -- loop over incoming messages
-  let loop con' = do
-        if isOpenConnection con' then do
-          con'' <- handleIncoming con'
-          loop con''
+  let loop = do
+        is_open <- isOpenConnection con
+        if is_open then do
+          handleIncoming con
+          loop
          else
           putStrLn "Connection closed!"
-   in loop con
+   in loop
