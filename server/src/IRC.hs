@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Handle IRC connections, send and respond to incoming messages
 module IRC
@@ -18,8 +19,7 @@ module IRC
     -- * Messages
   , send, receive
     -- ** Incoming messages
-  , handleIncoming
-  , getIncomingMessage
+  , getIncoming
     -- ** Specific messages
   , pingMsg, pongMsg
   , privMsg
@@ -29,7 +29,6 @@ module IRC
   , nickMsg
   ) where
 
-import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
@@ -60,7 +59,7 @@ connect
   :: Server
   -> TLSSettings
   -> User
-  -> IO (Maybe Connection)
+  -> IO (Maybe (Connection, [(UTCTime, Message)]))
 connect srv tls_set usr = do
 
   -- create debugging output chan for connection
@@ -70,7 +69,7 @@ connect srv tls_set usr = do
   connect' srv tls_set usr M.empty debug_out
 
 -- | Try to reestablish an old (closed) connection
-reconnect :: Connection -> IO (Maybe Connection)
+reconnect :: Connection -> IO (Maybe (Connection, [(UTCTime, Message)]))
 reconnect con = do
 
   -- just to make sure..
@@ -91,28 +90,8 @@ reconnect con = do
   -- see implementation of connect' below (-> Handling incoming messages)
   connect' srv tls_set usr chans debug_out
 
-requireInitConnection :: Connection -> String -> IO () -> IO ()
-requireInitConnection con tag run = do
-  is_init <- isInitConnection con
-  if is_init
-    then run
-    else logE con tag "Connection closed."
-
-requireOpenConnection :: Connection -> String -> IO () -> IO ()
-requireOpenConnection con tag run = do
-  is_open <- isOpenConnection con
-  if is_open
-    then run
-    else logE con tag "Connection closed."
-
 --------------------------------------------------------------------------------
 -- Handeling incoming messages
-
-getIncomingMessage :: Connection -> IO (Maybe (UTCTime, Message))
-getIncomingMessage con = handleExceptions $
-  Just `fmap` atomically (readTChan (con_messages con))
- where
-  handleExceptions = handle (\(_ :: BlockedIndefinitelyOnSTM) -> return Nothing)
 
 connect'
   :: Server
@@ -120,7 +99,7 @@ connect'
   -> User
   -> Map Channel (Maybe Key)
   -> TChan String
-  -> IO (Maybe Connection)
+  -> IO (Maybe (Connection, [(UTCTime, Message)]))
 connect' srv tls_set usr channels debug_out = handleExceptions $ do
 
   -- acquire IRC connection
@@ -133,7 +112,6 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
   chans_tvar    <- newTVarIO channels
   stat_tvar     <- newTVarIO ConnectionInitializing
   tls_tvar      <- newTVarIO Nothing
-  msg_chan      <- newTChanIO
 
   -- connection is established at this point
   let con = Connection usr srv tls_set
@@ -142,33 +120,30 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
                        h
                        stat_tvar
                        tls_tvar
-                       msg_chan
                        debug_out
 
-  -- initialize in background:
-  void $ forkIO $ do
-    -- check TLS settings
-    resend <- initTLS con tls_set
+  -- check TLS settings
+  resend <- initTLS con tls_set
 
-    -- send username to IRC server
-    waitForOK con (usr_nick_alt usr) resend
+  -- send username to IRC server
+  msgs <- waitForOK con (usr_nick_alt usr) resend []
 
-    sequence_ [ send con $ joinMsg chan mkey
-              | (chan, mkey) <- M.toList channels
-              ]
+  sequence_ [ send con $ joinMsg chan mkey
+            | (chan, mkey) <- M.toList channels
+            ]
 
-    atomically $ do
-      is_init <- isInitConnection' con
-      when is_init $ setConnectionStatus' con ConnectionEstablished
+  atomically $ do
+    is_init <- isInitConnection' con
+    when is_init $ setConnectionStatus' con ConnectionEstablished
 
-  return $ Just con
+  return $ Just (con, msgs)
       
  where
   handleExceptions = handle $ \(e :: IOException) -> do
     hPutStrLn stderr $ "IOException on connect: " ++ show e
     return Nothing
 
-  waitForOK con alt_nicks resend = requireInitConnection con "connect" $ do
+  waitForOK con alt_nicks resend msgs = requireInitConnection $ do
 
     -- resend unhandled messages from failed TLS initialization:
     let resend_rest | Just (_:r) <- resend = Just r
@@ -180,34 +155,43 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     case mmsg of
 
       -- check for authentication errors
-      Right msg -> do
-        stat <- initWaitForOK con msg alt_nicks
+      Right (time, msg) -> do
+        stat <- initWaitForOK con msg alt_nicks []
         case stat of
-          InitOK     -> return ()
-          InitCancel -> return ()
-          InitWaitForOK alt_nicks' ->
-            waitForOK con alt_nicks' resend_rest
+          InitOK     -> return msgs
+          InitCancel -> return msgs
+          InitWaitForOK alt_nicks' msgs' ->
+            waitForOK con alt_nicks' resend_rest (msgs ++ map (time,) msgs')
 
       -- something went wrong
       Left err -> do
         logE con "connect" (B8.unpack err)
         is_open <- isOpenConnection con
         if is_open
-          then waitForOK con alt_nicks resend_rest
-          else return ()
+          then waitForOK con alt_nicks resend_rest msgs
+          else return msgs
+   where
+    requireInitConnection run = do
+      is_init <- isInitConnection con
+      if is_init
+        then run
+        else do logE con "connect" "Connection closed."
+                return msgs
 
 data InitStatus
   = InitWaitForOK { _alt_nicks :: [ByteString]
+                  , _init_msgs :: [Message]
                   }
   | InitOK
   | InitCancel
 
 initWaitForOK
   :: Connection
-  -> (UTCTime, IRCMsg)
+  -> IRCMsg
   -> [ByteString]
+  -> [Message]
   -> IO InitStatus
-initWaitForOK con (time, msg@(msgCmd -> cmd)) alt_nicks
+initWaitForOK con msg@(msgCmd -> cmd) alt_nicks msgs
 
   -- everything OK, we're done:
   | cmd == "001" = return InitOK
@@ -224,7 +208,7 @@ initWaitForOK con (time, msg@(msgCmd -> cmd)) alt_nicks
                              ++ B8.unpack alt ++ "\"."
         setNick con alt
         send con $ nickMsg alt
-        return $ InitWaitForOK rst
+        return $ InitWaitForOK rst msgs
 
       [] -> do
 
@@ -244,75 +228,82 @@ initWaitForOK con (time, msg@(msgCmd -> cmd)) alt_nicks
         Just from = msgPrefix msg
         txt       = msgTrail msg
   
-    addMessage con time $ NoticeMsg from to txt
-    return $ InitWaitForOK alt_nicks
+    return $ InitWaitForOK alt_nicks (msgs ++ [NoticeMsg from to txt])
 
   -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
   | otherwise = do
 
-    addMessage con time $ OtherMsg (msgPrefix msg)
-                              (msgCmd msg)
-                              (msgParams msg)
-                              (msgTrail msg)
+    let other = OtherMsg (msgPrefix msg)
+                         (msgCmd msg)
+                         (msgParams msg)
+                         (msgTrail msg)
 
-    return $ InitWaitForOK alt_nicks
+    return $ InitWaitForOK alt_nicks (msgs ++ [other])
  where
   isError bs err = bs == (B8.pack err)
 
 -- | Handle incoming messages, change connection details if necessary
-handleIncoming :: Connection -> IO ()
-handleIncoming con = handleRecvExceptions $
-  requireOpenConnection con "handleIncoming" $ do
+getIncoming :: Connection -> IO (Maybe (UTCTime, Message))
+getIncoming con = handleRecvExceptions $
+
+  requireOpenConnection $ do
 
   mmsg <- receive con
 
   handleMsgExceptions mmsg $ case mmsg of
 
-    Right (time, msg) -> do
-
-      runResult time $ handleIncoming' msg
+    Right (time, msg) -> runResult time $ handleIncoming msg
 
     -- parsing error
-    Left err -> logE con "handleIncoming" $ B8.unpack err
+    Left err -> do
+      logE con "handleIncoming" $ B8.unpack err
+      return Nothing
 
  where
 
   runResult time (IncomingReqUsr f) = runResult time $ f (con_user con)
   runResult time (IncomingReqNck f) = getCurrentNick con >>= runResult time . f
-  runResult time (IncomingResult to_send to_add quit) = do
+  runResult time (IncomingResult to_send res quit) = do
     mapM_ (send con) to_send
-    mapM_ (addMessage con time) to_add
     onJust quit $ \reason -> do
       logI con "handleIncoming" $ reason ++ " (connection closed)"
       closeConnection con
+    return $ (time,) `fmap` res
 
   onJust what = maybe (return ()) `flip` what
+
+  requireOpenConnection run = do
+    is_open <- isOpenConnection con
+    if is_open
+      then run
+      else do logE con "getIncoming" "Connection closed."
+              return Nothing
 
   handleRecvExceptions =
     handle (\(e :: IOException) -> do
              logE con "handleIncoming" $
                       "IO exception: " ++ show e ++ " (connection closed)"
-             closeConnection con)
+             closeConnection con
+             return Nothing)
   handleMsgExceptions mmsg =
     handle (\(_ :: PatternMatchFail) -> do
              logE con "handleIncoming" $
-                      "Pattern match failure: " ++ show mmsg)
+                      "Pattern match failure: " ++ show mmsg
+             return Nothing)
 
 type Reason = String
 
 data IncomingResult
   = IncomingResult { send_msgs    :: [IRCMsg]
-                   , add_msgs     :: [Message]
+                   , add_msg      :: Maybe Message
                    , quit         :: Maybe Reason
                    }
   | IncomingReqUsr { _withUser     :: User -> IncomingResult }
   | IncomingReqNck { _withNick     :: Nickname -> IncomingResult }
 
 -- | Testable interface
-handleIncoming'
-  :: IRCMsg
-  -> IncomingResult
-handleIncoming' msg@(msgCmd -> cmd)
+handleIncoming :: IRCMsg -> IncomingResult
+handleIncoming msg@(msgCmd -> cmd)
 
   --
   -- Commands
@@ -329,7 +320,7 @@ handleIncoming' msg@(msgCmd -> cmd)
         Just (Left who) = msgPrefix msg
 
     withUsr who $ \usr ->
-      addMsgs $ map (JoinMsg `flip` usr) channels
+      addMsg $ JoinMsg channels usr
 
   | cmd == "PART" = do
 
@@ -461,19 +452,14 @@ handleIncoming' msg@(msgCmd -> cmd)
   isCode bs code = bs == (B8.pack code)
 
   emptyRes, doNothing :: IncomingResult
-  emptyRes  = IncomingResult
-                [] []
-                Nothing
+  emptyRes  = IncomingResult [] Nothing Nothing
   doNothing = emptyRes
 
   quitCmd :: String -> IncomingResult
   quitCmd reason = emptyRes { quit = Just reason }
 
   addMsg :: Message -> IncomingResult
-  addMsg msg' = emptyRes { add_msgs = [msg'] }
-
-  addMsgs :: [Message] -> IncomingResult
-  addMsgs msgs = emptyRes { add_msgs = msgs }
+  addMsg msg' = emptyRes { add_msg = Just msg' }
 
   sendMsg :: IRCMsg -> IncomingResult
   sendMsg irc = emptyRes { send_msgs = [irc] }
