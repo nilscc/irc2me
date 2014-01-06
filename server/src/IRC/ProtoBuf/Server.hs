@@ -6,7 +6,6 @@ module IRC.ProtoBuf.Server where
 
 import Data.ProtocolBuffers
 import Data.TypeLevel.Num
-import Data.Word
 import Data.Monoid
 
 import           Data.ByteString    (ByteString)
@@ -65,29 +64,27 @@ data IrcMsgType
   | Ty_MOTDMsg
   | Ty_NickMsg
   | Ty_ErrorMsg
+  | Ty_RawMsg
   deriving (Eq, Enum, Show)
 
 data PB_IrcMessage = PB_IrcMessage
   { -- message type
     irc_msg_type        :: Required D1  (Enumeration IrcMsgType)
+    -- raw messages
+  , irc_msg_from        :: Optional D5 (Value Text) -- either...
+  , irc_msg_servername  :: Optional D6 (Value Text) -- ...or
+  , irc_msg_command     :: Optional D7 (Value Text)
+  , irc_msg_params      :: Repeated D8 (Value Text)
+  , irc_msg_content     :: Optional D9 (Value Text)
     -- privmsg/notice
-  , irc_msg_from        :: Optional D10 (Value Text)
-  , irc_msg_servername  :: Optional D11 (Value Text)
-  , irc_msg_to          :: Optional D12 (Value Text)
-  , irc_msg_content     :: Optional D13 (Value Text)
+  , irc_msg_to          :: Optional D10 (Value Text)
     -- nick change
-  , irc_msg_nick_old    :: Optional D20 (Value Text)
-  , irc_msg_nick_new    :: Optional D21 (Value Text)
+  , irc_msg_new_nick    :: Optional D21 (Value Text)
     -- join/part/kick/quit
   , irc_msg_channels    :: Repeated D30 (Value Text)
   , irc_msg_who         :: Optional D31 (Value Text)
-  , irc_msg_comment     :: Optional D32 (Value Text)
     -- motd/topic
-  , irc_msg_motd        :: Optional D40 (Value Text)
-  , irc_msg_topic       :: Optional D41 (Value Text)
   , irc_msg_notopic     :: Optional D42 (Value Bool)
-    -- errors
-  , irc_msg_code        :: Optional D99  (Value Word32)
   }
   deriving (Show, Generic)
 
@@ -96,24 +93,22 @@ instance Decode PB_IrcMessage
 
 emptyIrcMessage :: IrcMsgType -> PB_IrcMessage
 emptyIrcMessage ty = PB_IrcMessage
-  { -- msg type, irc codes etc.
+  { -- msg type
     irc_msg_type        = putField ty
-  , irc_msg_code        = mempty
-    -- privmsg/notice
+    -- raw messages
   , irc_msg_from        = mempty
   , irc_msg_servername  = mempty
-  , irc_msg_to          = mempty
+  , irc_msg_command     = mempty
+  , irc_msg_params      = mempty
   , irc_msg_content     = mempty
+    -- privmsg/notice
+  , irc_msg_to          = mempty
     -- nick change
-  , irc_msg_nick_old    = mempty
-  , irc_msg_nick_new    = mempty
+  , irc_msg_new_nick    = mempty
     -- join/part/kick
   , irc_msg_channels    = mempty
   , irc_msg_who         = mempty
-  , irc_msg_comment     = mempty
     -- motd/topic
-  , irc_msg_motd        = mempty
-  , irc_msg_topic       = mempty
   , irc_msg_notopic     = mempty
   }
 
@@ -150,27 +145,38 @@ encodeIrcMessage msg =
       (emptyIrcMessage Ty_KickMsg)
         { irc_msg_channels = putBSs [chan]
         , irc_msg_who      = putBSMaybe who
-        , irc_msg_comment  = putBSMaybe comment
+        , irc_msg_content  = putBSMaybe comment
         }
     IRC.QuitMsg chans who comment ->
       (emptyIrcMessage Ty_KickMsg)
         { irc_msg_channels = putBSs chans
         , irc_msg_who      = putBSMaybe (I.userNick `fmap` who)
-        , irc_msg_comment  = putBSMaybe comment
+        , irc_msg_content  = putBSMaybe comment
         }
     IRC.MOTDMsg motd ->
       (emptyIrcMessage Ty_MOTDMsg)
-        { irc_msg_motd = putBS motd
+        { irc_msg_content = putBS motd
         }
     IRC.NickMsg (fmap I.userNick -> old) new ->
       (emptyIrcMessage Ty_NickMsg)
-        { irc_msg_nick_old = putBSMaybe old
-        , irc_msg_nick_new = putBS new
+        { irc_msg_from     = putBSMaybe old
+        , irc_msg_new_nick = putBS new
         }
     IRC.ErrorMsg code ->
       (emptyIrcMessage Ty_ErrorMsg)
-        { irc_msg_code = putField $ Just (fromIntegral code)
+        { irc_msg_command = putBS code
         }
+    IRC.OtherMsg mfrom cmd params content ->
+      let (nick,srv) = maybe (putField Nothing, putField Nothing)
+                             splitFrom
+                             mfrom
+       in (emptyIrcMessage Ty_RawMsg)
+            { irc_msg_from       = nick
+            , irc_msg_servername = srv
+            , irc_msg_command    = putBS cmd
+            , irc_msg_params     = putBSs params
+            , irc_msg_content    = putBS content
+            }
 
 --
 -- helper
