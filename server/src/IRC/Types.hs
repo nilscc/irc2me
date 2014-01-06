@@ -68,6 +68,9 @@ data Message
 
   | ErrorMsg { errormsg_code :: ByteString }
 
+  | TopicMsg { topicmsg_channel :: Channel
+             , topicmsg_topic   :: Maybe ByteString }
+
   | OtherMsg { othermsg_from    :: Maybe (Either UserInfo ServerName)
              , othermsg_cmd     :: ByteString
              , othermsg_params  :: [ByteString]
