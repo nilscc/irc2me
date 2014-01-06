@@ -5,7 +5,6 @@ import Control.Concurrent.STM
 
 import Data.ByteString (ByteString)
 import Data.Map (Map)
-import Data.Time
 
 import           Network
 import qualified Network.TLS                    as TLS
@@ -99,7 +98,6 @@ data Connection = Connection
   , con_handle          :: Handle
   , con_status          :: TVar ConnectionStatus
   , con_tls_context     :: TVar (Maybe (TLS.Context, TLSBuffer, ThreadId))
-  , con_messages        :: TChan (UTCTime, Message)
   , con_debug_output    :: TChan String
   }
 

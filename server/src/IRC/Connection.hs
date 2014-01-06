@@ -10,7 +10,6 @@ import Control.Monad
 import           Data.Map (Map)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
-import           Data.Time
 
 import Network.IRC.ByteString.Parser
 
@@ -69,12 +68,6 @@ getChannels con = atomically $ getChannels' con
 
 getChannels' :: Connection -> STM (Map Channel (Maybe Key))
 getChannels' con = readTVar (con_channels con)
-
--- | Add new message with current time
-addMessage :: Connection -> UTCTime -> Message -> IO ()
-addMessage con' time msg = do
-
-  atomically $ writeTChan (con_messages con') (time, msg)
 
 -- | Split "[@|+]<nick>"
 getUserflag :: ByteString -> (Nickname, Maybe Userflag)
