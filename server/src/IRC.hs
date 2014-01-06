@@ -91,6 +91,20 @@ reconnect con = do
   -- see implementation of connect' below (-> Handling incoming messages)
   connect' srv tls_set usr chans debug_out
 
+requireInitConnection :: Connection -> String -> IO () -> IO ()
+requireInitConnection con tag run = do
+  is_init <- isInitConnection con
+  if is_init
+    then run
+    else logE con tag "Connection closed."
+
+requireOpenConnection :: Connection -> String -> IO () -> IO ()
+requireOpenConnection con tag run = do
+  is_open <- isOpenConnection con
+  if is_open
+    then run
+    else logE con tag "Connection closed."
+
 --------------------------------------------------------------------------------
 -- Handeling incoming messages
 
@@ -152,7 +166,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     hPutStrLn stderr $ "IOException on connect: " ++ show e
     return Nothing
 
-  waitForOK con alt_nicks resend = do
+  waitForOK con alt_nicks resend = requireInitConnection con "connect" $ do
 
     -- resend unhandled messages from failed TLS initialization:
     let resend_rest | Just (_:r) <- resend = Just r
@@ -223,7 +237,8 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
 
 -- | Handle incoming messages, change connection details if necessary
 handleIncoming :: Connection -> IO ()
-handleIncoming con = handleRecvExceptions $ do
+handleIncoming con = handleRecvExceptions $
+  requireOpenConnection con "handleIncoming" $ do
 
   mmsg <- receive con
 
