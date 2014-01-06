@@ -33,11 +33,11 @@ clientParams = defaultParamsClient
   , pCiphers = ciphersuite_all
   }
 
-establishTLS :: Connection -> IO ()
-establishTLS con = do
+establishTLS :: Connection -> IO Bool
+establishTLS con = handleExceptions $ do
   tls_cont <- getTlsContext con
   case tls_cont of
-    Just _ -> return ()
+    Just _ -> return True
     Nothing -> do
       -- entropy & random gen
       gen <- cprgCreate `fmap` createEntropyPool :: IO SystemRNG
@@ -53,13 +53,22 @@ establishTLS con = do
       buff <- newTVarIO BS.empty
 
       -- receive data in background
-      tid <- forkIO $ forever $ handleException $ do
-        bs <- recvData ctxt
-        atomically $ modifyTVar buff (`BS.append` bs)
+      tid <- forkIO $ do
+        let handleIOException = handle (\(_ :: IOException) -> return ())
+         in handleIOException $ forever $ do
+              bs <- recvData ctxt
+              atomically $ modifyTVar buff (`BS.append` bs)
 
       atomically $ writeTVar (con_tls_context con) $ Just (ctxt, buff, tid)
+
+      return True
  where
-  handleException = handle (\(_ :: IOException) -> return ())
+  -- just catch all exceptions that could possible occure
+  handleExceptions = handle (\(_ :: IOException)              -> return False)
+                   . handle (\(_ :: TLSError)                 -> return False)
+                   . handle (\(_ :: HandshakeFailed)          -> return False)
+                   . handle (\(_ :: ConnectionNotEstablished) -> return False)
+                   . handle (\(_ :: Terminated)               -> return False)
 
 --------------------------------------------------------------------------------
 -- TLS initialization
@@ -71,40 +80,49 @@ initTLS
 
 -- no TLS
 initTLS con NoTLS = do
-  logI con "initTLS" "Plain text"
+  logI con "initTLS" "Using plain text"
   sendUserAuth con
   -- nothing to resend
   return Nothing
 
 -- start with TLS handshake immediately
 initTLS con TLS = do
-  logI con "initTLS" "TLS"
-  establishTLS con
-  sendUserAuth con
+  logI con "initTLS" "Starting TLS handshake"
+  tls_success <- establishTLS con
+  if tls_success then do
+    sendUserAuth con
+   else do
+    logE con "initTLS" "TLS handshake failed (connection closed)"
+    closeConnection con
   -- nothing to resend
   return Nothing
 
 -- enforce STARTTLS
 initTLS con STARTTLS = do
-  logI con "initTLS" "STARTTLS"
+  logI con "initTLS" "Use STARTTLS"
   sendSTARTTLS con
   tls_succ <- waitForTLS con
   Nothing <$ if tls_succ
     then sendUserAuth    con -- success
-    else closeConnection con -- quit immediately
+    else do
+      logE con "initTLS" "STARTTLS failed (connection closed)"
+      closeConnection con -- quit immediately
 
 -- try to find out if server supports TLS via CAP
 initTLS con OptionalSTARTTLS = do
 
+  logI con "initTLS" "Sending CAP LS"
   sendCAPLS con
   sendUserAuth con
 
   ecap <- waitForCAP con []
   case ecap of
-    Left resend -> return $ Just resend
+    Left resend -> do
+      logI con "initTLS" "CAP failed, falling back to plain text."
+      return $ Just resend
     Right cap   -> do
       if "tls" `elem` cap then do
-        logI con "initTLS" "STARTTLS via CAP"
+        logI con "initTLS" "Use STARTTLS via CAP"
         sendSTARTTLS con
         -- wait for TLS, fall back to plaintext by returning the old connection on
         -- 'Nothing'
@@ -121,7 +139,7 @@ waitForTLS con = do
     Right (_time, msg@(msgCmd -> cmd))
 
       -- TLS success
-      | cmd == "670" -> True <$ establishTLS con
+      | cmd == "670" -> establishTLS con
 
       -- TLS fail
       | cmd == "691" -> return False
