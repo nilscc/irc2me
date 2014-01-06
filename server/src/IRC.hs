@@ -74,7 +74,11 @@ reconnect :: Connection -> IO (Maybe Connection)
 reconnect con = do
 
   -- just to make sure..
-  closeConnection con
+  is_open <- isOpenConnection con
+  when is_open $ do
+    logW con "reconnect" "Connection still open (connection closed)"
+    send con $ quitMsg Nothing
+    closeConnection con
 
   -- reuse server, user and debugging chan
   let usr       = con_user con
