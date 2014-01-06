@@ -89,11 +89,10 @@ adjustChannelSettings con channel f =
   changeChannelSettings con (M.adjust f channel)
 
 -- | Add new message with current time
-addMessage :: Connection -> Message -> IO ()
-addMessage con' msg = do
+addMessage :: Connection -> UTCTime -> Message -> IO ()
+addMessage con' time msg = do
 
-  now <- getCurrentTime
-  atomically $ writeTChan (con_messages con') (now, msg)
+  atomically $ writeTChan (con_messages con') (time, msg)
 
 -- | Add a list of channels with new (empty) ChannelSettings to current
 -- connection

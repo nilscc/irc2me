@@ -154,7 +154,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     case mmsg of
 
       -- check for authentication errors
-      Right msg@(msgCmd -> cmd)
+      Right (time, msg@(msgCmd -> cmd))
 
         -- everything OK, we're done:
         | cmd == "001" -> return ()
@@ -189,18 +189,18 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
               Just from = msgPrefix msg
               txt       = msgTrail msg
         
-          addMessage con $ NoticeMsg from to txt
+          addMessage con time $ NoticeMsg from to txt
           waitForOK con alt_nicks
 
-      -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
-      Right msg -> do
-        
-        addMessage con $ OtherMsg (msgPrefix msg)
-                                  (msgCmd msg)
-                                  (msgParams msg)
-                                  (msgTrail msg)
+        -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
+        | otherwise -> do
 
-        waitForOK con alt_nicks
+          addMessage con time $ OtherMsg (msgPrefix msg)
+                                    (msgCmd msg)
+                                    (msgParams msg)
+                                    (msgTrail msg)
+
+          waitForOK con alt_nicks
 
       -- something went wrong
       Left  err -> do logE con "connect" (B8.unpack err)
@@ -224,7 +224,7 @@ handleIncoming con = handleRecvExceptions $ do
 
       logE con "handleIncoming" $ B8.unpack err
 
-    Right msg@(msgCmd -> cmd)
+    Right (time, msg@(msgCmd -> cmd))
 
       --
       -- Commands
@@ -245,7 +245,7 @@ handleIncoming con = handleRecvExceptions $ do
         is_cur <- isCurrentUser con who
 
         forM_ channels $ \chan ->
-          addMessage con $
+          addMessage con time $
             JoinMsg chan (if is_cur then Nothing else Just who)
 
         -- check if we joined a channel or if somebody else joined
@@ -260,7 +260,7 @@ handleIncoming con = handleRecvExceptions $ do
 
         is_cur <- isCurrentUser con who
         -- send part message
-        addMessage con $
+        addMessage con time $
           PartMsg chan (if is_cur then Nothing else Just who)
 
         if is_cur
@@ -277,7 +277,7 @@ handleIncoming con = handleRecvExceptions $ do
               <*> isCurrentUser' con who
 
         -- send part message
-        addMessage con $
+        addMessage con time $
           QuitMsg chans (if is_cur          then Nothing else Just who)
                         (if BS.null comment then Nothing else Just comment)
 
@@ -292,7 +292,7 @@ handleIncoming con = handleRecvExceptions $ do
 
         -- send kick message
         is_cur <- isCurrentNick con who
-        addMessage con $
+        addMessage con time $
           KickMsg chan (if is_cur          then Nothing else Just who)
                        (if BS.null comment then Nothing else Just comment)
 
@@ -311,7 +311,7 @@ handleIncoming con = handleRecvExceptions $ do
             Just from = msgPrefix msg
             txt       = msgTrail msg
         
-        addMessage con $ PrivMsg from to txt
+        addMessage con time $ PrivMsg from to txt
 
       -- notice messages
       | cmd == "NOTICE" -> do
@@ -320,7 +320,7 @@ handleIncoming con = handleRecvExceptions $ do
             Just from = msgPrefix msg
             txt       = msgTrail msg
         
-        addMessage con $ NoticeMsg from to txt
+        addMessage con time $ NoticeMsg from to txt
 
       -- nick changes
       | cmd == "NICK" -> do
@@ -329,7 +329,7 @@ handleIncoming con = handleRecvExceptions $ do
             Just (Left who) = msgPrefix msg
 
         is_cur <- isCurrentUser con who
-        addMessage con $
+        addMessage con time $
           NickMsg (if is_cur then Nothing else Just who) new
 
         changeNickname con who new
@@ -349,7 +349,7 @@ handleIncoming con = handleRecvExceptions $ do
       | cmd `isCode` rpl_MOTDSTART ||
         cmd `isCode` rpl_MOTD      -> do
 
-        addMessage con $ MOTDMsg (msgTrail msg)
+        addMessage con time $ MOTDMsg (msgTrail msg)
 
       -- end of MOTD
       | cmd `isCode` rpl_ENDOFMOTD -> do
@@ -386,7 +386,7 @@ handleIncoming con = handleRecvExceptions $ do
         let (_:_:chan:_)   = msgParams msg
             namesWithFlags = map getUserflag $ B8.words $ msgTrail msg
 
-        addMessage con $ OtherMsg (msgPrefix msg)
+        addMessage con time $ OtherMsg (msgPrefix msg)
                                   "NAMREPLY"
                                   (msgParams msg)
                                   (msgTrail msg)
@@ -406,7 +406,7 @@ handleIncoming con = handleRecvExceptions $ do
       | cmd `isCode` err_NICKCOLLISION ||
         cmd `isCode` err_NICKNAMEINUSE -> do
 
-        addMessage con $ ErrorMsg (read $ B8.unpack cmd)
+        addMessage con time $ ErrorMsg (read $ B8.unpack cmd)
 
       --
       -- Other
@@ -414,7 +414,7 @@ handleIncoming con = handleRecvExceptions $ do
 
       | otherwise -> do
 
-        addMessage con $ OtherMsg (msgPrefix msg)
+        addMessage con time $ OtherMsg (msgPrefix msg)
                                   (msgCmd msg)
                                   (msgParams msg)
                                   (msgTrail msg)

@@ -15,6 +15,7 @@ import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import           Data.Attoparsec
+import           Data.Time
 
 import Network.IRC.ByteString.Parser
 import Network.TLS hiding (Key)
@@ -48,13 +49,14 @@ closeConnection con = do
 --------------------------------------------------------------------------------
 -- Sending & receiving
 
-receive :: Connection -> IO (Either ByteString IRCMsg)
+receive :: Connection -> IO (Either ByteString (UTCTime, IRCMsg))
 receive con = handleExceptions $ do
   bs <- tlsGetLine con
+  now <- getCurrentTime
   case toIRCMsg bs of
-    Done _ msg -> return $ Right msg
+    Done _ msg -> return $ Right (now, msg)
     Partial f  -> case f "" of
-                    Done _ msg -> return $ Right msg
+                    Done _ msg -> return $ Right (now, msg)
                     _          -> return $ Left $ impossibleParseError bs
     _          -> return $ Left $ impossibleParseError bs
  where
