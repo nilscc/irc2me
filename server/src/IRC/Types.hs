@@ -71,6 +71,10 @@ data Message
   | TopicMsg { topicmsg_channel :: Channel
              , topicmsg_topic   :: Maybe ByteString }
 
+  | NamreplyMsg { namreply_channel :: Channel
+                , namreply_names   :: [(Nickname, Maybe Userflag)]
+                }
+
   | OtherMsg { othermsg_from    :: Maybe (Either UserInfo ServerName)
              , othermsg_cmd     :: ByteString
              , othermsg_params  :: [ByteString]
