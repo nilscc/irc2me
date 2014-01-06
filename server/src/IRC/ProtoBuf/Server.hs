@@ -11,6 +11,7 @@ import Data.Monoid
 import           Data.ByteString    (ByteString)
 import           Data.Text          (Text)
 import qualified Data.Text.Encoding as E
+import qualified Data.Text.Encoding.Error as EE
 
 import GHC.Generics (Generic)
 
@@ -187,14 +188,17 @@ splitFrom
   -> (Optional a (Value Text), Optional b (Value Text))
 splitFrom from =
   case from of
-    Left ui -> (putField $ Just $ E.decodeUtf8 (I.userNick ui), mempty)
-    Right s -> (mempty, putField $ Just $ E.decodeUtf8 s)
+    Left ui -> (putField $ Just $ decodeUtf8 (I.userNick ui), mempty)
+    Right s -> (mempty, putField $ Just $ decodeUtf8 s)
 
 putBS :: ByteString -> Optional a (Value Text)
-putBS = putField . Just . E.decodeUtf8
+putBS = putField . Just . decodeUtf8
 
 putBSs :: [ByteString] -> Repeated a (Value Text)
-putBSs = putField . map E.decodeUtf8
+putBSs = putField . map decodeUtf8
 
 putBSMaybe :: Maybe ByteString -> Optional a (Value Text)
-putBSMaybe = putField . fmap E.decodeUtf8
+putBSMaybe = putField . fmap decodeUtf8
+
+decodeUtf8 :: ByteString -> Text
+decodeUtf8 = E.decodeUtf8With EE.lenientDecode
