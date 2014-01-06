@@ -113,7 +113,6 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
   -- prepare connection state variables
   nick_tvar     <- newTVarIO $ usr_nick usr
   chans_tvar    <- newTVarIO channels
-  chanset_tvar  <- newTVarIO M.empty
   stat_tvar     <- newTVarIO ConnectionInitializing
   tls_tvar      <- newTVarIO Nothing
   msg_chan      <- newTChanIO
@@ -122,7 +121,6 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
   let con = Connection usr srv tls_set
                        nick_tvar
                        chans_tvar
-                       chanset_tvar
                        h
                        stat_tvar
                        tls_tvar
