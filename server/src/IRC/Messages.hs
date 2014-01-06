@@ -9,7 +9,6 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception
 
-import qualified Data.Map as M
 import qualified Data.ByteString as BS
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
@@ -64,11 +63,10 @@ receive con = handleExceptions $ do
                    . handle (\(e :: BlockedIndefinitelyOnSTM) -> onExc e)
   onExc e = do
     closeConnection con
-    return $ Left $ "Exception (receive): "
-                    `BS.append` B8.pack (show e)
-                    `BS.append` " (connection closed)"
+    return $ Left $ B8.pack (show e) `BS.append` " (connection closed)"
+
   impossibleParseError bs =
-    "Error (receive): Impossible parse: \"" `BS.append` bs `BS.append` "\""
+    "Impossible parse: \"" `BS.append` bs `BS.append` "\""
 
 send :: Connection -> IRCMsg -> IO ()
 send con msg = handleExceptions $ do
@@ -132,58 +130,46 @@ sendBye con = do
 --------------------------------------------------------------------------------
 -- Specific messages
 
-sendNick :: Connection -> ByteString -> IO ()
-sendNick con nick = do
-  send con userNickMsg
- where
-  userNickMsg = ircMsg "NICK" [ nick ] ""
+nickMsg :: ByteString -> IRCMsg
+nickMsg nick = ircMsg "NICK" [ nick ] ""
 
-sendUser :: Connection -> IO ()
-sendUser con = do
-  send con userMsg
- where
-  usr     = con_user con
-  userMsg = ircMsg "USER" [ usr_name usr
-                          , "*", "*"
-                          , usr_realname usr ] ""
+userMsg :: User -> IRCMsg
+userMsg usr = ircMsg "USER" [ usr_name usr
+                            , "*", "*"
+                            , usr_realname usr ] ""
 
-sendUserAuth :: Connection -> IO ()
-sendUserAuth con = do
-  sendUser con
-  nick <- getCurrentNick con
-  sendNick con nick
+pingMsg :: IRCMsg
+pingMsg = ircMsg "PING" [] ""
 
-sendPing :: Connection -> IO ()
-sendPing con = send con $ ircMsg "PING" [] ""
+pongMsg :: IRCMsg
+pongMsg = ircMsg "PONG" [] ""
 
-sendPong :: Connection -> IO ()
-sendPong con = send con $ ircMsg "PONG" [] ""
+joinMsg :: Channel -> Maybe Key -> IRCMsg
+joinMsg chan mpw = ircMsg "JOIN" (chan : maybe [] return mpw) ""
 
-sendJoin :: Connection -> Channel -> Maybe Key -> IO ()
-sendJoin con chan mpw = do
-
-  -- send JOIN request to server
-  send con $ ircMsg "JOIN" (chan : maybe [] return mpw) ""
+  {- FIXME: store channel pw
 
   -- Add channel + key to channels map and return new connection:
   atomically $modifyTVar (con_channels con) $
     M.insert chan mpw
 
-sendPrivMsg
-  :: Connection
-  -> ByteString       -- ^ Target (user/channel)
+  -}
+
+privMsg
+  :: ByteString       -- ^ Target (user/channel)
   -> ByteString       -- ^ Text
-  -> IO ()
-sendPrivMsg con to txt = send con $ ircMsg "PRIVMSG" [to] txt
+  -> IRCMsg
+privMsg to txt = ircMsg "PRIVMSG" [to] txt
 
-sendPart :: Connection -> Channel -> IO ()
-sendPart con channel = send con $ ircMsg "PART" [channel] ""
+partMsg :: Channel -> IRCMsg
+partMsg channel = ircMsg "PART" [channel] ""
 
--- | Send "QUIT" command and closes connection to server. Do not re-use this
--- connection!
-sendQuit :: Connection -> Maybe ByteString -> IO ()
-sendQuit con mquitmsg = do
-  send con quitMsg
- where
-  quitMsg = ircMsg "QUIT" (maybe [] return mquitmsg) ""
+quitMsg :: Maybe ByteString -> IRCMsg
+quitMsg mquitmsg = ircMsg "QUIT" (maybe [] return mquitmsg) ""
 
+-- | Send both user and nick name from current connection to server
+sendUserAuth :: Connection -> IO ()
+sendUserAuth con = do
+  send con $ userMsg (con_user con)
+  nick <- getCurrentNick con
+  send con $ nickMsg nick
