@@ -51,8 +51,7 @@ data Message
             , partmsg_who     :: Maybe UserInfo } -- Nothing if current user is
                                                   -- leaving channel
 
-  | QuitMsg { quitmsg_channels :: [Channel]
-            , quitmsg_who      :: Maybe UserInfo   -- Nothing if current user is
+  | QuitMsg { quitmsg_who      :: Maybe UserInfo   -- Nothing if current user is
                                                    -- leaving channel
             , quitmsg_comment  :: Maybe ByteString
             }
