@@ -21,22 +21,22 @@ module IRC
   , handleIncoming
   , getIncomingMessage
     -- ** Specific messages
-  , sendPing, sendPong
-  , sendPrivMsg
-  , sendJoin
-  , sendPart
-  , sendQuit
-  , sendNick
+  , pingMsg, pongMsg
+  , privMsg
+  , joinMsg
+  , partMsg
+  , quitMsg
+  , nickMsg
   ) where
 
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
-import Control.Applicative
 
 import qualified Data.Map as M
 import           Data.Map (Map)
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import           Data.Time
@@ -153,7 +153,9 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     -- send username to IRC server
     waitForOK con (usr_nick_alt usr) resend
 
-    mapM_ (uncurry $ sendJoin con) $ M.toList channels
+    sequence_ [ send con $ joinMsg chan mkey
+              | (chan, mkey) <- M.toList channels
+              ]
 
     atomically $ do
       is_init <- isInitConnection' con
@@ -178,61 +180,83 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     case mmsg of
 
       -- check for authentication errors
-      Right (time, msg@(msgCmd -> cmd))
-
-        -- everything OK, we're done:
-        | cmd == "001" -> return ()
-
-        -- pick different nickname:
-        | cmd `isError` err_NICKCOLLISION ||
-          cmd `isError` err_NICKNAMEINUSE ->
-
-          case alt_nicks of
-            (alt:rst) -> do
-
-              -- use alternative nick names:
-              logI con "connect" $ "Nickname changed to \""
-                                   ++ B8.unpack alt ++ "\"."
-              setNick con alt
-              sendNick con alt
-              waitForOK con rst resend_rest
-
-            [] -> do
-
-              -- no alternative nicks!
-              logE con "connect"
-                       "Nickname collision: \
-                       \Try to supply a list of alternative nicknames. \
-                       \(connection closed)"
-              sendQuit con Nothing
-              closeConnection con
-
-        | cmd == "NOTICE" -> do
-
-          let (to:_)    = msgParams msg
-              Just from = msgPrefix msg
-              txt       = msgTrail msg
-        
-          addMessage con time $ NoticeMsg from to txt
-          waitForOK con alt_nicks resend_rest
-
-        -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
-        | otherwise -> do
-
-          addMessage con time $ OtherMsg (msgPrefix msg)
-                                    (msgCmd msg)
-                                    (msgParams msg)
-                                    (msgTrail msg)
-
-          waitForOK con alt_nicks resend_rest
+      Right msg -> do
+        stat <- initWaitForOK con msg alt_nicks
+        case stat of
+          InitOK     -> return ()
+          InitCancel -> return ()
+          InitWaitForOK alt_nicks' ->
+            waitForOK con alt_nicks' resend_rest
 
       -- something went wrong
-      Left  err -> do logE con "connect" (B8.unpack err)
-                      is_open <- isOpenConnection con
-                      if is_open
-                        then waitForOK con alt_nicks resend_rest
-                        else return ()
+      Left err -> do
+        logE con "connect" (B8.unpack err)
+        is_open <- isOpenConnection con
+        if is_open
+          then waitForOK con alt_nicks resend_rest
+          else return ()
 
+data InitStatus
+  = InitWaitForOK { _alt_nicks :: [ByteString]
+                  }
+  | InitOK
+  | InitCancel
+
+initWaitForOK
+  :: Connection
+  -> (UTCTime, IRCMsg)
+  -> [ByteString]
+  -> IO InitStatus
+initWaitForOK con (time, msg@(msgCmd -> cmd)) alt_nicks
+
+  -- everything OK, we're done:
+  | cmd == "001" = return InitOK
+
+  -- pick different nickname:
+  | cmd `isError` err_NICKCOLLISION ||
+    cmd `isError` err_NICKNAMEINUSE =
+
+    case alt_nicks of
+      (alt:rst) -> do
+
+        -- use alternative nick names:
+        logI con "connect" $ "Nickname changed to \""
+                             ++ B8.unpack alt ++ "\"."
+        setNick con alt
+        send con $ nickMsg alt
+        return $ InitWaitForOK rst
+
+      [] -> do
+
+        -- no alternative nicks!
+        logE con "connect"
+                 "Nickname collision: \
+                 \Try to supply a list of alternative nicknames. \
+                 \(connection closed)"
+        send con $ quitMsg Nothing
+        closeConnection con
+
+        return InitCancel
+
+  | cmd == "NOTICE" = do
+
+    let (to:_)    = msgParams msg
+        Just from = msgPrefix msg
+        txt       = msgTrail msg
+  
+    addMessage con time $ NoticeMsg from to txt
+    return $ InitWaitForOK alt_nicks
+
+  -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
+  | otherwise = do
+
+    addMessage con time $ OtherMsg (msgPrefix msg)
+                              (msgCmd msg)
+                              (msgParams msg)
+                              (msgTrail msg)
+
+    return $ InitWaitForOK alt_nicks
+ where
   isError bs err = bs == (B8.pack err)
 
 -- | Handle incoming messages, change connection details if necessary
@@ -244,207 +268,25 @@ handleIncoming con = handleRecvExceptions $
 
   handleMsgExceptions mmsg $ case mmsg of
 
+    Right (time, msg) -> do
+
+      runResult time $ handleIncoming' msg
+
     -- parsing error
-    Left err -> do
-
-      logE con "handleIncoming" $ B8.unpack err
-
-    Right (time, msg@(msgCmd -> cmd))
-
-      --
-      -- Commands
-      --
-
-      -- ping/pong game
-      | cmd == "PING" -> do
-
-        sendPong con
-
-      -- join channels
-      | cmd == "JOIN" -> do
-
-        let (trail:_)       = B8.words $ msgTrail msg
-            channels        = B8.split ',' trail
-            Just (Left who) = msgPrefix msg
-
-        is_cur <- isCurrentUser con who
-
-        forM_ channels $ \chan ->
-          addMessage con time $
-            JoinMsg chan (if is_cur then Nothing else Just who)
-
-        -- check if we joined a channel or if somebody else joined
-        if is_cur
-          then addChannels con channels
-          else addUser con who channels
-
-      | cmd == "PART" -> do
-
-        let Just (Left who@UserInfo { userNick }) = msgPrefix msg
-            (chan:_) = msgParams msg
-
-        is_cur <- isCurrentUser con who
-        -- send part message
-        addMessage con time $
-          PartMsg chan (if is_cur then Nothing else Just who)
-
-        if is_cur
-          then leaveChannel con chan
-          else removeUser con chan userNick
-
-      | cmd == "QUIT" -> do
-
-        let Just (Left who@UserInfo { userNick }) = msgPrefix msg
-            comment = msgTrail msg
-
-        (chans, is_cur) <- atomically $
-          (,) <$> getChannelsWithUser' con userNick
-              <*> isCurrentUser' con who
-
-        -- send part message
-        addMessage con time $
-          QuitMsg chans (if is_cur          then Nothing else Just who)
-                        (if BS.null comment then Nothing else Just comment)
-
-        if is_cur
-          then closeConnection con
-          else userQuit con chans userNick
-
-      | cmd == "KICK" -> do
-
-        let (chan:who:_) = msgParams msg
-            comment      = msgTrail msg
-
-        -- send kick message
-        is_cur <- isCurrentNick con who
-        addMessage con time $
-          KickMsg chan (if is_cur          then Nothing else Just who)
-                       (if BS.null comment then Nothing else Just comment)
-
-        if is_cur
-          then leaveChannel con chan
-          else removeUser con chan who
-
-      | cmd == "KILL" -> do
-
-        closeConnection con
-
-      -- private messages
-      | cmd == "PRIVMSG" -> do
-
-        let (to:_)    = msgParams msg
-            Just from = msgPrefix msg
-            txt       = msgTrail msg
-        
-        addMessage con time $ PrivMsg from to txt
-
-      -- notice messages
-      | cmd == "NOTICE" -> do
-
-        let (to:_)    = msgParams msg
-            Just from = msgPrefix msg
-            txt       = msgTrail msg
-        
-        addMessage con time $ NoticeMsg from to txt
-
-      -- nick changes
-      | cmd == "NICK" -> do
-
-        let (new:_)         = msgParams msg
-            Just (Left who) = msgPrefix msg
-
-        is_cur <- isCurrentUser con who
-        addMessage con time $
-          NickMsg (if is_cur then Nothing else Just who) new
-
-        changeNickname con who new
-
-      | cmd == "ERROR" -> do
-
-        let err = msgTrail msg
-        logE con "handleIncoming" $ "ERROR: \"" ++ B8.unpack err
-                                                ++ "\" (connection closed)"
-        closeConnection con
-
-      --
-      -- REPLIES
-      --
-
-      -- message of the day (MOTD)
-      | cmd `isCode` rpl_MOTDSTART ||
-        cmd `isCode` rpl_MOTD      -> do
-
-        addMessage con time $ MOTDMsg (msgTrail msg)
-
-      -- end of MOTD
-      | cmd `isCode` rpl_ENDOFMOTD -> do
-
-        -- do nothing
-        return ()
-
-      -- topic reply
-      | cmd `isCode` rpl_TOPIC -> do
-
-        let chan  = head $ msgParams msg
-            topic = msgTrail msg
-
-        -- TODO: send TOPIC message
-        logI con "handleIncoming" $
-                 "TOPIC for " ++ B8.unpack chan ++ ": " ++ B8.unpack topic
-
-        setTopic con chan (Just topic)
-
-      -- remove old topic (if any)
-      | cmd `isCode` rpl_NOTOPIC -> do
-
-        let chan = head $ msgParams msg
-
-        -- TODO: send NOTOPIC message
-        logI con "handleIncoming" $
-                 "NOTOPIC for " ++ B8.unpack chan ++ "."
-
-        setTopic con chan Nothing
-
-      -- channel names
-      | cmd `isCode` rpl_NAMREPLY -> do
-
-        let (_:_:chan:_)   = msgParams msg
-            namesWithFlags = map getUserflag $ B8.words $ msgTrail msg
-
-        addMessage con time $ OtherMsg (msgPrefix msg)
-                                  "NAMREPLY"
-                                  (msgParams msg)
-                                  (msgTrail msg)
-
-        setChanNames con chan namesWithFlags
-
-      -- end of channel names
-      | cmd `isCode` rpl_ENDOFNAMES -> do
-
-        return () -- do nothing
-
-      --
-      -- ERROR codes
-      --
-
-      -- nick name change failure
-      | cmd `isCode` err_NICKCOLLISION ||
-        cmd `isCode` err_NICKNAMEINUSE -> do
-
-        addMessage con time $ ErrorMsg cmd
-
-      --
-      -- Other
-      --
-
-      | otherwise -> do
-
-        addMessage con time $ OtherMsg (msgPrefix msg)
-                                  (msgCmd msg)
-                                  (msgParams msg)
-                                  (msgTrail msg)
+    Left err -> logE con "handleIncoming" $ B8.unpack err
 
  where
+
+  runResult time (IncomingReqUsr f) = runResult time $ f (con_user con)
+  runResult time (IncomingReqNck f) = getCurrentNick con >>= runResult time . f
+  runResult time (IncomingResult to_send to_add quit) = do
+    mapM_ (send con) to_send
+    mapM_ (addMessage con time) to_add
+    onJust quit $ \reason -> do
+      logI con "handleIncoming" $ reason ++ " (connection closed)"
+      closeConnection con
+
+  onJust what = maybe (return ()) `flip` what
 
   handleRecvExceptions =
     handle (\(e :: IOException) -> do
@@ -456,4 +298,190 @@ handleIncoming con = handleRecvExceptions $
              logE con "handleIncoming" $
                       "Pattern match failure: " ++ show mmsg)
 
+type Reason = String
+
+data IncomingResult
+  = IncomingResult { send_msgs    :: [IRCMsg]
+                   , add_msgs     :: [Message]
+                   , quit         :: Maybe Reason
+                   }
+  | IncomingReqUsr { _withUser     :: User -> IncomingResult }
+  | IncomingReqNck { _withNick     :: Nickname -> IncomingResult }
+
+-- | Testable interface
+handleIncoming'
+  :: IRCMsg
+  -> IncomingResult
+handleIncoming' msg@(msgCmd -> cmd)
+
+  --
+  -- Commands
+  --
+
+  -- ping/pong game
+  | cmd == "PING" = sendMsg pongMsg
+
+  -- join channels
+  | cmd == "JOIN" = do
+
+    let (trail:_)       = B8.words $ msgTrail msg
+        channels        = B8.split ',' trail
+        Just (Left who) = msgPrefix msg
+
+    withUsr who $ \usr ->
+      addMsgs $ map (JoinMsg `flip` usr) channels
+
+  | cmd == "PART" = do
+
+    let Just (Left who) = msgPrefix msg
+        (chan:_) = msgParams msg
+
+    -- send part message
+    withUsr who $ \usr ->
+      addMsg $ PartMsg chan usr
+
+  | cmd == "QUIT" = do
+
+    let Just (Left who) = msgPrefix msg
+        comment = msgTrail msg
+
+    withUsr who $ \usr ->
+      addMsg $ QuitMsg usr (if BS.null comment then Nothing else Just comment)
+
+  | cmd == "KICK" = do
+
+    let (chan:who:_) = msgParams msg
+        comment      = msgTrail msg
+
+    withNick who $ \nick ->
+      addMsg $ KickMsg chan nick
+                       (if BS.null comment then Nothing else Just comment)
+
+  | cmd == "KILL" = do
+
+    quitCmd "KILL received (closing connection)"
+
+  -- private messages
+  | cmd == "PRIVMSG" = do
+
+    let (to:_)    = msgParams msg
+        Just from = msgPrefix msg
+        txt       = msgTrail msg
+    
+    addMsg $ PrivMsg from to txt
+
+  -- notice messages
+  | cmd == "NOTICE" = do
+
+    let (to:_)    = msgParams msg
+        Just from = msgPrefix msg
+        txt       = msgTrail msg
+    
+    addMsg $ NoticeMsg from to txt
+
+  -- nick changes
+  | cmd == "NICK" = do
+
+    let (new:_)         = msgParams msg
+        Just (Left who) = msgPrefix msg
+
+    withUsr who $ \usr -> addMsg $ NickMsg usr new
+
+  | cmd == "ERROR" = do
+
+    let err = msgTrail msg
+    quitCmd $ "ERROR: " ++ B8.unpack err
+
+  --
+  -- REPLIES
+  --
+
+  -- message of the day (MOTD)
+  | cmd `isCode` rpl_MOTDSTART ||
+    cmd `isCode` rpl_MOTD      = do
+
+    addMsg $ MOTDMsg (msgTrail msg)
+
+  -- end of MOTD
+  | cmd `isCode` rpl_ENDOFMOTD = do
+
+    doNothing
+
+  -- topic reply
+  | cmd `isCode` rpl_TOPIC = do
+
+    let chan  = head $ msgParams msg
+        topic = msgTrail msg
+
+    addMsg $ TopicMsg chan (Just topic)
+
+  -- remove old topic (if any)
+  | cmd `isCode` rpl_NOTOPIC = do
+
+    let chan = head $ msgParams msg
+
+    addMsg $ TopicMsg chan Nothing
+
+  -- channel names
+  | cmd `isCode` rpl_NAMREPLY = do
+
+    let (_:_:chan:_)   = msgParams msg
+        namesWithFlags = map getUserflag $ B8.words $ msgTrail msg
+
+    addMsg $ NamreplyMsg chan namesWithFlags
+
+  -- end of channel names
+  | cmd `isCode` rpl_ENDOFNAMES = do
+
+    doNothing
+
+  --
+  -- ERROR codes
+  --
+
+  -- nick name change failure
+  | cmd `isCode` err_NICKCOLLISION ||
+    cmd `isCode` err_NICKNAMEINUSE = do
+
+    addMsg $ ErrorMsg cmd
+
+  --
+  -- Other
+  --
+
+  | otherwise = do
+
+    addMsg $ OtherMsg (msgPrefix msg)
+                      (msgCmd msg)
+                      (msgParams msg)
+                      (msgTrail msg)
+
+ where
+
   isCode bs code = bs == (B8.pack code)
+
+  emptyRes, doNothing :: IncomingResult
+  emptyRes  = IncomingResult
+                [] []
+                Nothing
+  doNothing = emptyRes
+
+  quitCmd :: String -> IncomingResult
+  quitCmd reason = emptyRes { quit = Just reason }
+
+  addMsg :: Message -> IncomingResult
+  addMsg msg' = emptyRes { add_msgs = [msg'] }
+
+  addMsgs :: [Message] -> IncomingResult
+  addMsgs msgs = emptyRes { add_msgs = msgs }
+
+  sendMsg :: IRCMsg -> IncomingResult
+  sendMsg irc = emptyRes { send_msgs = [irc] }
+
+  withUsr :: UserInfo -> (Maybe UserInfo -> IncomingResult) -> IncomingResult
+  withUsr who f = IncomingReqUsr $ \usr ->
+    if isCurrentUser usr who then f Nothing else f (Just who)
+
+  withNick :: Nickname -> (Maybe Nickname -> IncomingResult) -> IncomingResult
+  withNick who f = IncomingReqNck $ \cur_nick ->
+    if who == cur_nick then f Nothing else f (Just who)
