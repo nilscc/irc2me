@@ -43,8 +43,8 @@ data Message
               , noticemsg_to      :: ByteString
               , noticemsg_content :: ByteString }
 
-  | JoinMsg { joinmsg_channel :: Channel
-            , joinmsg_who     :: Maybe UserInfo }
+  | JoinMsg { joinmsg_channels :: [Channel]
+            , joinmsg_who      :: Maybe UserInfo }
 
   | PartMsg { partmsg_channel :: Channel
             , partmsg_who     :: Maybe UserInfo } -- Nothing if current user is
