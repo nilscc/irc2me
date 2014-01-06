@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE PatternGuards #-}
 
 -- | Handle IRC connections, send and respond to incoming messages
 module IRC
@@ -131,10 +132,10 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
   -- initialize in background:
   void $ forkIO $ do
     -- check TLS settings
-    initTLS con tls_set
+    resend <- initTLS con tls_set
 
     -- send username to IRC server
-    waitForOK con (usr_nick_alt usr)
+    waitForOK con (usr_nick_alt usr) resend
 
     mapM_ (uncurry $ sendJoin con) $ M.toList channels
 
@@ -149,8 +150,15 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
     hPutStrLn stderr $ "IOException on connect: " ++ show e
     return Nothing
 
-  waitForOK con alt_nicks = do
-    mmsg <- receive con
+  waitForOK con alt_nicks resend = do
+
+    -- resend unhandled messages from failed TLS initialization:
+    let resend_rest | Just (_:r) <- resend = Just r
+                    | otherwise            = Nothing
+        receive' | Just (m:_) <- resend = return $ Right m
+                 | otherwise            = receive con
+    mmsg <- receive'
+
     case mmsg of
 
       -- check for authentication errors
@@ -171,7 +179,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
                                    ++ B8.unpack alt ++ "\"."
               setNick con alt
               sendNick con alt
-              waitForOK con rst
+              waitForOK con rst resend_rest
 
             [] -> do
 
@@ -190,7 +198,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
               txt       = msgTrail msg
         
           addMessage con time $ NoticeMsg from to txt
-          waitForOK con alt_nicks
+          waitForOK con alt_nicks resend_rest
 
         -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
         | otherwise -> do
@@ -200,13 +208,13 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
                                     (msgParams msg)
                                     (msgTrail msg)
 
-          waitForOK con alt_nicks
+          waitForOK con alt_nicks resend_rest
 
       -- something went wrong
       Left  err -> do logE con "connect" (B8.unpack err)
                       is_open <- isOpenConnection con
                       if is_open
-                        then waitForOK con alt_nicks
+                        then waitForOK con alt_nicks resend_rest
                         else return ()
 
   isError bs err = bs == (B8.pack err)

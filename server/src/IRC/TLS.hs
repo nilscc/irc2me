@@ -16,6 +16,7 @@ import           Data.Functor
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import           Data.Time
 
 import Network.IRC.ByteString.Parser
 import Network.TLS
@@ -66,26 +67,30 @@ establishTLS con = do
 initTLS
   :: Connection
   -> TLSSettings
-  -> IO ()
+  -> IO (Maybe [(UTCTime, IRCMsg)])
 
 -- no TLS
 initTLS con NoTLS = do
   logI con "initTLS" "Plain text"
   sendUserAuth con
+  -- nothing to resend
+  return Nothing
 
 -- start with TLS handshake immediately
 initTLS con TLS = do
   logI con "initTLS" "TLS"
   establishTLS con
   sendUserAuth con
+  -- nothing to resend
+  return Nothing
 
 -- enforce STARTTLS
 initTLS con STARTTLS = do
   logI con "initTLS" "STARTTLS"
   sendSTARTTLS con
   tls_succ <- waitForTLS con
-  if tls_succ
-    then sendUserAuth con
+  Nothing <$ if tls_succ
+    then sendUserAuth    con -- success
     else closeConnection con -- quit immediately
 
 -- try to find out if server supports TLS via CAP
@@ -94,23 +99,26 @@ initTLS con OptionalSTARTTLS = do
   sendCAPLS con
   sendUserAuth con
 
-  cap <- waitForCAP con
-  if "tls" `elem` cap then do
-    logI con "initTLS" "STARTTLS via CAP"
-    sendSTARTTLS con
-    -- wait for TLS, fall back to plaintext by returning the old connection on
-    -- 'Nothing'
-    void $ waitForTLS con
-   else
-    logI con "initTLS" "STARTTLS via CAP failed, falling back to plain text"
-
-  sendCAPEnd con
+  ecap <- waitForCAP con []
+  case ecap of
+    Left resend -> return $ Just resend
+    Right cap   -> do
+      if "tls" `elem` cap then do
+        logI con "initTLS" "STARTTLS via CAP"
+        sendSTARTTLS con
+        -- wait for TLS, fall back to plaintext by returning the old connection on
+        -- 'Nothing'
+        void $ waitForTLS con
+       else
+        logI con "initTLS" "STARTTLS via CAP failed, falling back to plain text"
+      sendCAPEnd con
+      return Nothing
 
 waitForTLS :: Connection -> IO Bool
 waitForTLS con = do
   mmsg <- receive con
   case mmsg of
-    Right msg@(msgCmd -> cmd)
+    Right (_time, msg@(msgCmd -> cmd))
 
       -- TLS success
       | cmd == "670" -> True <$ establishTLS con
@@ -126,18 +134,26 @@ waitForTLS con = do
         logE con "waitForTLS" $ "Unexpected message: " ++ show msg ++ " (TLS init failed)"
         return False
 
-    _ -> return False
+    Left l -> do
+      logE con "waitForTLS" (B8.unpack l)
+      return False
 
-waitForCAP :: Connection -> IO [ByteString]
-waitForCAP con = do
+waitForCAP :: Connection -> [(UTCTime, IRCMsg)] -> IO (Either [(UTCTime, IRCMsg)] [ByteString])
+waitForCAP con resend = do
   mmsg <- receive con
   case mmsg of
-    Right msg@(msgCmd -> cmd)
+    Right (time, msg@(msgCmd -> cmd))
 
-      | cmd == "CAP" -> return $ B8.words (msgTrail msg)
+      | cmd == "CAP" -> return $ Right $ B8.words (msgTrail msg)
 
-      | otherwise -> do
+      -- tolerate NOTICE messages
+      | cmd == "NOTICE" -> do
         logE con "waitForTLS" $ "Unexpected message: " ++ show msg
-        waitForCAP con
+        waitForCAP con (resend ++ [(time,msg)])
 
-    _ -> return []
+      -- quit on any other message type
+      | otherwise -> do
+        logE con "waitForTLS" $ "Unexpected message: " ++ show msg ++ " (CAP LS failed)"
+        return $ Left (resend ++ [(time,msg)])
+
+    _ -> return $ Left resend
