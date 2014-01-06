@@ -414,7 +414,7 @@ handleIncoming con = handleRecvExceptions $ do
       | cmd `isCode` err_NICKCOLLISION ||
         cmd `isCode` err_NICKNAMEINUSE -> do
 
-        addMessage con time $ ErrorMsg (read $ B8.unpack cmd)
+        addMessage con time $ ErrorMsg cmd
 
       --
       -- Other

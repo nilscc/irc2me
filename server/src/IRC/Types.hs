@@ -67,7 +67,7 @@ data Message
   | NickMsg { nickmsg_old :: Maybe UserInfo
             , nickmsg_new :: Nickname }
 
-  | ErrorMsg { errormsg_code :: Integer }
+  | ErrorMsg { errormsg_code :: ByteString }
 
   | OtherMsg { othermsg_from    :: Maybe (Either UserInfo ServerName)
              , othermsg_cmd     :: ByteString
