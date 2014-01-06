@@ -58,6 +58,20 @@ main = do
             putStrLn $ "> MOTD : " ++ B8.unpack motd
             loop
 
+          Just (_time, TopicMsg _chan _topic) -> do
+            putStrLn $ "> Topic changed." -- TODO
+            loop
+
+          Just (_time, NamreplyMsg chan namesWithFlags) -> do
+            let showFlag Nothing = ""
+                showFlag (Just Operator) = "@"
+                showFlag (Just Voice) = "+"
+            putStrLn $ "> " ++ B8.unpack chan ++ " names: "
+                       ++ unwords [ showFlag flag ++ B8.unpack name
+                                  | (name,flag) <- namesWithFlags ]
+
+            loop
+
           Just (_time, PrivMsg (Left from) to msg) -> do
             putStrLn $ "> " ++ B8.unpack to ++ " : "
                        ++ "<" ++ B8.unpack (userNick from) ++ "> "
@@ -94,11 +108,11 @@ main = do
                        ++ " Reason: " ++ show comment
             loop
 
-          Just (_time, QuitMsg _chans (Just who) comment) -> do
+          Just (_time, QuitMsg (Just who) comment) -> do
             putStrLn $ "> " ++ show (userNick who) ++ " disconnected."
                        ++ maybe "" ((" Reason: " ++) . show) comment
             loop
-          Just (_time, QuitMsg _chans Nothing _comment) -> do
+          Just (_time, QuitMsg Nothing _comment) -> do
             putStrLn $ "> Disconnected."
             loop
 
@@ -141,14 +155,12 @@ main = do
 
   waitForInitialization con
 
-  mapM_ (uncurry $ sendJoin con) channels
+  mapM_ (send con . uncurry joinMsg) channels
 
   -- loop over incoming messages
   let loop = do
         is_open <- isOpenConnection con
-        if is_open then do
+        when is_open $ do
           handleIncoming con
           loop
-         else
-          putStrLn "Connection closed!"
    in loop
