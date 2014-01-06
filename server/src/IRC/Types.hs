@@ -92,7 +92,6 @@ data Connection = Connection
     -- connection state variables:
   , con_nick_cur        :: TVar Nickname
   , con_channels        :: TVar (Map Channel (Maybe Key))
-  , con_channelsettings :: TVar (Map Channel ChannelSettings)
   , con_handle          :: Handle
   , con_status          :: TVar ConnectionStatus
   , con_tls_context     :: TVar (Maybe (TLS.Context, TLSBuffer, ThreadId))
