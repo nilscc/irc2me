@@ -16,7 +16,6 @@ import Network.IRC.ByteString.Parser
 import IRC
 import IRC.Codes
 import IRC.Types
-import qualified IRC.ProtoBuf as P ()
 
 user :: User
 user = User { usr_nick     = "McManiaC"
