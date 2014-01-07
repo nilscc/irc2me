@@ -256,7 +256,7 @@ getIncoming con = handleRecvExceptions $
 
     -- parsing error
     Left err -> do
-      logE con "handleIncoming" $ B8.unpack err
+      logE con "getIncoming" $ B8.unpack err
       return Nothing
 
  where
@@ -310,7 +310,10 @@ handleIncoming msg@(msgCmd -> cmd)
   --
 
   -- ping/pong game
-  | cmd == "PING" = sendMsg pongMsg
+  | cmd == "PING" = do
+  
+    let trail = msgTrail msg
+    sendMsg $ pongMsg trail
 
   -- join channels
   | cmd == "JOIN" = do

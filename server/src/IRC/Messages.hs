@@ -141,8 +141,8 @@ userMsg usr = ircMsg "USER" [ usr_name usr
 pingMsg :: IRCMsg
 pingMsg = ircMsg "PING" [] ""
 
-pongMsg :: IRCMsg
-pongMsg = ircMsg "PONG" [] ""
+pongMsg :: ByteString -> IRCMsg
+pongMsg trail = ircMsg "PONG" [] trail
 
 joinMsg :: Channel -> Maybe Key -> IRCMsg
 joinMsg chan mpw = ircMsg "JOIN" (chan : maybe [] return mpw) ""
