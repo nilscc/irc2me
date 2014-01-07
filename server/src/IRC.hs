@@ -57,16 +57,15 @@ import IRC.TLS
 
 connect
   :: Server
-  -> TLSSettings
   -> User
   -> IO (Maybe (Connection, [(UTCTime, Message)]))
-connect srv tls_set usr = do
+connect srv usr = do
 
   -- create debugging output chan for connection
   debug_out <- newTChanIO
 
   -- see implementation of connect' below (-> Handling incoming messages)
-  connect' srv tls_set usr M.empty debug_out
+  connect' srv usr M.empty debug_out
 
 -- | Try to reestablish an old (closed) connection
 reconnect :: Connection -> IO (Maybe (Connection, [(UTCTime, Message)]))
@@ -82,25 +81,23 @@ reconnect con = do
   -- reuse server, user and debugging chan
   let usr       = con_user con
       srv       = con_server con
-      tls_set   = con_tls_settings con
       debug_out = con_debug_output con
 
   chans <- getChannels con
 
   -- see implementation of connect' below (-> Handling incoming messages)
-  connect' srv tls_set usr chans debug_out
+  connect' srv usr chans debug_out
 
 --------------------------------------------------------------------------------
 -- Handeling incoming messages
 
 connect'
   :: Server
-  -> TLSSettings
   -> User
   -> Map Channel (Maybe Key)
   -> TChan String
   -> IO (Maybe (Connection, [(UTCTime, Message)]))
-connect' srv tls_set usr channels debug_out = handleExceptions $ do
+connect' srv usr channels debug_out = handleExceptions $ do
 
   -- acquire IRC connection
   h <- connectTo (srv_host srv) (srv_port srv)
@@ -114,7 +111,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
   tls_tvar      <- newTVarIO Nothing
 
   -- connection is established at this point
-  let con = Connection usr srv tls_set
+  let con = Connection usr srv
                        nick_tvar
                        chans_tvar
                        h
@@ -123,7 +120,7 @@ connect' srv tls_set usr channels debug_out = handleExceptions $ do
                        debug_out
 
   -- check TLS settings
-  resend <- initTLS con tls_set
+  resend <- initTLS con (srv_tls srv)
 
   -- send username to IRC server
   msgs <- waitForOK con (usr_nick_alt usr) resend []

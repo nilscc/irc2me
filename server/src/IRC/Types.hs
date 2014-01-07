@@ -29,6 +29,7 @@ data Userflag = Operator | Voice
 data Server = Server
   { srv_host :: String
   , srv_port :: PortID
+  , srv_tls  :: TLSSettings
   }
 
 type Channel = ByteString
@@ -91,7 +92,6 @@ data Connection = Connection
   { -- read only settings:
     con_user            :: User
   , con_server          :: Server
-  , con_tls_settings    :: TLSSettings
     -- connection state variables:
   , con_nick_cur        :: TVar Nickname
   , con_channels        :: TVar (Map Channel (Maybe Key))
