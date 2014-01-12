@@ -31,6 +31,11 @@ clientParams = defaultParamsClient
   { pConnectVersion = TLS12
   , pAllowedVersions = [SSL3, TLS10, TLS11, TLS12]
   , pCiphers = ciphersuite_all
+  , pLogging = Logging { loggingPacketSent = \s     -> putStrLn $ "send > " ++ s
+                       , loggingPacketRecv = \s     -> putStrLn $ "recv < " ++ s
+                       , loggingIOSent     = \_bs   -> putStrLn $ "send > <binary data>"
+                       , loggingIORecv     = \h _bs -> putStrLn $ "recv < " ++ show h
+                       }
   }
 
 establishTLS :: Connection -> IO Bool
@@ -65,10 +70,12 @@ establishTLS con = handleExceptions $ do
  where
   -- just catch all exceptions that could possible occure
   handleExceptions = handle (\(_ :: IOException)              -> return False)
+  {-
                    . handle (\(_ :: TLSError)                 -> return False)
                    . handle (\(_ :: HandshakeFailed)          -> return False)
                    . handle (\(_ :: ConnectionNotEstablished) -> return False)
                    . handle (\(_ :: Terminated)               -> return False)
+                   -}
 
 --------------------------------------------------------------------------------
 -- TLS initialization
@@ -166,7 +173,12 @@ waitForCAP con resend = do
 
       -- tolerate NOTICE messages
       | cmd == "NOTICE" -> do
-        logE con "waitForTLS" $ "Unexpected message: " ++ show msg
+        logE con "waitForCAP" $ "Unexpected message: " ++ show msg
+        waitForCAP con (resend ++ [(time,msg)])
+
+      -- ignore 020 message, FIXME: add messages to message queue
+      | cmd == "020" -> do
+        logE con "waitForCAP" $ "Unexpected message: " ++ show msg
         waitForCAP con (resend ++ [(time,msg)])
 
       -- quit on any other message type

@@ -134,7 +134,7 @@ connect' srv usr channels debug_out = handleExceptions $ do
     when is_init $ setConnectionStatus' con ConnectionEstablished
 
   return $ Just (con, msgs)
-      
+
  where
   handleExceptions = handle $ \(e :: IOException) -> do
     hPutStrLn stderr $ "IOException on connect: " ++ show e
@@ -224,7 +224,7 @@ initWaitForOK con msg@(msgCmd -> cmd) alt_nicks msgs
     let (to:_)    = msgParams msg
         Just from = msgPrefix msg
         txt       = msgTrail msg
-  
+
     return $ InitWaitForOK alt_nicks (msgs ++ [NoticeMsg from to txt])
 
   -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
@@ -308,15 +308,16 @@ handleIncoming msg@(msgCmd -> cmd)
 
   -- ping/pong game
   | cmd == "PING" = do
-  
+
     let trail = msgTrail msg
     sendMsg $ pongMsg trail
 
   -- join channels
   | cmd == "JOIN" = do
 
-    let (trail:_)       = B8.words $ msgTrail msg
-        channels        = B8.split ',' trail
+    let channels = case B8.words $ msgTrail msg of
+                     (trail:_) -> B8.split ',' trail
+                     []        -> msgParams msg
         Just (Left who) = msgPrefix msg
 
     withUsr who $ \usr ->
@@ -358,7 +359,7 @@ handleIncoming msg@(msgCmd -> cmd)
     let (to:_)    = msgParams msg
         Just from = msgPrefix msg
         txt       = msgTrail msg
-    
+
     addMsg $ PrivMsg from to txt
 
   -- notice messages
@@ -367,7 +368,7 @@ handleIncoming msg@(msgCmd -> cmd)
     let (to:_)    = msgParams msg
         Just from = msgPrefix msg
         txt       = msgTrail msg
-    
+
     addMsg $ NoticeMsg from to txt
 
   -- nick changes

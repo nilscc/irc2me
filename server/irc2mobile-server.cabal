@@ -34,3 +34,12 @@ executable irc2mobile-server
                        type-level,
                        tls, tls-extra,
                        crypto-random
+
+executable backend-tests
+  main-is:             Test/Main.hs
+  hs-source-dirs:      src/
+  ghc-options:         -Wall -threaded
+  build-depends:       base == 4.*,
+                       bytestring,
+                       test-framework,
+                       test-framework-quickcheck2

@@ -26,10 +26,11 @@ user = User { usr_nick     = "McManiaC"
             , usr_realname = "irc2mob"
             }
 
-server :: Server
-server = Server { srv_host = "irc.xinutec.net"
-                , srv_port = PortNumber 6667
-                }
+freenode :: Server
+freenode = Server { srv_host = "irc.freenode.org"
+                  , srv_port = PortNumber 6697
+                  , srv_tls  = TLS
+                  }
 
 channels :: [(Channel, Maybe Key)]
 channels = [ ("##test", Nothing) ]
@@ -39,7 +40,9 @@ main = do
 
   putStrLn "Connecting..."
 
-  Just (con,msgs) <- connect server OptionalSTARTTLS user
+  let server = freenode
+
+  Just (con,msgs) <- connect server user
 
   -- output all debugging messages
   void $ forkIO $ fix $ \loop -> do
