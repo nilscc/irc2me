@@ -32,7 +32,9 @@ executable irc2mobile-server
                        cereal,
                        text,
                        type-level,
-                       tls, tls-extra,
+                       data-default-class,
+                       x509, x509-store, x509-validation,
+                       tls,
                        crypto-random
 
 executable backend-tests

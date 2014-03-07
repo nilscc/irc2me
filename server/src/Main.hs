@@ -12,8 +12,6 @@ import           Data.Time
 import Network
 import Network.IRC.ByteString.Parser
 
---import System.IO
-
 -- our imports:
 import IRC
 import IRC.Codes
@@ -27,7 +25,7 @@ user = User { usr_nick     = "McManiaC"
             }
 
 freenode :: Server
-freenode = Server { srv_host = "irc.freenode.org"
+freenode = Server { srv_host = "irc.freenode.net"
                   , srv_port = PortNumber 6697
                   , srv_tls  = TLS
                   }

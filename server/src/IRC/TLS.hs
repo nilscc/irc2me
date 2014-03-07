@@ -12,11 +12,16 @@ import Control.Exception
 
 import Crypto.Random
 
+import           Data.Default.Class
 import           Data.Functor
+import           Data.List
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import           Data.Time
+import           Data.X509
+import           Data.X509.CertificateStore
+import           Data.X509.Validation
 
 import Network.IRC.ByteString.Parser
 import Network.TLS
@@ -26,16 +31,34 @@ import IRC.Debug
 import IRC.Messages
 import IRC.Types
 
-clientParams :: Params
-clientParams = defaultParamsClient
-  { pConnectVersion = TLS12
-  , pAllowedVersions = [SSL3, TLS10, TLS11, TLS12]
-  , pCiphers = ciphersuite_all
-  , pLogging = Logging { loggingPacketSent = \s     -> putStrLn $ "send > " ++ s
-                       , loggingPacketRecv = \s     -> putStrLn $ "recv < " ++ s
-                       , loggingIOSent     = \_bs   -> putStrLn $ "send > <binary data>"
-                       , loggingIORecv     = \h _bs -> putStrLn $ "recv < " ++ show h
-                       }
+certificationErrorsToIgnore :: [FailedReason]
+certificationErrorsToIgnore =
+  [ UnknownCA
+  ]
+
+type CertValidationFunction =
+     CertificateStore
+  -> ValidationCache
+  -> ServiceID
+  -> CertificateChain
+  -> IO [FailedReason]
+
+validateButIgnore :: CertValidationFunction
+validateButIgnore c v s ch = do
+  err <- validateDefault c v s ch
+  return $ err \\ certificationErrorsToIgnore
+
+logging :: Logging
+logging = def { loggingPacketSent = \s     -> putStrLn $ "send > " ++ s
+              , loggingPacketRecv = \s     -> putStrLn $ "recv < " ++ s
+              , loggingIOSent     = \_bs   -> putStrLn $ "send > <binary data>"
+              , loggingIORecv     = \h _bs -> putStrLn $ "recv < " ++ show h
+              }
+
+clientParams :: Server -> ClientParams
+clientParams srv = (defaultParamsClient (srv_host srv) "irc2mobile-backend")
+  { clientSupported = def { supportedCiphers = ciphersuite_strong }
+  , clientHooks     = def { onServerCertificate = validateButIgnore }
   }
 
 establishTLS :: Connection -> IO Bool
@@ -47,10 +70,16 @@ establishTLS con = handleExceptions $ do
       -- entropy & random gen
       gen <- cprgCreate `fmap` createEntropyPool :: IO SystemRNG
 
+      let params = clientParams (con_server con)
+      print params
+
       -- create TLS context
-      ctxt <- contextNewOnHandle (con_handle con)
-                                 clientParams
-                                 gen
+      ctxt <- contextNew (con_handle con)
+                         params
+                         gen
+
+      -- setup logging (optional)
+      --contextHookSetLogging ctxt logging
 
       handshake ctxt
 
