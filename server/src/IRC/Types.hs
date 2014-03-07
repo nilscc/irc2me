@@ -24,7 +24,7 @@ data User = User
   }
 
 data Userflag = Operator | Voice
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Enum)
 
 data Server = Server
   { srv_host      :: String

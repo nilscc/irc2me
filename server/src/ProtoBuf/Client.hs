@@ -9,10 +9,10 @@ import Data.Word
 
 import GHC.Generics (Generic)
 
-import IRC.ProtoBuf.Instances ()
+import ProtoBuf.Instances ()
 
 data ClientMsgType
-  = ClntMsg_Request
+  = Request
   deriving (Eq, Show, Enum)
 
 data PB_ClientMessage = PB_ClientMessage

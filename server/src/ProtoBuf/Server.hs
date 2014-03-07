@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 -- | Module for server to client messages
-module ProtoBuf.Server where
+module IRC.ProtoBuf.Server where
 
 import Data.ProtocolBuffers
 import Data.TypeLevel.Num
@@ -17,7 +17,7 @@ import GHC.Generics (Generic)
 
 import qualified Network.IRC.ByteString.Parser as I
 import qualified IRC.Types                     as IRC
-import           IRC.ProtoBuf.Instances        ()
+import           ProtoBuf.Instances        ()
 
 data ServerMsgType
   = SrvMsg_Response
@@ -63,10 +63,21 @@ data IrcMsgType
   | Ty_KickMsg
   | Ty_QuitMsg
   | Ty_MOTDMsg
+  | Ty_TopicMsg
   | Ty_NickMsg
+  | Ty_NamreplyMsg
   | Ty_ErrorMsg
   | Ty_RawMsg
   deriving (Eq, Enum, Show)
+
+data PB_Namreply = PB_Namreply
+  { namreply_name     :: Required D1 (Value Text)
+  , namreply_userflag :: Optional D2 (Enumeration IRC.Userflag)
+  }
+  deriving (Eq, Show, Generic)
+
+instance Encode PB_Namreply
+instance Decode PB_Namreply
 
 data PB_IrcMessage = PB_IrcMessage
   { -- message type
@@ -79,8 +90,9 @@ data PB_IrcMessage = PB_IrcMessage
   , irc_msg_content     :: Optional D9 (Value Text)
     -- privmsg/notice
   , irc_msg_to          :: Optional D10 (Value Text)
-    -- nick change
+    -- nick change + namreply
   , irc_msg_new_nick    :: Optional D21 (Value Text)
+  , irc_msg_namreply    :: Repeated D22 (Message PB_Namreply)
     -- join/part/kick/quit
   , irc_msg_channels    :: Repeated D30 (Value Text)
   , irc_msg_who         :: Optional D31 (Value Text)
@@ -106,6 +118,7 @@ emptyIrcMessage ty = PB_IrcMessage
   , irc_msg_to          = mempty
     -- nick change
   , irc_msg_new_nick    = mempty
+  , irc_msg_namreply    = mempty
     -- join/part/kick
   , irc_msg_channels    = mempty
   , irc_msg_who         = mempty
@@ -132,9 +145,9 @@ encodeIrcMessage msg =
             , irc_msg_to         = putBS to
             , irc_msg_content    = putBS cont
             }
-    IRC.JoinMsg chan (fmap I.userNick -> who) ->
+    IRC.JoinMsg chans (fmap I.userNick -> who) ->
       (emptyIrcMessage Ty_JoinMsg)
-        { irc_msg_channels = putBSs [chan]
+        { irc_msg_channels = putBSs chans
         , irc_msg_who      = putBSMaybe who
         }
     IRC.PartMsg chan (fmap I.userNick -> who) ->
@@ -148,20 +161,29 @@ encodeIrcMessage msg =
         , irc_msg_who      = putBSMaybe who
         , irc_msg_content  = putBSMaybe comment
         }
-    IRC.QuitMsg chans who comment ->
-      (emptyIrcMessage Ty_KickMsg)
-        { irc_msg_channels = putBSs chans
-        , irc_msg_who      = putBSMaybe (I.userNick `fmap` who)
+    IRC.QuitMsg who comment ->
+      (emptyIrcMessage Ty_QuitMsg)
+        { irc_msg_who      = putBSMaybe (I.userNick `fmap` who)
         , irc_msg_content  = putBSMaybe comment
         }
     IRC.MOTDMsg motd ->
       (emptyIrcMessage Ty_MOTDMsg)
         { irc_msg_content = putBS motd
         }
+    IRC.TopicMsg chan topic ->
+      (emptyIrcMessage Ty_TopicMsg)
+        { irc_msg_channels = putBSs [chan]
+        , irc_msg_content  = putBSMaybe topic
+        }
     IRC.NickMsg (fmap I.userNick -> old) new ->
       (emptyIrcMessage Ty_NickMsg)
         { irc_msg_from     = putBSMaybe old
         , irc_msg_new_nick = putBS new
+        }
+    IRC.NamreplyMsg chan names ->
+      (emptyIrcMessage Ty_NamreplyMsg)
+        { irc_msg_channels = putBSs [chan]
+        , irc_msg_namreply = putNamreply names
         }
     IRC.ErrorMsg code ->
       (emptyIrcMessage Ty_ErrorMsg)
@@ -202,3 +224,8 @@ putBSMaybe = putField . fmap decodeUtf8
 
 decodeUtf8 :: ByteString -> Text
 decodeUtf8 = E.decodeUtf8With EE.lenientDecode
+
+putNamreply :: [(IRC.Nickname, Maybe IRC.Userflag)]
+            -> Repeated a (Message PB_Namreply)
+putNamreply n = putField $ map `flip` n $ \(name, uf) ->
+  PB_Namreply (putField $ decodeUtf8 name) (putField uf)
