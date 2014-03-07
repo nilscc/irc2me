@@ -4,6 +4,7 @@ module Main where
 
 import IRC
 import Network
+import ProtoBuf ()
 
 user :: User
 user = User { usr_nick     = "McManiaC"
