@@ -32,6 +32,8 @@ freenode = Server { srv_host      = "irc.freenode.net"
                   , srv_reconnect = True
                   }
 
+--------------------------------------------------------------------------------
+
 main :: IO ()
 main = do
 
@@ -42,21 +44,7 @@ main = do
 
   run user server channels
 
-startDebuggingOutput :: Connection -> IO ThreadId
-startDebuggingOutput con = do
-  -- output all debugging messages
-  forkIO $ fix $ \loop -> do
-    ms <- getDebugOutput con
-    case ms of
-      Nothing -> return ()
-      Just s  -> do
-        putStrLn s
-        loop
-
-connectionFailed :: Server -> IO ()
-connectionFailed srv = do
-  -- TODO: error message!
-  putStrLn $ "Could not connect to server " ++ srv_host srv
+--------------------------------------------------------------------------------
 
 rejoinChannels :: Connection -> IO ()
 rejoinChannels con = do
@@ -112,6 +100,25 @@ runWithConnection con = do
       reuseConnection con
      else
       putStrLn "Disconnected."
+
+--------------------------------------------------------------------------------
+-- Output
+
+startDebuggingOutput :: Connection -> IO ThreadId
+startDebuggingOutput con = do
+  -- output all debugging messages
+  forkIO $ fix $ \loop -> do
+    ms <- getDebugOutput con
+    case ms of
+      Nothing -> return ()
+      Just s  -> do
+        putStrLn s
+        loop
+
+connectionFailed :: Server -> IO ()
+connectionFailed srv = do
+  -- TODO: error message!
+  putStrLn $ "Could not connect to server " ++ srv_host srv
 
 printMessage :: Nickname -> (UTCTime, Message) -> IO ()
 printMessage cur_nick msgWithTime = do
