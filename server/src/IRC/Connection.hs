@@ -8,6 +8,7 @@ import Control.Concurrent.STM
 import Control.Monad
 
 import           Data.Map (Map)
+import qualified Data.Map as M
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 
@@ -68,6 +69,12 @@ getChannels con = atomically $ getChannels' con
 
 getChannels' :: Connection -> STM (Map Channel (Maybe Key))
 getChannels' con = readTVar (con_channels con)
+
+setChannels :: Connection -> [(Channel, Maybe Key)] -> IO ()
+setChannels con chans = atomically $ setChannels' con chans
+
+setChannels' :: Connection -> [(Channel, Maybe Key)] -> STM ()
+setChannels' con chans = writeTVar (con_channels con) (M.fromList chans)
 
 -- | Split "[@|+]<nick>"
 getUserflag :: ByteString -> (Nickname, Maybe Userflag)

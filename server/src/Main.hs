@@ -3,9 +3,9 @@
 {-# LANGUAGE PatternGuards #-}
 
 import Control.Concurrent
-import Control.Monad
 
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Map as M
 import           Data.Function
 import           Data.Time
 
@@ -14,6 +14,7 @@ import Network.IRC.ByteString.Parser
 
 -- our imports:
 import IRC
+import IRC.Connection
 import IRC.Codes
 import IRC.Types
 
@@ -25,25 +26,26 @@ user = User { usr_nick     = "McManiaC"
             }
 
 freenode :: Server
-freenode = Server { srv_host = "irc.freenode.net"
-                  , srv_port = PortNumber 6697
-                  , srv_tls  = TLS
+freenode = Server { srv_host      = "irc.freenode.net"
+                  , srv_port      = PortNumber 6697
+                  , srv_tls       = TLS
+                  , srv_reconnect = True
                   }
-
-channels :: [(Channel, Maybe Key)]
-channels = [ ("##test", Nothing) ]
 
 main :: IO ()
 main = do
 
   putStrLn "Connecting..."
 
-  let server = freenode
+  let server   = freenode
+      channels = [ ("##test", Nothing) ]
 
-  Just (con,msgs) <- connect server user
+  run user server channels
 
+startDebuggingOutput :: Connection -> IO ThreadId
+startDebuggingOutput con = do
   -- output all debugging messages
-  void $ forkIO $ fix $ \loop -> do
+  forkIO $ fix $ \loop -> do
     ms <- getDebugOutput con
     case ms of
       Nothing -> return ()
@@ -51,10 +53,49 @@ main = do
         putStrLn s
         loop
 
-  nick <- getCurrentNick con
-  mapM_ (printMessage nick) msgs
+connectionFailed :: Server -> IO ()
+connectionFailed srv = do
+  -- TODO: error message!
+  putStrLn $ "Could not connect to server " ++ srv_host srv
 
-  mapM_ (send con . uncurry joinMsg) channels
+rejoinChannels :: Connection -> IO ()
+rejoinChannels con = do
+  chans <- getChannels con
+  mapM_ (send con . uncurry joinMsg) $ M.toList chans
+
+run :: User -> Server -> [(Channel, Maybe Key)] -> IO ()
+run usr srv chans = do
+
+  mcon <- connect srv usr
+  case mcon of
+    Nothing -> connectionFailed srv
+    Just (con,msgs) -> do
+
+      _ <- startDebuggingOutput con
+
+      -- join new channels
+      setChannels con chans
+      rejoinChannels con
+
+      nick <- getCurrentNick con
+      mapM_ (printMessage nick) msgs
+
+      runWithConnection con
+
+reuseConnection :: Connection -> IO ()
+reuseConnection old_con = do
+  mcon <- reconnect old_con
+  case mcon of
+    Nothing -> connectionFailed (con_server old_con)
+    Just (con,msgs) -> do
+
+      nick <- getCurrentNick con
+      mapM_ (printMessage nick) msgs
+
+      runWithConnection con
+
+runWithConnection :: Connection -> IO ()
+runWithConnection con = do
 
   -- output incoming messages
   fix $ \loop -> do
@@ -67,6 +108,8 @@ main = do
           cur_nick <- getCurrentNick con
           printMessage cur_nick msg
           loop
+     else if srv_reconnect (con_server con) then
+      reuseConnection con
      else
       putStrLn "Disconnected."
 

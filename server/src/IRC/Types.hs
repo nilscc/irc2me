@@ -27,9 +27,10 @@ data Userflag = Operator | Voice
   deriving (Show, Eq, Ord)
 
 data Server = Server
-  { srv_host :: String
-  , srv_port :: PortID
-  , srv_tls  :: TLSSettings
+  { srv_host      :: String
+  , srv_port      :: PortID
+  , srv_tls       :: TLSSettings
+  , srv_reconnect :: Bool
   }
 
 type Channel = ByteString
