@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 -- | Module for client to server messages
-module IRC.ProtoBuf.Client where
+module ProtoBuf.Client where
 
 import Data.ProtocolBuffers
 import Data.TypeLevel.Num

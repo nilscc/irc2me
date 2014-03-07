@@ -2,7 +2,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS -fno-warn-orphans #-} -- FIXME
 
-module IRC.ProtoBuf.Instances where
+module ProtoBuf.Instances where
 
 import Data.Foldable
 import Data.Monoid
