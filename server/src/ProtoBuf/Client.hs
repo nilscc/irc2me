@@ -10,13 +10,17 @@ import Data.Word
 import GHC.Generics (Generic)
 
 import ProtoBuf.Instances ()
+import ProtoBuf.Network
 
 data ClientMsgType
   = Request
+  | AddNetwork
   deriving (Eq, Show, Enum)
 
 data PB_ClientMessage = PB_ClientMessage
   { client_msg_type     :: Required D1  (Enumeration ClientMsgType)
+    -- networks
+  , addnetwork_msg      :: Repeated D10 (Message PB_Network)
   }
   deriving (Eq, Show, Generic)
 
