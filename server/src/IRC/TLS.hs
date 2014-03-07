@@ -70,12 +70,9 @@ establishTLS con = handleExceptions $ do
       -- entropy & random gen
       gen <- cprgCreate `fmap` createEntropyPool :: IO SystemRNG
 
-      let params = clientParams (con_server con)
-      print params
-
       -- create TLS context
       ctxt <- contextNew (con_handle con)
-                         params
+                         (clientParams (con_server con))
                          gen
 
       -- setup logging (optional)
@@ -88,8 +85,12 @@ establishTLS con = handleExceptions $ do
 
       -- receive data in background
       tid <- forkIO $ do
-        let handleIOException = handle (\(_ :: IOException) -> return ())
-         in handleIOException $ forever $ do
+
+        let ignoreIOException  = handle (\(_ :: IOException) -> return ())
+            ignoreTLSException = handle (\(_ :: TLSException) -> return ())
+            ignoreExceptions   = ignoreIOException . ignoreTLSException
+
+         in ignoreExceptions $ forever $ do
               bs <- recvData ctxt
               atomically $ modifyTVar buff (`BS.append` bs)
 
@@ -99,12 +100,7 @@ establishTLS con = handleExceptions $ do
  where
   -- just catch all exceptions that could possible occure
   handleExceptions = handle (\(_ :: IOException)              -> return False)
-  {-
-                   . handle (\(_ :: TLSError)                 -> return False)
-                   . handle (\(_ :: HandshakeFailed)          -> return False)
-                   . handle (\(_ :: ConnectionNotEstablished) -> return False)
-                   . handle (\(_ :: Terminated)               -> return False)
-                   -}
+                   . handle (\(_ :: TLSException)             -> return False)
 
 --------------------------------------------------------------------------------
 -- TLS initialization
