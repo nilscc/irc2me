@@ -31,7 +31,6 @@ executable irc2mobile-server
                        protobuf,
                        cereal,
                        text,
-                       type-level,
                        data-default-class,
                        x509, x509-store, x509-validation,
                        tls,

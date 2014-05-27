@@ -1,10 +1,10 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
 
 module ProtoBuf.Server.IRC where
 
 import Data.ProtocolBuffers
-import Data.TypeLevel.Num
 import Data.Monoid
 import Data.Text          (Text)
 
@@ -34,8 +34,8 @@ data IrcMsgType
   deriving (Eq, Enum, Show)
 
 data PB_Namreply = PB_Namreply
-  { namreply_name     :: Required D1 (Value Text)
-  , namreply_userflag :: Optional D2 (Enumeration IRC.Userflag)
+  { namreply_name     :: Required 1 (Value Text)
+  , namreply_userflag :: Optional 2 (Enumeration IRC.Userflag)
   }
   deriving (Eq, Show, Generic)
 
@@ -44,23 +44,23 @@ instance Decode PB_Namreply
 
 data PB_IrcMessage = PB_IrcMessage
   { -- message type
-    irc_msg_type        :: Required D1  (Enumeration IrcMsgType)
+    irc_msg_type        :: Required 1  (Enumeration IrcMsgType)
     -- raw messages
-  , irc_msg_from        :: Optional D5 (Value Text) -- either...
-  , irc_msg_servername  :: Optional D6 (Value Text) -- ...or
-  , irc_msg_command     :: Optional D7 (Value Text)
-  , irc_msg_params      :: Repeated D8 (Value Text)
-  , irc_msg_content     :: Optional D9 (Value Text)
+  , irc_msg_from        :: Optional 5 (Value Text) -- either...
+  , irc_msg_servername  :: Optional 6 (Value Text) -- ...or
+  , irc_msg_command     :: Optional 7 (Value Text)
+  , irc_msg_params      :: Repeated 8 (Value Text)
+  , irc_msg_content     :: Optional 9 (Value Text)
     -- privmsg/notice
-  , irc_msg_to          :: Optional D10 (Value Text)
+  , irc_msg_to          :: Optional 10 (Value Text)
     -- nick change + namreply
-  , irc_msg_new_nick    :: Optional D21 (Value Text)
-  , irc_msg_namreply    :: Repeated D22 (Message PB_Namreply)
+  , irc_msg_new_nick    :: Optional 21 (Value Text)
+  , irc_msg_namreply    :: Repeated 22 (Message PB_Namreply)
     -- join/part/kick/quit
-  , irc_msg_channels    :: Repeated D30 (Value Text)
-  , irc_msg_who         :: Optional D31 (Value Text)
+  , irc_msg_channels    :: Repeated 30 (Value Text)
+  , irc_msg_who         :: Optional 31 (Value Text)
     -- motd/topic
-  , irc_msg_notopic     :: Optional D42 (Value Bool)
+  , irc_msg_notopic     :: Optional 42 (Value Bool)
   }
   deriving (Show, Generic)
 

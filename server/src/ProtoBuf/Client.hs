@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
 
 -- | Module for client to server messages
 module ProtoBuf.Client where
 
 import Data.ProtocolBuffers
-import Data.TypeLevel.Num
 import Data.Word
 
 import GHC.Generics (Generic)
@@ -18,9 +18,9 @@ data ClientMsgType
   deriving (Eq, Show, Enum)
 
 data PB_ClientMessage = PB_ClientMessage
-  { client_msg_type     :: Required D1  (Enumeration ClientMsgType)
+  { client_msg_type     :: Required 1  (Enumeration ClientMsgType)
     -- networks
-  , addnetwork_msg      :: Repeated D10 (Message PB_Network)
+  , addnetwork_msg      :: Repeated 10 (Message PB_Network)
   }
   deriving (Eq, Show, Generic)
 
@@ -41,11 +41,11 @@ data OpMode
   deriving (Eq, Enum, Show)
 
 data PB_Request = PB_Request
-  { rq_request          :: Required D1  (Enumeration Request)
+  { rq_request          :: Required 1  (Enumeration Request)
     -- mode changes
-  , rq_opmode           :: Optional D10 (Enumeration OpMode)
+  , rq_opmode           :: Optional 10 (Enumeration OpMode)
     -- message transfer
-  , rq_msg_max_backlog  :: Optional D20 (Value Word32)
+  , rq_msg_max_backlog  :: Optional 20 (Value Word32)
   }
   deriving (Generic, Show)
 

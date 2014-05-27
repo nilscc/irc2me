@@ -1,11 +1,11 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
 
 -- | Module for server to client messages
 module ProtoBuf.Server where
 
 import Data.ProtocolBuffers
-import Data.TypeLevel.Num
 
 import GHC.Generics (Generic)
 
@@ -20,13 +20,13 @@ data ServerMsgType
   deriving (Eq, Show, Enum)
 
 data PB_ServerMessage = PB_ServerMessage
-  { server_msg_type   :: Required D1  (Enumeration ServerMsgType)
+  { server_msg_type   :: Required 1  (Enumeration ServerMsgType)
     -- response messages
-  , response_msg      :: Optional D10 (Message PB_Response)
+  , response_msg      :: Optional 10 (Message PB_Response)
     -- networks
-  , network_msg       :: Repeated D20 (Message PB_Network)
+  , network_msg       :: Repeated 20 (Message PB_Network)
     -- IRC messages
-  , irc_msg           :: Optional D30 (Message PB_IrcMessage)
+  , irc_msg           :: Optional 30 (Message PB_IrcMessage)
   }
   deriving (Show, Generic)
 
@@ -42,7 +42,7 @@ data ResponseCode
   deriving (Eq, Enum, Show)
 
 data PB_Response = PB_Response
-  { rsp_code        :: Optional D10 (Enumeration ResponseCode)
+  { rsp_code        :: Optional 10 (Enumeration ResponseCode)
   }
   deriving (Eq, Show, Generic)
 
