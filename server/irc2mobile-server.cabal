@@ -36,7 +36,8 @@ executable irc2mobile-server
                        tls,
                        crypto-random,
                        HDBC, HDBC-postgresql,
-                       scrypt
+                       scrypt,
+                       parsec
 
 executable backend-tests
   main-is:             Test/Main.hs

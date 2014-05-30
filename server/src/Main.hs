@@ -9,12 +9,12 @@ import ProtoBuf ()
 import Database.Tables.Accounts ()
 import Database.Tables.Networks ()
 
-user :: User
-user = User { usr_nick     = "McManiaC"
-            , usr_nick_alt = ["irc2mob"]
-            , usr_name     = "irc2mob"
-            , usr_realname = "irc2mob"
-            }
+user :: Identity
+user = Identity { usr_nick     = "McManiaC"
+                , usr_nick_alt = ["irc2mob"]
+                , usr_name     = "irc2mob"
+                , usr_realname = "irc2mob"
+                }
 
 freenode :: Server
 freenode = Server { srv_host      = "irc.freenode.net"
