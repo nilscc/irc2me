@@ -33,6 +33,7 @@ data Server = Server
   , srv_tls       :: TLSSettings
   , srv_reconnect :: Bool
   }
+  deriving (Show, Eq)
 
 type Channel = ByteString
 type Key     = ByteString

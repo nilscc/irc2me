@@ -50,15 +50,15 @@ addNetwork (Account a) name = UpdateReturning
 -- converters
 
 serverSELECT :: String
-serverSELECT = "SELECT address, port, use_ssl FROM network_servers"
+serverSELECT = "SELECT address, port, use_ssl, reconnect FROM network_servers"
 
 toServer :: Converter Server
 toServer s = case s of
-  [SqlString a, SqlInteger p, SqlBool ssl] -> Just $
+  [SqlString a, SqlInteger p, SqlBool ssl, SqlBool recon] -> Just $
     Server { srv_host       = a
            , srv_port       = PortNumber $ fromIntegral p
            , srv_tls        = if ssl then TLS else OptionalSTARTTLS
-           , srv_reconnect  = False
+           , srv_reconnect  = recon
            }
   _ -> Nothing
 
