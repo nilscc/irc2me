@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Database.Accounts where
+module Database.Tables.Accounts where
 
 import Data.ByteString (ByteString)
 

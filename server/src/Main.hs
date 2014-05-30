@@ -6,7 +6,7 @@ import IRC
 import Network
 import ProtoBuf ()
 
-import Database.Accounts()
+import Database.Tables.Accounts()
 
 user :: User
 user = User { usr_nick     = "McManiaC"
