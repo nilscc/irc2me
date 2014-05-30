@@ -30,13 +30,11 @@ data Update a
       , urConvert  :: [[SqlValue]] -> a
       }
 
--- TODO: catch exceptions
-runQuery :: Query a -> IO a
+runQuery :: Query a -> IO (Either SqlError a)
 runQuery (Query s v conv) = runSQL $ \c ->
   conv <$> quickQuery' c s v
 
--- TODO: catch exceptions
-runUpdate :: Update a -> IO a
+runUpdate :: Update a -> IO (Either SqlError a)
 runUpdate (Update s v conv) = runSQL $ \c -> do
   i <- run c s v
   commit c
