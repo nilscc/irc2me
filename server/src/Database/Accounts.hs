@@ -9,6 +9,9 @@ newtype Account = Account { accountId :: Integer }
 
 -- converters
 
+accountSELECT :: String
+accountSELECT = "SELECT id FROM accounts"
+
 toAccount :: Converter Account
 toAccount [SqlInteger i] = Just $ Account i
 toAccount _              = Nothing
@@ -17,12 +20,12 @@ toAccount _              = Nothing
 
 selectAccounts :: Query [Account]
 selectAccounts = Query
-  "SELECT id FROM accounts"
+  accountSELECT
   []
   (convertList toAccount)
 
 selectAccountByLogin :: String -> Query (Maybe Account)
 selectAccountByLogin login = Query
-  "SELECT id FROM accounts WHERE login = ?"
+  (accountSELECT ++ " WHERE login = ?")
   [SqlString login]
   (convertOne toAccount)
