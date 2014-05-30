@@ -60,7 +60,7 @@ addAccount
 addAccount login encrypted = UpdateReturning
   "INSERT INTO accounts (login, password) VALUES (?, ?) \
   \  RETURNING id"
-  [toSql login, toSql (getEncryptedPass encrypted)]
+  [toSql login, byteaPack (getEncryptedPass encrypted)]
   (convertOne toAccount)
 
 --------------------------------------------------------------------------------
