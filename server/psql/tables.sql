@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS accounts
   id        serial      PRIMARY KEY,
 
   login     text        NOT NULL UNIQUE,
-  password  bytea       NOT NULL,
+  password  bytea       NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS networks
