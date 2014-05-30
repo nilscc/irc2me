@@ -22,16 +22,6 @@ toAccount = \case
   [SqlInteger i] -> Just $ Account i
   _              -> Nothing
 
-toBool :: Converter Bool
-toBool = \case
-  [SqlBool b] -> Just b
-  _           -> Nothing
-
-toByteString :: Converter ByteString
-toByteString = \case
-  [SqlByteString bs] -> Just bs
-  _                  -> Nothing
-
 -- queries
 
 selectAccounts :: Query [Account]
@@ -56,3 +46,15 @@ checkPassword login pw = Query
     (Just bs) -> fst $ verifyPass defaultParams (Pass pw) (EncryptedPass bs)
     _         -> False
 
+-- updates
+
+addAccount
+  :: String         -- ^ Login name
+  -> ByteString     -- ^ Password
+  -> IO Bool
+addAccount login pw = do
+  encrypted <- encryptPassIO defaultParams (Pass pw)
+  i <- runUpdate $ Update
+         "INSERT INTO accounts (login, password) VALUES (?, ?)"
+         [toSql login, toSql (getEncryptedPass encrypted)]
+  return $ i == 1
