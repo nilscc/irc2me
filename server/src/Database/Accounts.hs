@@ -48,7 +48,7 @@ selectAccountByLogin login = Query
 
 checkPassword :: String -> ByteString -> Query Bool
 checkPassword login pw = Query
-  ("SELECT password FROM accounts WHERE login = ?")
+  "SELECT password FROM accounts WHERE login = ?"
   [toSql login]
   (verify . convertOne toByteString)
  where
