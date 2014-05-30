@@ -18,11 +18,17 @@ data Query a = Query
   , qConvert  :: [[SqlValue]] -> a
   }
 
-data Update a = Update
-  { updateStr :: String
-  , uParam    :: [SqlValue]
-  , uConvert  :: Integer -> a
-  }
+data Update a
+  = Update
+      { uStr      :: String
+      , uParam    :: [SqlValue]
+      , uConvert  :: Integer -> a
+      }
+  | UpdateReturning
+      { urStr      :: String
+      , urParam    :: [SqlValue]
+      , urConvert  :: [[SqlValue]] -> a
+      }
 
 -- TODO: catch exceptions
 runQuery :: Query a -> IO a
@@ -31,10 +37,14 @@ runQuery (Query s v conv) = runSQL $ \c ->
 
 -- TODO: catch exceptions
 runUpdate :: Update a -> IO a
-runUpdate (Update s v mconv) = runSQL $ \c -> do
+runUpdate (Update s v conv) = runSQL $ \c -> do
   i <- run c s v
   commit c
-  return $ mconv i
+  return $ conv i
+runUpdate (UpdateReturning s v conv) = runSQL $ \c -> do
+  res <- conv <$> quickQuery' c s v
+  commit c
+  return res
 
 runUpdate_ :: Update a -> IO ()
 runUpdate_ u = () <$ runUpdate u
