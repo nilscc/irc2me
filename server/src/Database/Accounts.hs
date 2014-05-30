@@ -1,5 +1,10 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Database.Accounts where
 
+import Data.ByteString (ByteString)
+
+import Crypto.Scrypt
 import Database.HDBC
 
 import Database.Query
@@ -13,8 +18,19 @@ accountSELECT :: String
 accountSELECT = "SELECT id FROM accounts"
 
 toAccount :: Converter Account
-toAccount [SqlInteger i] = Just $ Account i
-toAccount _              = Nothing
+toAccount = \case
+  [SqlInteger i] -> Just $ Account i
+  _              -> Nothing
+
+toBool :: Converter Bool
+toBool = \case
+  [SqlBool b] -> Just b
+  _           -> Nothing
+
+toByteString :: Converter ByteString
+toByteString = \case
+  [SqlByteString bs] -> Just bs
+  _                  -> Nothing
 
 -- queries
 
@@ -27,5 +43,16 @@ selectAccounts = Query
 selectAccountByLogin :: String -> Query (Maybe Account)
 selectAccountByLogin login = Query
   (accountSELECT ++ " WHERE login = ?")
-  [SqlString login]
+  [toSql login]
   (convertOne toAccount)
+
+checkPassword :: String -> ByteString -> Query Bool
+checkPassword login pw = Query
+  ("SELECT password FROM accounts WHERE login = ?")
+  [toSql login]
+  (verify . convertOne toByteString)
+ where
+  verify = \case
+    (Just bs) -> fst $ verifyPass defaultParams (Pass pw) (EncryptedPass bs)
+    _         -> False
+

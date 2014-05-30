@@ -36,8 +36,8 @@ runUpdate_ u = () <$ runUpdate u
 
 type Converter a = [SqlValue] -> Maybe a
 
-convertOne :: Converter a -> [[SqlValue]] -> Maybe a
-convertOne f = listToMaybe . convertList f
-
 convertList :: Converter a -> [[SqlValue]] -> [a]
 convertList f = catMaybes . map f
+
+convertOne :: Converter a -> [[SqlValue]] -> Maybe a
+convertOne f = listToMaybe . convertList f
