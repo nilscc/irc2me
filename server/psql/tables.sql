@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS network_servers
 
   address   text        NOT NULL,
   port      integer     NOT NULL,
-  use_ssl   boolean     DEFAULT true
+  use_ssl   boolean     NOT NULL DEFAULT true
 );
 
 CREATE TABLE IF NOT EXISTS network_channels
