@@ -48,13 +48,15 @@ checkPassword login pw = Query
 
 -- updates
 
+mkEncrypted :: ByteString -> IO EncryptedPass
+mkEncrypted pw = encryptPassIO defaultParams (Pass pw)
+
 addAccount
-  :: String         -- ^ Login name
-  -> ByteString     -- ^ Password
-  -> IO Bool
-addAccount login pw = do
-  encrypted <- encryptPassIO defaultParams (Pass pw)
-  runUpdate $ Update
-         "INSERT INTO accounts (login, password) VALUES (?, ?)"
-         [toSql login, toSql (getEncryptedPass encrypted)]
-         (== 1)
+  :: String           -- ^ Login name
+  -> EncryptedPass    -- ^ Password
+  -> Update (Maybe Account)
+addAccount login encrypted = UpdateReturning
+  "INSERT INTO accounts (login, password) VALUES (?, ?) \
+  \  RETURNING id"
+  [toSql login, toSql (getEncryptedPass encrypted)]
+  (convertOne toAccount)
