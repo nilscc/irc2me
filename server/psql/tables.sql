@@ -10,8 +10,6 @@ CREATE TABLE IF NOT EXISTS accounts
 
   login     text        NOT NULL UNIQUE,
   password  bytea       NOT NULL,
-
-  name      text
 );
 
 CREATE TABLE IF NOT EXISTS networks
