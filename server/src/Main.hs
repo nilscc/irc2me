@@ -6,6 +6,8 @@ import IRC
 import Network
 import ProtoBuf ()
 
+import Database.Accounts()
+
 user :: User
 user = User { usr_nick     = "McManiaC"
             , usr_nick_alt = ["irc2mob"]

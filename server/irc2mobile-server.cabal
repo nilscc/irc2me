@@ -34,7 +34,9 @@ executable irc2mobile-server
                        data-default-class,
                        x509, x509-store, x509-validation,
                        tls,
-                       crypto-random
+                       crypto-random,
+                       HDBC, HDBC-postgresql,
+                       scrypt
 
 executable backend-tests
   main-is:             Test/Main.hs
