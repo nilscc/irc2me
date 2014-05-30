@@ -133,7 +133,7 @@ sendBye con = do
 nickMsg :: ByteString -> IRCMsg
 nickMsg nick = ircMsg "NICK" [ nick ] ""
 
-userMsg :: User -> IRCMsg
+userMsg :: Identity -> IRCMsg
 userMsg usr = ircMsg "USER" [ usr_name usr
                             , "*", "*"
                             , usr_realname usr ] ""

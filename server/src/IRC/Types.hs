@@ -16,7 +16,7 @@ type Nickname = ByteString
 type Username = ByteString
 type Realname = ByteString
 
-data User = User
+data Identity = Identity
   { usr_nick     :: Nickname
   , usr_nick_alt :: [Nickname] -- ^ alternative nicks (when nickname in use)
   , usr_name     :: Username
@@ -91,7 +91,7 @@ data ConnectionStatus
 
 data Connection = Connection
   { -- read only settings:
-    con_user            :: User
+    con_user            :: Identity
   , con_server          :: Server
     -- connection state variables:
   , con_nick_cur        :: TVar Nickname

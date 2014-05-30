@@ -87,7 +87,7 @@ getCurrentNickname :: Connection -> STM Nickname
 getCurrentNickname con = readTVar $ con_nick_cur con
 
 -- | Compare a IRC message prefix with current nickname & username
-isCurrentUser :: User -> UserInfo -> Bool
+isCurrentUser :: Identity -> UserInfo -> Bool
 isCurrentUser usr (UserInfo{ userNick, userName }) =
   userNick == usr_nick usr &&
   userName == Just (usr_name usr)

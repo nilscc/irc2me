@@ -57,7 +57,7 @@ import IRC.TLS
 
 connect
   :: Server
-  -> User
+  -> Identity
   -> IO (Maybe (Connection, [(UTCTime, Message)]))
 connect srv usr = do
 
@@ -93,7 +93,7 @@ reconnect con = do
 
 connect'
   :: Server
-  -> User
+  -> Identity
   -> Map Channel (Maybe Key)
   -> TChan String
   -> IO (Maybe (Connection, [(UTCTime, Message)]))
@@ -295,7 +295,7 @@ data IncomingResult
                    , add_msg      :: Maybe Message
                    , quit         :: Maybe Reason
                    }
-  | IncomingReqUsr { _withUser     :: User -> IncomingResult }
+  | IncomingReqUsr { _withUser     :: Identity -> IncomingResult }
   | IncomingReqNck { _withNick     :: Nickname -> IncomingResult }
 
 -- | Testable interface

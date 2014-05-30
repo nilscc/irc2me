@@ -27,7 +27,7 @@ rejoinChannels con = do
   chans <- getChannels con
   mapM_ (send con . uncurry joinMsg) $ M.toList chans
 
-runIRC :: User -> Server -> [(Channel, Maybe Key)] -> IO ()
+runIRC :: Identity -> Server -> [(Channel, Maybe Key)] -> IO ()
 runIRC usr srv chans = do
 
   mcon <- connect srv usr
