@@ -3,6 +3,7 @@
 module Database.Query where
 
 import Control.Applicative
+import Data.Maybe
 import Database.HDBC
 
 import Database.Config
@@ -30,3 +31,13 @@ runUpdate (Update s v) = runSQL $ \c -> do
 
 runUpdate_ :: Update -> IO ()
 runUpdate_ u = () <$ runUpdate u
+
+-- conversion helpers
+
+type Converter a = [SqlValue] -> Maybe a
+
+convertOne :: Converter a -> [[SqlValue]] -> Maybe a
+convertOne f = listToMaybe . convertList f
+
+convertList :: Converter a -> [[SqlValue]] -> [a]
+convertList f = catMaybes . map f
