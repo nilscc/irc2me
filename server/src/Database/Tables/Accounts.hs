@@ -3,11 +3,13 @@
 module Database.Tables.Accounts where
 
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B8
 
 import Crypto.Scrypt
 import Database.HDBC
 
 import Database.Query
+import IRC.Types
 
 newtype Account = Account { accountId :: Integer }
   deriving (Eq, Show, Ord)
@@ -40,7 +42,7 @@ checkPassword :: String -> ByteString -> Query Bool
 checkPassword login pw = Query
   "SELECT password FROM accounts WHERE login = ?"
   [toSql login]
-  (verify . convertOne toByteString)
+  (verify . convertOne fromBytea)
  where
   verify = \case
     (Just bs) -> fst $ verifyPass defaultParams (Pass pw) (EncryptedPass bs)
@@ -60,3 +62,43 @@ addAccount login encrypted = UpdateReturning
   \  RETURNING id"
   [toSql login, toSql (getEncryptedPass encrypted)]
   (convertOne toAccount)
+
+--------------------------------------------------------------------------------
+-- "account_identities" table
+
+-- converters
+
+identitySELECT :: String
+identitySELECT = "SELECT username, realname, nick, nick_alt FROM account_identities"
+
+toIdentity :: Converter Identity
+toIdentity s = case s of
+  [SqlByteString u, SqlByteString r, SqlByteString n, na] -> Just $
+    Identity { usr_name = u
+             , usr_realname = r
+             , usr_nick = n
+             , usr_nick_alt = maybe [] (map B8.pack) $ arrayUnpack na
+             }
+  _ -> Nothing
+
+-- queries
+
+selectIdentities :: Account -> Query [Identity]
+selectIdentities (Account a) = Query
+  (identitySELECT ++ " WHERE account = ?")
+  [toSql a]
+  (convertList toIdentity)
+
+-- updates
+
+addIdentity :: Account -> Identity -> Update Bool
+addIdentity (Account a) usr = Update
+  "INSERT INTO account_identities (account, username, realname, nick, nick_alt) \
+  \     VALUES                    (?      , ?       , ?       , ?   , ?)"
+  [ toSql a
+  , toSql $ usr_name usr
+  , toSql $ usr_realname usr
+  , toSql $ usr_nick usr
+  , arrayPack $ map B8.unpack $ usr_nick_alt usr
+  ]
+  (== 1)

@@ -22,6 +22,7 @@ data Identity = Identity
   , usr_name     :: Username
   , usr_realname :: Realname
   }
+  deriving (Show, Eq, Ord)
 
 data Userflag = Operator | Voice
   deriving (Show, Eq, Ord, Enum)
