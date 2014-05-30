@@ -54,7 +54,7 @@ addAccount
   -> IO Bool
 addAccount login pw = do
   encrypted <- encryptPassIO defaultParams (Pass pw)
-  i <- runUpdate $ Update
+  runUpdate $ Update
          "INSERT INTO accounts (login, password) VALUES (?, ?)"
          [toSql login, toSql (getEncryptedPass encrypted)]
-  return $ i == 1
+         (== 1)

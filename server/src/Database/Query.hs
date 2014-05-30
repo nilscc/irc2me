@@ -18,9 +18,10 @@ data Query a = Query
   , qConvert  :: [[SqlValue]] -> a
   }
 
-data Update = Update
+data Update a = Update
   { updateStr :: String
   , uParam    :: [SqlValue]
+  , uConvert  :: Integer -> a
   }
 
 -- TODO: catch exceptions
@@ -29,13 +30,13 @@ runQuery (Query s v conv) = runSQL $ \c ->
   conv <$> quickQuery' c s v
 
 -- TODO: catch exceptions
-runUpdate :: Update -> IO Integer
-runUpdate (Update s v) = runSQL $ \c -> do
+runUpdate :: Update a -> IO a
+runUpdate (Update s v mconv) = runSQL $ \c -> do
   i <- run c s v
   commit c
-  return i
+  return $ mconv i
 
-runUpdate_ :: Update -> IO ()
+runUpdate_ :: Update a -> IO ()
 runUpdate_ u = () <$ runUpdate u
 
 -- conversion helpers
