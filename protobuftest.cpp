@@ -8,8 +8,8 @@ ProtobufTest::ProtobufTest(Irc2me &irc2me, QWidget *parent) :
 {
     ui->setupUi(this);
 
-    ui->lineEdit_server->setText(Irc2me::defaultServer);
-    ui->lineEdit_port->setText(QString::number(Irc2me::defaultPort));
+    ui->lineEdit_server->setText(Irc2me::DEFAULT_SERVER);
+    ui->lineEdit_port->setText(QString::number(Irc2me::DEFAULT_PORT));
 
     connect(&irc2me, SIGNAL(connected()),
             this, SLOT(irc2me_connected()));
@@ -52,21 +52,20 @@ void ProtobufTest::on_pushButton_clicked()
     // check server
     if (server == "")
     {
-        server = Irc2me::defaultServer;
-        log("No server specified, using default server (" + server + ")");
+        log("No server specified.");
+        return;
     }
 
     // try to read port number
     short port_num;
     if (port == "")
     {
-        port_num = Irc2me::defaultPort;
-        log("No port specified, using default port (" + QString::number(port_num) + ")");
+        port_num = Irc2me::DEFAULT_PORT;
+        log("No port specified, using default port " + QString::number(port_num));
     }
     else
     {
         bool port_ok;
-
         port_num = port.toShort(&port_ok);
         if (!port_ok)
         {

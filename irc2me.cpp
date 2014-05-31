@@ -2,8 +2,8 @@
 
 #include <messages.pb.h>
 
-const quint16 Irc2me::defaultPort = 6565;
-const QString Irc2me::defaultServer = "nils.cc";
+const quint16 Irc2me::DEFAULT_PORT = 6565;
+const QString Irc2me::DEFAULT_SERVER = "nils.cc";
 
 Irc2me::Irc2me(QObject *parent)
     : QObject(parent)

@@ -33,8 +33,8 @@ public:
     explicit Irc2me(QObject *parent = 0);
     ~Irc2me();
 
-    static const QString defaultServer;
-    static const quint16 defaultPort;
+    static const QString DEFAULT_SERVER;
+    static const quint16 DEFAULT_PORT;
 
     const QAbstractSocket* socket() const { return _socket; }
 
