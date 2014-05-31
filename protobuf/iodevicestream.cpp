@@ -1,5 +1,7 @@
 #include "iodevicestream.h"
 
+#include <iostream>
+
 /*
  * Input stream
  *
@@ -89,7 +91,7 @@ bool IODeviceInputStream::Skip(int count)
     }
 }
 
-int64_t IODeviceInputStream::ByteCount()
+int64_t IODeviceInputStream::ByteCount() const
 {
     return byte_count;
 }
@@ -109,10 +111,14 @@ IODeviceOutputStream::IODeviceOutputStream(QIODevice &dev)
 
 IODeviceOutputStream::~IODeviceOutputStream()
 {
+    // write any leftover data to device
+    if (to_write > 0)
+        write();
+
     delete buffer;
 }
 
-bool IODeviceOutputStream::write()
+bool IODeviceOutputStream::write(QString *errorMessage)
 {
     int total = 0;
     while (total < to_write)
@@ -121,7 +127,12 @@ bool IODeviceOutputStream::write()
 
         // check for errors
         if (len < 0)
+        {
+            if (errorMessage)
+                *errorMessage = dev.errorString();
+
             return false;
+        }
 
         total += len;
     }
@@ -134,12 +145,16 @@ bool IODeviceOutputStream::write()
 
 bool IODeviceOutputStream::Next(void **data, int *size)
 {
-    // write current buffer to device
-    if (!write())
+    // try to write data only when buffer at limit
+    if (to_write >= MAX_BUFFER_LEN && !write())
         return false;
 
-    *data = buffer;
-    *size = MAX_BUFFER_LEN;
+    *data = buffer + to_write;
+    *size = MAX_BUFFER_LEN - to_write;
+
+    to_write = MAX_BUFFER_LEN;
+
+    return true;
 }
 
 void IODeviceOutputStream::BackUp(int count)
@@ -147,7 +162,7 @@ void IODeviceOutputStream::BackUp(int count)
     to_write -= count;
 }
 
-int64_t IODeviceOutputStream::ByteCount()
+int64_t IODeviceOutputStream::ByteCount() const
 {
     return byte_count;
 }

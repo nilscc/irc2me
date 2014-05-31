@@ -18,14 +18,16 @@ QMAKE_CXXFLAGS += -std=c++11
 HEADERS  += \
     protobuftest.h \
     irc2me.h \
-    protobuf/iodevicestream.h
+    protobuf/iodevicestream.h \
+    protobuf/messagestream.h \
+    protobuf/messagestream.impl.h
 
 SOURCES += \
     main.cpp \
     protobuftest.cpp \
     irc2me.cpp \
-    protobuf/iodevicestream.cpp
-
+    protobuf/iodevicestream.cpp \
+    protobuf/messagestream.cpp
 
 PROTOS += \
     messages.proto
@@ -42,7 +44,7 @@ win32 {
 LIBS += -lprotobuf
 
 OTHER_FILES += \
-    protobuf.pri \
-    $$PROTOS
+    $$PROTOS \
+    generate_proto.pri
 
-include(protobuf.pri)
+include(generate_proto.pri)

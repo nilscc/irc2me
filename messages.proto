@@ -1,5 +1,28 @@
 package Protobuf.Messages;
 
-message Foo
+message Network
+{
+};
+
+message Identity
+{
+};
+
+message Client
+{
+    // acount
+    optional string auth_login            = 1;
+    optional string auth_password         = 2;
+
+    // identities
+    repeated Identity identity_add      = 11;
+    repeated Identity identity_remove   = 12;
+
+    // networks
+    repeated Network network_add        = 101;
+    repeated Network network_remove     = 102;
+};
+
+message Server
 {
 };

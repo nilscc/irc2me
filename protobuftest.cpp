@@ -31,6 +31,7 @@ void ProtobufTest::log(QString msg)
 
 void ProtobufTest::lockServerInput(bool read_only)
 {
+//    ui->pushButton_connect->blockSignals(read_only);
     ui->lineEdit_login->setReadOnly(read_only);
     ui->lineEdit_password->setReadOnly(read_only);
     ui->lineEdit_port->setReadOnly(read_only);
@@ -42,7 +43,7 @@ void ProtobufTest::lockServerInput(bool read_only)
  *
  */
 
-void ProtobufTest::on_pushButton_clicked()
+void ProtobufTest::on_pushButton_connect_clicked()
 {
     QString server = ui->lineEdit_server->text();
     QString port = ui->lineEdit_port->text();
@@ -91,8 +92,12 @@ void ProtobufTest::irc2me_connected()
 {
     log("Connected. Trying to authorize...");
 
-    log("Error: Not implemented.");
-    irc2me.disconnect();
+    const QString &login = ui->lineEdit_login->text();
+    const QString &pw = ui->lineEdit_password->text();
+
+    QString errorMsg;
+    if (!irc2me.auth(login, pw, &errorMsg))
+        log("Error: " + errorMsg);
 }
 
 void ProtobufTest::irc2me_disconnected()

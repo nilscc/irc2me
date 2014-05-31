@@ -17,11 +17,12 @@ public:
     ~ProtobufTest();
 
 private slots:
-    void on_pushButton_clicked();
 
     void irc2me_connected();
     void irc2me_disconnected();
     void irc2me_error(QAbstractSocket::SocketError, QString msg);
+
+    void on_pushButton_connect_clicked();
 
 private:
     Ui::ProtobufTest *ui;

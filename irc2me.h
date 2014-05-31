@@ -5,7 +5,7 @@
 #include <QAbstractSocket>
 #include <QTcpSocket>
 
-#include "protobuf/iodevicestream.h"
+#include "protobuf/messagestream.h"
 
 class Irc2me : public QObject
 {
@@ -14,8 +14,7 @@ class Irc2me : public QObject
 private:
 
     QAbstractSocket *_socket;
-    IODeviceInputStream *_istream;
-    IODeviceOutputStream *_ostream;
+    MessageStream *_mstream;
 
     QAbstractSocket* socket() { return _socket; }
 
@@ -38,10 +37,17 @@ public:
 
     const QAbstractSocket* socket() const { return _socket; }
 
+    template <class Msg>
+    bool send(const Msg &msg, QString *errorMsg = nullptr)
+    {
+        return _mstream->send(msg, errorMsg);
+    }
+
     void connect(const QString &host, quint16 port);
     void disconnect();
 
-    bool auth(const QString &login, const QString &password);
+    bool auth(const QString &login, const QString &password,
+              QString *errorMsg = nullptr);
 
 signals:
 
