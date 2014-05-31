@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 
-module ProtoBuf.Server.IRC where
+module ProtoBuf.Messages.IRC where
 
 import Data.ProtocolBuffers
 import Data.Monoid

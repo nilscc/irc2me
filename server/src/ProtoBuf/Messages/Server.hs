@@ -3,27 +3,28 @@
 {-# LANGUAGE DataKinds #-}
 
 -- | Module for server to client messages
-module ProtoBuf.Server where
+module ProtoBuf.Messages.Server where
 
+import Data.Text (Text)
 import Data.ProtocolBuffers
 
 import GHC.Generics (Generic)
 
 import ProtoBuf.Instances ()
-import ProtoBuf.Server.IRC
-import ProtoBuf.Network
+import ProtoBuf.Messages.IRC
+import ProtoBuf.Messages.Network
 
-data ServerMsgType
-  = SrvMsg_Response
-  | SrvMsg_IRC
-  | SrvMsg_Network
-  deriving (Eq, Show, Enum)
+data PB_ResponseCode
+  = PB_ResponseOK
+  | PB_ResponseError
+  deriving (Eq, Enum, Show)
 
 data PB_ServerMessage = PB_ServerMessage
-  { server_msg_type   :: Required 1  (Enumeration ServerMsgType)
+  {
 
     -- response messages
-  , response_msg      :: Optional 10 (Message PB_Response)
+    response_code     :: Optional 10 (Enumeration PB_ResponseCode)
+  , response_msg      :: Optional 15 (Value Text)
 
     -- networks
   , network_list      :: Repeated 20 (Message PB_Network)
@@ -37,17 +38,23 @@ instance Encode PB_ServerMessage
 instance Decode PB_ServerMessage
 
 --------------------------------------------------------------------------------
--- Responses
+-- Standard messages
 
-data ResponseCode
-  = ResponseOK
-  | ResponseError
-  deriving (Eq, Enum, Show)
-
-data PB_Response = PB_Response
-  { rsp_code        :: Optional 10 (Enumeration ResponseCode)
+emptyServerMessage :: PB_ServerMessage
+emptyServerMessage = PB_ServerMessage
+  { response_code = putField Nothing
+  , response_msg  = putField Nothing
+  , network_list  = putField []
+  , irc_msg       = putField Nothing
   }
-  deriving (Eq, Show, Generic)
 
-instance Encode PB_Response
-instance Decode PB_Response
+responseOkMessage :: PB_ServerMessage
+responseOkMessage = emptyServerMessage
+  { response_code = putField $ Just PB_ResponseOK
+  }
+
+responseErrorMessage :: Maybe Text -> PB_ServerMessage
+responseErrorMessage errormsg = emptyServerMessage
+  { response_code = putField $ Just PB_ResponseError
+  , response_msg  = putField errormsg
+  }
