@@ -34,13 +34,14 @@ void ProtobufTest::log(QString msg)
     ui->listWidget->addItem(msg);
 }
 
-void ProtobufTest::lockServerInput(bool read_only)
+void ProtobufTest::lockServerInput(bool lock)
 {
-//    ui->pushButton_connect->blockSignals(read_only);
-    ui->lineEdit_login->setReadOnly(read_only);
-    ui->lineEdit_password->setReadOnly(read_only);
-    ui->lineEdit_port->setReadOnly(read_only);
-    ui->lineEdit_server->setReadOnly(read_only);
+    ui->pushButton_connect->setDisabled(lock);
+    ui->pushButton_save->setDisabled(lock);
+    ui->lineEdit_login->setDisabled(lock);
+    ui->lineEdit_password->setDisabled(lock);
+    ui->lineEdit_port->setDisabled(lock);
+    ui->lineEdit_server->setDisabled(lock);
 }
 
 /*

@@ -18,7 +18,7 @@ private:
     Irc2me &irc2me;
 
     void log(QString msg);
-    void lockServerInput(bool read_only);
+    void lockServerInput(bool lock);
 
 public:
 
