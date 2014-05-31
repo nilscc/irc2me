@@ -1,0 +1,5 @@
+package Protobuf.Messages;
+
+message Foo
+{
+};

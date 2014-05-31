@@ -1,0 +1,109 @@
+#include "protobuftest.h"
+#include "ui_protobuftest.h"
+
+ProtobufTest::ProtobufTest(Irc2me &irc2me, QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::ProtobufTest),
+    irc2me(irc2me)
+{
+    ui->setupUi(this);
+
+    ui->lineEdit_server->setText(Irc2me::defaultServer);
+    ui->lineEdit_port->setText(QString::number(Irc2me::defaultPort));
+
+    connect(&irc2me, SIGNAL(connected()),
+            this, SLOT(irc2me_connected()));
+    connect(&irc2me, SIGNAL(disconnected()),
+            this, SLOT(irc2me_disconnected()));
+    connect(&irc2me, SIGNAL(error(QAbstractSocket::SocketError, QString)),
+            this, SLOT(irc2me_error(QAbstractSocket::SocketError, QString)));
+}
+
+ProtobufTest::~ProtobufTest()
+{
+    delete ui;
+}
+
+void ProtobufTest::log(QString msg)
+{
+    ui->listWidget->addItem(msg);
+}
+
+void ProtobufTest::lockServerInput(bool read_only)
+{
+    ui->lineEdit_login->setReadOnly(read_only);
+    ui->lineEdit_password->setReadOnly(read_only);
+    ui->lineEdit_port->setReadOnly(read_only);
+    ui->lineEdit_server->setReadOnly(read_only);
+}
+
+/*
+ * Slots
+ *
+ */
+
+void ProtobufTest::on_pushButton_clicked()
+{
+    QString server = ui->lineEdit_server->text();
+    QString port = ui->lineEdit_port->text();
+    QString login = ui->lineEdit_login->text();
+    QString pw = ui->lineEdit_password->text();
+
+    // check server
+    if (server == "")
+    {
+        server = Irc2me::defaultServer;
+        log("No server specified, using default server (" + server + ")");
+    }
+
+    // try to read port number
+    short port_num;
+    if (port == "")
+    {
+        port_num = Irc2me::defaultPort;
+        log("No port specified, using default port (" + QString::number(port_num) + ")");
+    }
+    else
+    {
+        bool port_ok;
+
+        port_num = port.toShort(&port_ok);
+        if (!port_ok)
+        {
+            log("Invalid port number: " + port);
+            return;
+        }
+    }
+
+    if (login == "" || pw == "")
+    {
+        log("Missing login info");
+        return;
+    }
+
+    lockServerInput(true);
+
+    irc2me.connect(server, port_num);
+
+    log("Connecting to " + server + ":" + QString::number(port_num) + "...");
+}
+
+void ProtobufTest::irc2me_connected()
+{
+    log("Connected. Trying to authorize...");
+
+    log("Error: Not implemented.");
+    irc2me.disconnect();
+}
+
+void ProtobufTest::irc2me_disconnected()
+{
+    log("Could not connect to server.");
+    lockServerInput(false);
+}
+
+void ProtobufTest::irc2me_error(QAbstractSocket::SocketError, QString err)
+{
+    log("Error: " + err);
+    lockServerInput(false);
+}
