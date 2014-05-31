@@ -20,17 +20,20 @@ private:
     IODeviceInputStream *istream;
     IODeviceOutputStream *ostream;
 
+private slots:
+
+    void socket_readyRead();
+
 public:
 
     explicit MessageStream(QAbstractSocket &socket, QObject *parent = 0);
     ~MessageStream();
 
-    template <class Msg> bool send(Msg msg, QString *errormsg = nullptr);
+    bool send(const Protobuf::Messages::Client &msg,
+              QString *errormsg = nullptr);
 
 signals:
 
     void newServerMessage(Protobuf::Messages::Server);
 
 };
-
-#include "messagestream.impl.h"

@@ -2,6 +2,7 @@
 
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <QIODevice>
+#include <QObject>
 
 #include <QAbstractSocket>
 

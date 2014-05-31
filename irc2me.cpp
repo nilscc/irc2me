@@ -9,8 +9,9 @@ const QString Irc2me::DEFAULT_SERVER = "online.nils.cc";
 
 Irc2me::Irc2me(QObject *parent)
     : QObject(parent)
-    , _socket(nullptr)
-    , _mstream(nullptr)
+    , socket(nullptr)
+    , mstream(nullptr)
+    , is_authorized(false)
 {
 }
 
@@ -23,34 +24,41 @@ void Irc2me::connect(const QString &host, quint16 port)
 {
     disconnect();
 
-    if (!socket())
+    if (!socket)
     {
-        _socket = new QTcpSocket();
+        socket = new QTcpSocket();
 
-        _socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
+        socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
 
-        QObject::connect(_socket, SIGNAL(connected()),
+        QObject::connect(socket, SIGNAL(connected()),
                          this, SLOT(socket_connected()));
-        QObject::connect(_socket, SIGNAL(disconnected()),
+        QObject::connect(socket, SIGNAL(disconnected()),
                          this, SLOT(socket_disconnected()));
-        QObject::connect(_socket, SIGNAL(error(QAbstractSocket::SocketError)),
+        QObject::connect(socket, SIGNAL(error(QAbstractSocket::SocketError)),
                          this, SLOT(socket_error(QAbstractSocket::SocketError)));
     }
 
-    socket()->connectToHost(host, port);
+    socket->connectToHost(host, port);
+
+    is_authorized = false;
 }
 
 void Irc2me::disconnect()
 {
-    if (_mstream) delete _mstream; _mstream = nullptr;
+    if (mstream) delete mstream; mstream = nullptr;
 
-    if (_socket)
+    if (socket)
     {
-        _socket->flush();
-        _socket->disconnectFromHost();
+        socket->flush();
+        socket->disconnectFromHost();
     }
 
-    if (_socket) delete _socket; _socket = nullptr;
+    if (socket) delete socket; socket = nullptr;
+}
+
+bool Irc2me::send(const Protobuf::Messages::Client &msg, QString *errorMsg)
+{
+    return mstream->send(msg, errorMsg);
 }
 
 bool Irc2me::auth(const QString &login, const QString &password,
@@ -71,8 +79,10 @@ bool Irc2me::auth(const QString &login, const QString &password,
 
 void Irc2me::socket_connected()
 {
-    _mstream = new MessageStream(*_socket);
+    mstream = new MessageStream(*socket);
 
+    QObject::connect(mstream, SIGNAL(newServerMessage(Protobuf::Messages::Server)),
+                     this, SLOT(mstream_newServerMessage(Protobuf::Messages::Server)));
     emit connected();
 }
 
@@ -83,5 +93,16 @@ void Irc2me::socket_disconnected()
 
 void Irc2me::socket_error(QAbstractSocket::SocketError err)
 {
-    emit error(err, _socket->errorString());
+    emit error(err, socket->errorString());
+}
+
+void Irc2me::mstream_newServerMessage(Protobuf::Messages::Server msg)
+{
+    if (!is_authorized && msg.has_response_code())
+    {
+        if (msg.response_code() == Protobuf::Messages::Server::ResponseOK)
+            emit authorized();
+        else
+            emit notAuthorized();
+    }
 }

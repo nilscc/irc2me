@@ -13,10 +13,10 @@ class Irc2me : public QObject
 
 private:
 
-    QAbstractSocket *_socket;
-    MessageStream *_mstream;
+    QAbstractSocket *socket;
+    MessageStream *mstream;
 
-    QAbstractSocket* socket() { return _socket; }
+    bool is_authorized;
 
 private slots:
 
@@ -27,6 +27,8 @@ private slots:
 //    void authorized();
 //    void notAuthorized();
 
+    void mstream_newServerMessage(Protobuf::Messages::Server);
+
 public:
 
     explicit Irc2me(QObject *parent = 0);
@@ -35,16 +37,11 @@ public:
     static const QString DEFAULT_SERVER;
     static const quint16 DEFAULT_PORT;
 
-    const QAbstractSocket* socket() const { return _socket; }
-
-    template <class Msg>
-    bool send(const Msg &msg, QString *errorMsg = nullptr)
-    {
-        return _mstream->send(msg, errorMsg);
-    }
-
     void connect(const QString &host, quint16 port);
     void disconnect();
+
+    bool send(const Protobuf::Messages::Client &msg,
+              QString *errorMsg = nullptr);
 
     bool auth(const QString &login, const QString &password,
               QString *errorMsg = nullptr);
@@ -56,6 +53,6 @@ signals:
 
     void error(QAbstractSocket::SocketError, QString errorString);
 
-//    void authorized();
-//    void notAuthorized();
+    void authorized();
+    void notAuthorized();
 };

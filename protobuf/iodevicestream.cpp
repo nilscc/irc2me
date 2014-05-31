@@ -24,7 +24,7 @@ bool IODeviceInputStream::Next(const void **data, int *size)
     if (backed_up > 0)
     {
         // reuse old buffer data
-        *data = buffer + backed_up;
+        *data = buffer + (MAX_BUFFER_LEN - backed_up);
         *size = backed_up;
 
         backed_up = 0;
@@ -36,7 +36,7 @@ bool IODeviceInputStream::Next(const void **data, int *size)
         // read new data from the device
         int64_t len = dev.read(buffer, MAX_BUFFER_LEN);
 
-        if (len > 0)
+        if (len >= 0)
         {
             *size = len;
             *data = buffer;

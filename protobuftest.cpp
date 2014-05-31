@@ -17,6 +17,11 @@ ProtobufTest::ProtobufTest(Irc2me &irc2me, QWidget *parent) :
             this, SLOT(irc2me_disconnected()));
     connect(&irc2me, SIGNAL(error(QAbstractSocket::SocketError, QString)),
             this, SLOT(irc2me_error(QAbstractSocket::SocketError, QString)));
+
+    connect(&irc2me, SIGNAL(authorized()),
+            this, SLOT(irc2me_authorized()));
+    connect(&irc2me, SIGNAL(notAuthorized()),
+            this, SLOT(irc2me_notAuthorized()));
 }
 
 ProtobufTest::~ProtobufTest()
@@ -109,5 +114,17 @@ void ProtobufTest::irc2me_disconnected()
 void ProtobufTest::irc2me_error(QAbstractSocket::SocketError, QString err)
 {
     log("Error: " + err);
+    lockServerInput(false);
+}
+
+void ProtobufTest::irc2me_authorized()
+{
+    log("Authorized!");
+    lockServerInput(false);
+}
+
+void ProtobufTest::irc2me_notAuthorized()
+{
+    log("Failed to login.");
     lockServerInput(false);
 }

@@ -19,8 +19,7 @@ HEADERS  += \
     protobuftest.h \
     irc2me.h \
     protobuf/iodevicestream.h \
-    protobuf/messagestream.h \
-    protobuf/messagestream.impl.h
+    protobuf/messagestream.h
 
 SOURCES += \
     main.cpp \

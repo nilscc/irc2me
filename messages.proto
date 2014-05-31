@@ -8,6 +8,10 @@ message Identity
 {
 };
 
+message IrcMessage
+{
+};
+
 message Client
 {
     // acount
@@ -25,4 +29,26 @@ message Client
 
 message Server
 {
+    enum ResponseCode
+    {
+        ResponseOK = 0;
+        ResponseError = 1;
+    };
+
+    // response messages
+    optional ResponseCode response_code = 10;
+    optional string       response_msg  = 15;
+
+    // Networks
+    repeated Network      network_list  = 20;
+
+    // IRC messages
+    repeated IrcMessage   irc_msg       = 30;
 };
+
+/*
+data PB_ResponseCode
+  = PB_ResponseOK
+  | PB_ResponseError
+  deriving (Eq, Enum, Show)
+*/
