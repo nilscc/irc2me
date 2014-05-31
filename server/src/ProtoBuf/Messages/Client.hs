@@ -2,25 +2,30 @@
 {-# LANGUAGE DataKinds #-}
 
 -- | Module for client to server messages
-module ProtoBuf.Client where
+module ProtoBuf.Messages.Client where
 
 import Data.ProtocolBuffers
+import Data.Text
 import Data.Word
 
 import GHC.Generics (Generic)
 
 import ProtoBuf.Instances ()
-import ProtoBuf.Network
-
-data ClientMsgType
-  = Request
-  | AddNetwork
-  deriving (Eq, Show, Enum)
+import ProtoBuf.Messages.Identity
+import ProtoBuf.Messages.Network
 
 data PB_ClientMessage = PB_ClientMessage
-  { client_msg_type     :: Required 1  (Enumeration ClientMsgType)
+  { -- acount
+    auth_login          :: Optional 1 (Value Text)
+  , auth_password       :: Optional 2 (Value Text)
+
+    -- identities
+  , identity_add        :: Repeated 11  (Message PB_Identity)
+  , identity_remove     :: Repeated 12  (Message PB_Identity)
+
     -- networks
-  , addnetwork_msg      :: Repeated 10 (Message PB_Network)
+  , network_add         :: Repeated 101 (Message PB_Network)
+  , network_remove      :: Repeated 102 (Message PB_Network)
   }
   deriving (Eq, Show, Generic)
 

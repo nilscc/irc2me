@@ -21,10 +21,13 @@ data ServerMsgType
 
 data PB_ServerMessage = PB_ServerMessage
   { server_msg_type   :: Required 1  (Enumeration ServerMsgType)
+
     -- response messages
   , response_msg      :: Optional 10 (Message PB_Response)
+
     -- networks
-  , network_msg       :: Repeated 20 (Message PB_Network)
+  , network_list      :: Repeated 20 (Message PB_Network)
+
     -- IRC messages
   , irc_msg           :: Optional 30 (Message PB_IrcMessage)
   }
