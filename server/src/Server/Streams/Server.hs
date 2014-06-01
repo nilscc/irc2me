@@ -1,21 +1,34 @@
 module Server.Streams.Server where
 
+import Control.Applicative
+import Control.Monad
+
+import ProtoBuf.Messages.Server
+
+import Server.Response
 import Server.Streams
 import Server.Streams.Authenticate
 import Server.Streams.Updates         ()
-import Server.Streams.Requests        ()
+-- import Server.Streams.Requests        ()
 
 serverStream :: Stream ()
 serverStream = do
 
-  sendMessage =<< authenticate
+  account <- authenticate <|> throwUnauthorized
 
-  choice [ requestStream
-         , updateStream
-         ]
+  sendMessage responseOkMessage
 
-requestStream :: Stream ()
-requestStream = return ()
+  let state = ServerReaderState { connectionAccount = Just account }
 
-updateStream :: Stream ()
-updateStream = return ()
+  forever $ do
+    response <- getServerResponse state $ do
+                  choice [ requestStream
+                         , updateStream
+                         ]
+    sendMessage response
+
+requestStream :: ServerResponse
+requestStream = throwS "requestStream" "Not implemented."
+
+updateStream ::  ServerResponse
+updateStream = throwS "updateStream" "Not implemented."

@@ -14,6 +14,12 @@ import ProtoBuf.Instances ()
 import ProtoBuf.Messages.Identity
 import ProtoBuf.Messages.Network
 
+data PB_List
+  = PB_ListIdentities
+  | PB_ListNetworks
+  | PB_ListChannels
+  deriving (Eq, Enum, Show)
+
 data PB_ClientMessage = PB_ClientMessage
   { -- acount
     auth_login          :: Optional 1 (Value Text)
@@ -26,6 +32,8 @@ data PB_ClientMessage = PB_ClientMessage
     -- networks
   , network_add         :: Repeated 101 (Message PB_Network)
   , network_remove      :: Repeated 102 (Message PB_Network)
+
+  , network_get_list    :: Repeated 103 (Value Bool)
   }
   deriving (Eq, Show, Generic)
 

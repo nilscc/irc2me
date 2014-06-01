@@ -10,6 +10,7 @@ module Server.Streams
   , choice
   , runStreamOnHandle
   , runStreamTOnHandle
+  , liftMonadTransformer
 
     -- ** Messages
   , getMessage
@@ -112,6 +113,17 @@ withChunks f = StreamT $ \s@(_,c) -> do
 
 choice :: (Alternative m, Monad m, Monoid e) => [StreamT e m a] -> StreamT e m a
 choice = foldl' (<|>) empty
+
+liftMonadTransformer
+  :: (MonadTrans t, Monad m)
+  => (t m (Either e (Chunks, a)) -> m (Either e (Chunks, a)))
+  -> StreamT e (t m) a
+  -> StreamT e m a
+liftMonadTransformer transf streamt = StreamT $ \s -> do
+  res <- lift $ transf $ runExceptT $ runStreamT streamt s
+  case res of
+    Left e -> throwE e
+    Right a -> return a
 
 --------------------------------------------------------------------------------
 -- messages
