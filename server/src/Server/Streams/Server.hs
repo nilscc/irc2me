@@ -2,6 +2,8 @@ module Server.Streams.Server where
 
 import Server.Streams
 import Server.Streams.Authenticate
+import Server.Streams.Updates         ()
+import Server.Streams.Requests        ()
 
 serverStream :: Stream ()
 serverStream = do
@@ -9,11 +11,11 @@ serverStream = do
   sendMessage =<< authenticate
 
   choice [ requestStream
-         , setStream
+         , updateStream
          ]
 
 requestStream :: Stream ()
 requestStream = return ()
 
-setStream :: Stream ()
-setStream = return ()
+updateStream :: Stream ()
+updateStream = return ()
