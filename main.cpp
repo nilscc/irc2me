@@ -1,4 +1,4 @@
-#include "protobuftest.h"
+#include "form_connect.h"
 #include <QApplication>
 
 int main(int argc, char *argv[])
@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
 
     Irc2me irc2me;
 
-    ProtobufTest w(irc2me);
+    FormConnect w(irc2me);
     w.show();
 
     return a.exec();

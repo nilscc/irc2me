@@ -13,25 +13,30 @@ TEMPLATE = app
 
 QMAKE_CXXFLAGS += -std=c++11
 
-# files
-
-HEADERS  += \
-    protobuftest.h \
-    irc2me.h \
-    protobuf/iodevicestream.h \
-    protobuf/messagestream.h
-
-SOURCES += \
-    main.cpp \
-    protobuftest.cpp \
-    irc2me.cpp \
-    protobuf/iodevicestream.cpp \
-    protobuf/messagestream.cpp
+# protobuf
 
 PROTOS += \
     messages.proto
 
-FORMS    += protobuftest.ui
+include(generate_proto.pri)
+
+# files
+
+HEADERS  += \
+    irc2me.h \
+    protobuf/iodevicestream.h \
+    protobuf/messagestream.h \
+    form_connect.h
+
+SOURCES += \
+    main.cpp \
+    irc2me.cpp \
+    protobuf/iodevicestream.cpp \
+    protobuf/messagestream.cpp \
+    form_connect.cpp
+
+FORMS    += \
+    connect.ui
 
 # config
 
@@ -45,5 +50,3 @@ LIBS += -lprotobuf
 OTHER_FILES += \
     $$PROTOS \
     generate_proto.pri
-
-include(generate_proto.pri)

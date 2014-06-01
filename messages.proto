@@ -45,10 +45,3 @@ message Server
     // IRC messages
     repeated IrcMessage   irc_msg       = 30;
 };
-
-/*
-data PB_ResponseCode
-  = PB_ResponseOK
-  | PB_ResponseError
-  deriving (Eq, Enum, Show)
-*/

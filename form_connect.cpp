@@ -1,10 +1,10 @@
-#include "protobuftest.h"
-#include "ui_protobuftest.h"
+#include "form_connect.h"
+#include "ui_connect.h"
 
-ProtobufTest::ProtobufTest(Irc2me &irc2me, QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::ProtobufTest),
-    irc2me(irc2me)
+FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::FormConnect)
+    , irc2me(irc2me)
 {
     ui->setupUi(this);
 
@@ -24,20 +24,21 @@ ProtobufTest::ProtobufTest(Irc2me &irc2me, QWidget *parent) :
             this, SLOT(irc2me_notAuthorized()));
 }
 
-ProtobufTest::~ProtobufTest()
+FormConnect::~FormConnect()
 {
     delete ui;
 }
 
-void ProtobufTest::log(QString msg)
+void FormConnect::log(QString msg)
 {
     ui->listWidget->addItem(msg);
 }
 
-void ProtobufTest::lockServerInput(bool lock)
+void FormConnect::lockServerInput(bool lock)
 {
     ui->pushButton_connect->setDisabled(lock);
     ui->pushButton_save->setDisabled(lock);
+
     ui->lineEdit_login->setDisabled(lock);
     ui->lineEdit_password->setDisabled(lock);
     ui->lineEdit_port->setDisabled(lock);
@@ -49,7 +50,7 @@ void ProtobufTest::lockServerInput(bool lock)
  *
  */
 
-void ProtobufTest::on_pushButton_connect_clicked()
+void FormConnect::on_pushButton_connect_clicked()
 {
     QString server = ui->lineEdit_server->text();
     QString port = ui->lineEdit_port->text();
@@ -94,7 +95,7 @@ void ProtobufTest::on_pushButton_connect_clicked()
     log("Connecting to " + server + ":" + QString::number(port_num) + "...");
 }
 
-void ProtobufTest::irc2me_connected()
+void FormConnect::irc2me_connected()
 {
     log("Connected. Trying to authorize...");
 
@@ -106,25 +107,25 @@ void ProtobufTest::irc2me_connected()
         log("Error: " + errorMsg);
 }
 
-void ProtobufTest::irc2me_disconnected()
+void FormConnect::irc2me_disconnected()
 {
     log("Could not connect to server.");
     lockServerInput(false);
 }
 
-void ProtobufTest::irc2me_error(QAbstractSocket::SocketError, QString err)
+void FormConnect::irc2me_error(QAbstractSocket::SocketError, QString err)
 {
     log("Error: " + err);
     lockServerInput(false);
 }
 
-void ProtobufTest::irc2me_authorized()
+void FormConnect::irc2me_authorized()
 {
     log("Authorized!");
     lockServerInput(false);
 }
 
-void ProtobufTest::irc2me_notAuthorized()
+void FormConnect::irc2me_notAuthorized()
 {
     log("Failed to login.");
     lockServerInput(false);

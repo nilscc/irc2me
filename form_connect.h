@@ -5,16 +5,16 @@
 #include "irc2me.h"
 
 namespace Ui {
-class ProtobufTest;
+class FormConnect;
 }
 
-class ProtobufTest : public QMainWindow
+class FormConnect : public QMainWindow
 {
     Q_OBJECT
 
 private:
 
-    Ui::ProtobufTest *ui;
+    Ui::FormConnect *ui;
     Irc2me &irc2me;
 
     void log(QString msg);
@@ -22,8 +22,8 @@ private:
 
 public:
 
-    explicit ProtobufTest(Irc2me &irc, QWidget *parent = 0);
-    ~ProtobufTest();
+    explicit FormConnect(Irc2me &irc, QWidget *parent = 0);
+    ~FormConnect();
 
 private slots:
 
