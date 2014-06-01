@@ -1,7 +1,7 @@
 module ProtoBuf
-  ( module ProtoBuf.Server
-  , module ProtoBuf.Client
+  ( module ProtoBuf.Messages.Server
+  , module ProtoBuf.Messages.Client
   ) where
 
-import ProtoBuf.Server
-import ProtoBuf.Client
+import ProtoBuf.Messages.Server
+import ProtoBuf.Messages.Client
