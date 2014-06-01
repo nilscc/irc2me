@@ -8,6 +8,7 @@ module Server.Stream
   , runStreamOnHandle
     -- ** Messages
   , getMessage
+  , sendMessage
   ) where
 
 import Control.Applicative
@@ -30,18 +31,18 @@ type Chunks = [B.ByteString]
 --------------------------------------------------------------------------------
 -- newtype on chunks
 
-newtype StreamT e m a = StreamT { runStreamT :: Chunks -> ExceptT e m (Chunks, a) }
+newtype StreamT e m a = StreamT { runStreamT :: (Handle, Chunks) -> ExceptT e m (Chunks, a) }
 
 type Stream a = (Applicative m, MonadIO m) => StreamT String m a
 
 instance Monad m => Monad (StreamT e m) where
-  return a = StreamT $ \s -> return (s, a)
-  m >>= n  = StreamT $ \s -> do
-               (s', a) <- runStreamT m s
-               runStreamT (n a) s'
+  return a = StreamT $ \(_,c) -> return (c, a)
+  m >>= n  = StreamT $ \s@(h,_) -> do
+               (c', a) <- runStreamT m s
+               runStreamT (n a) (h,c')
 
 instance (Functor m, MonadIO m) => MonadIO (StreamT e m) where
-  liftIO f = StreamT $ \s -> (s,) <$> liftIO f
+  liftIO f = StreamT $ \(_,s) -> (s,) <$> liftIO f
 
 
 instance Functor m => Functor (StreamT e m) where
@@ -62,14 +63,17 @@ chunksFromHandle h = BL.toChunks <$> BL.hGetContents h
 
 runStreamOnHandle :: (Functor m, MonadIO m) => Handle -> StreamT e m a -> m (Either e a)
 runStreamOnHandle h st = do
-  s <- liftIO $ chunksFromHandle h
-  runExceptT $ snd <$> runStreamT st s
+  c <- liftIO $ chunksFromHandle h
+  runExceptT $ snd <$> runStreamT st (h,c)
+
+withHandle :: (Handle -> StreamT e m a) -> StreamT e m a
+withHandle f = StreamT $ \s@(h,_) -> runStreamT (f h) s
 
 --------------------------------------------------------------------------------
 -- messages
 
 getMessage :: Decode a => Stream a
-getMessage = StreamT $ \(chunks) ->
+getMessage = StreamT $ \(_,chunks) ->
 
   handleChunks chunks $ runGetPartial getVarintPrefixedBS
 
@@ -101,3 +105,9 @@ getMessage = StreamT $ \(chunks) ->
       Done bs _ | Right msg <- runGet decodeMessage bs ->
         return ([], msg)
       _ -> throwE $ "Unexpected end of input."
+
+sendMessage :: Encode a => a -> Stream ()
+sendMessage msg = withHandle $ \h -> do
+
+  let encoded = runPut $ encodeMessage msg
+  liftIO $ B.hPut h $ runPut $ putVarintPrefixedBS encoded
