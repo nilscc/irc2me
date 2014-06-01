@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Server.Authenticate where
+module Server.Streams.Authenticate where
 
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
@@ -13,7 +13,7 @@ import Database.Tables.Accounts
 import ProtoBuf.Messages.Client
 import ProtoBuf.Messages.Server
 
-import Server.Stream
+import Server.Streams
 
 getClientMessage :: Stream PB_ClientMessage
 getClientMessage = getMessage

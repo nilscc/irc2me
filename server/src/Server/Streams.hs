@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 
-module Server.Stream
+module Server.Streams
   ( Stream, StreamT
   , throwS
   , runStreamOnHandle
