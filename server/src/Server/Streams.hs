@@ -40,7 +40,7 @@ type Chunks = [B.ByteString]
 
 newtype StreamT e m a = StreamT { runStreamT :: (Handle, Chunks) -> ExceptT e m (Chunks, a) }
 
-type Stream a = (Applicative m, Alternative m, MonadIO m) => StreamT (First String) m a
+type Stream = StreamT (First String) IO
 
 -- Instance definitions
 
@@ -69,6 +69,11 @@ instance (Monad m, Monoid e) => MonadPlus (StreamT e m) where
   mzero     = StreamT $ \_ -> mzero
   mplus m n = StreamT $ \s -> runStreamT m s `mplus` runStreamT n s
 
+instance MonadTrans (StreamT e) where
+  lift f = StreamT $ \(_,c) -> do
+    a <- lift f
+    return (c,a)
+
 --------------------------------------------------------------------------------
 
 throwS
@@ -82,8 +87,8 @@ chunksFromHandle :: Handle -> IO Chunks
 chunksFromHandle h = BL.toChunks <$> BL.hGetContents h
 
 -- | Run a `Stream` monad with on a handle. Returns the first error message (if any)
-runStreamOnHandle :: (Functor m, Applicative m, Alternative m, MonadIO m) => Handle -> Stream a -> m (Either String a)
-runStreamOnHandle h st = do
+runStreamOnHandle :: MonadIO m => Handle -> Stream a -> m (Either String a)
+runStreamOnHandle h st = liftIO $ do
   res <- runStreamTOnHandle h st
   case res of
     Right x                     -> return $ Right x
