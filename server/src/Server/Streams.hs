@@ -89,11 +89,17 @@ runStreamTOnHandle h st = do
 withHandle :: (Handle -> StreamT e m a) -> StreamT e m a
 withHandle f = StreamT $ \s@(h,_) -> runStreamT (f h) s
 
+-- | Manually modify bytestring chunks
+withChunks :: Monad m => (Chunks -> StreamT e m (Chunks, a)) -> StreamT e m a
+withChunks f = StreamT $ \s@(_,c) -> do
+  (_, res) <- runStreamT (f c) s
+  return res
+
 --------------------------------------------------------------------------------
 -- messages
 
 getMessage :: Decode a => Stream a
-getMessage = StreamT $ \(_,chunks) ->
+getMessage = withChunks $ \chunks ->
 
   handleChunks chunks $ runGetPartial getVarintPrefixedBS
 
@@ -109,14 +115,14 @@ getMessage = StreamT $ \(_,chunks) ->
       -- parse chunk
       case f chunk of
 
-        Fail err _ -> throwE $ First . Just $ "[getMessage] Unexpected error: " ++ show err
+        Fail err _ -> throwS "getMessage" $ "Unexpected error: " ++ show err
 
         Partial f' -> handleChunks rest f'
 
         Done bs chunk' -> do
           -- try to parse current message
           case runGet decodeMessage bs of
-            Left err  -> throwE $ First . Just $ "[getMessage] Failed to parse message: " ++ show err
+            Left err  -> throwS "getMessage" $ "Failed to parse message: " ++ show err
             Right msg -> return (chunk' : rest, msg)
 
   handleChunks [] f =
@@ -124,7 +130,7 @@ getMessage = StreamT $ \(_,chunks) ->
     case f B.empty of
       Done bs _ | Right msg <- runGet decodeMessage bs ->
         return ([], msg)
-      _ -> throwE $ First . Just $ "[getMessage] Unexpected end of input."
+      _ -> throwS "getMessage" "Unexpected end of input."
 
 sendMessage :: Encode a => a -> Stream ()
 sendMessage msg = withHandle $ \h -> do
