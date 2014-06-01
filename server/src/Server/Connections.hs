@@ -5,6 +5,8 @@ module Server.Connections where
 import Control.Exception
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.Trans.Except
+
 import Network
 import System.IO
 
@@ -45,33 +47,9 @@ serverStart conf = do
     forkIO $ do
       putStrLn $ "New connection from " ++ hostname
       stream <- BL.hGetContents h
-      handleClientMessages h (BL.toChunks stream) `finally` hClose h
+      --handleClientMessages h (BL.toChunks stream) `finally` hClose h
 
-handleClientMessages :: Handle -> [B.ByteString] -> IO ()
-handleClientMessages h chunks =
-
-  handleChunks chunks $ runGetPartial getVarintPrefixedBS
-
- where
-
-  handleChunks (chunk : rest) f
-    | B.null chunk = handleChunks rest f
-    | otherwise =
-
-      -- parse chunk
-      case f chunk of
-
-        Fail err _     -> putStrLn $ "Unexpected error: " ++ show err
-        Partial f'     ->
-          if null rest
-            then putStrLn $ "Unexpected end of input after 'Partial' results."
-            else handleChunks rest f'
-        Done bs chunk' -> do
-
-          -- try to parse current message
-          case runGet decodeMessage bs of
-            Left err  -> putStrLn $ "Failed to parse message: " ++ show err
-            Right msg -> do
+{-
               -- send response
               srvmsg <- handleClientMessage msg
               let encoded = runPut $ encodeMessage srvmsg
@@ -80,9 +58,9 @@ handleClientMessages h chunks =
 
           -- loop recursively
           handleClientMessages h (chunk' : rest)
+-}
 
-  handleChunks [] _ = return()
-
+{-
 handleClientMessage :: PB_ClientMessage -> IO PB_ServerMessage
 handleClientMessage msg
 
@@ -103,3 +81,4 @@ authClient login pw = do
   case result of
     Right True -> return $ responseOkMessage
     _          -> return $ responseErrorMessage $ Just "Invalid user/password"
+    -}

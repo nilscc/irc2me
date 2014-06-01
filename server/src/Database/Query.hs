@@ -4,6 +4,7 @@
 module Database.Query where
 
 import Control.Applicative
+import Control.Monad.Trans
 import Data.Maybe
 import Data.List
 import Data.Word
@@ -36,16 +37,16 @@ data Update a
       , urConvert  :: [[SqlValue]] -> a
       }
 
-runQuery :: Query a -> IO (Either SqlError a)
-runQuery (Query s v conv) = runSQL $ \c ->
+runQuery :: MonadIO m => Query a -> m (Either SqlError a)
+runQuery (Query s v conv) = liftIO $ runSQL $ \c ->
   conv <$> quickQuery' c s v
 
-runUpdate :: Update a -> IO (Either SqlError a)
-runUpdate (Update s v conv) = runSQL $ \c -> do
+runUpdate :: MonadIO m => Update a -> m (Either SqlError a)
+runUpdate (Update s v conv) = liftIO $ runSQL $ \c -> do
   i <- run c s v
   commit c
   return $ conv i
-runUpdate (UpdateReturning s v conv) = runSQL $ \c -> do
+runUpdate (UpdateReturning s v conv) = liftIO $ runSQL $ \c -> do
   res <- conv <$> quickQuery' c s v
   commit c
   return res
