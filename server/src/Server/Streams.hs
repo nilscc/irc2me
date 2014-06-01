@@ -53,7 +53,6 @@ instance Monad m => Monad (StreamT e m) where
 instance (Functor m, MonadIO m) => MonadIO (StreamT e m) where
   liftIO f = StreamT $ \(_,s) -> (s,) <$> liftIO f
 
-
 instance Functor m => Functor (StreamT e m) where
   fmap f m = StreamT $ \s ->
     second f `fmap` runStreamT m s
@@ -66,9 +65,9 @@ instance (Functor m, Monad m, Monoid e) => Alternative (StreamT e m) where
   empty   = StreamT $ \_ -> empty
   m <|> n = StreamT $ \s -> runStreamT m s <|> runStreamT n s
 
-instance (Functor m, Monad m, Monoid e) => MonadPlus (StreamT e m) where
+instance (Monad m, Monoid e) => MonadPlus (StreamT e m) where
   mzero     = StreamT $ \_ -> mzero
-  mplus m n = StreamT $ \s -> runStreamT m s <|> runStreamT n s
+  mplus m n = StreamT $ \s -> runStreamT m s `mplus` runStreamT n s
 
 --------------------------------------------------------------------------------
 
