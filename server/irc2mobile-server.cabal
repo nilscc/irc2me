@@ -23,6 +23,7 @@ executable irc2mobile-server
   build-depends:       base == 4.*,
                        bytestring,
                        containers,
+                       mtl, transformers,
                        network,
                        time,
                        stm,
