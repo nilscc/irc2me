@@ -7,3 +7,13 @@ serverStream :: Stream ()
 serverStream = do
 
   sendMessage =<< authenticate
+
+  choice [ requestStream
+         , setStream
+         ]
+
+requestStream :: Stream ()
+requestStream = return ()
+
+setStream :: Stream ()
+setStream = return ()

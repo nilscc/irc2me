@@ -21,6 +21,7 @@ defaultServerConf = ServerConf
   { serverPort = 6565
   }
 
+-- | Accept incoming connections and process client messages
 serverStart :: ServerConf -> IO ()
 serverStart conf = do
 

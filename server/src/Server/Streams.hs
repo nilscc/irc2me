@@ -7,6 +7,7 @@ module Server.Streams
   ( -- * Streams
     Stream, StreamT
   , throwS
+  , choice
   , runStreamOnHandle
   , runStreamTOnHandle
 
@@ -21,6 +22,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Except
 
+import Data.List
 import Data.Monoid
 import Data.Serialize
 import Data.ProtocolBuffers
@@ -38,7 +40,7 @@ type Chunks = [B.ByteString]
 
 newtype StreamT e m a = StreamT { runStreamT :: (Handle, Chunks) -> ExceptT e m (Chunks, a) }
 
-type Stream a = (Applicative m, MonadIO m) => StreamT (First String) m a
+type Stream a = (Applicative m, Alternative m, MonadIO m) => StreamT (First String) m a
 
 -- Instance definitions
 
@@ -81,7 +83,7 @@ chunksFromHandle :: Handle -> IO Chunks
 chunksFromHandle h = BL.toChunks <$> BL.hGetContents h
 
 -- | Run a `Stream` monad with on a handle. Returns the first error message (if any)
-runStreamOnHandle :: (Functor m, Applicative m, MonadIO m) => Handle -> Stream a -> m (Either String a)
+runStreamOnHandle :: (Functor m, Applicative m, Alternative m, MonadIO m) => Handle -> Stream a -> m (Either String a)
 runStreamOnHandle h st = do
   res <- runStreamTOnHandle h st
   case res of
@@ -103,6 +105,9 @@ withChunks :: Monad m => (Chunks -> StreamT e m (Chunks, a)) -> StreamT e m a
 withChunks f = StreamT $ \s@(_,c) -> do
   (_, res) <- runStreamT (f c) s
   return res
+
+choice :: (Alternative m, Monad m, Monoid e) => [StreamT e m a] -> StreamT e m a
+choice = foldl' (<|>) empty
 
 --------------------------------------------------------------------------------
 -- messages
