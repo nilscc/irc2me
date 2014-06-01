@@ -4,9 +4,12 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Server.Streams
-  ( Stream, StreamT
+  ( -- * Streams
+    Stream, StreamT
   , throwS
   , runStreamOnHandle
+  , runStreamTOnHandle
+
     -- ** Messages
   , getMessage
   , sendMessage
@@ -67,12 +70,17 @@ instance (Functor m, Monad m, Monoid e) => MonadPlus (StreamT e m) where
 
 --------------------------------------------------------------------------------
 
-throwS :: Monad m => String -> String -> StreamT (First String) m a
+throwS
+  :: Monad m
+  => String -- ^ origin of error
+  -> String -- ^ error message
+  -> StreamT (First String) m a
 throwS f e = StreamT $ \_ -> throwE (First $ Just $ "[" ++ f ++ "] " ++ e)
 
 chunksFromHandle :: Handle -> IO Chunks
 chunksFromHandle h = BL.toChunks <$> BL.hGetContents h
 
+-- | Run a `Stream` monad with on a handle. Returns the first error message (if any)
 runStreamOnHandle :: (Functor m, Applicative m, MonadIO m) => Handle -> Stream a -> m (Either String a)
 runStreamOnHandle h st = do
   res <- runStreamTOnHandle h st
@@ -81,6 +89,7 @@ runStreamOnHandle h st = do
     Left (getFirst -> Just err) -> return $ Left err
     _                           -> return $ Left "Unexpected error in 'runStreamOnHandle'"
 
+-- | Generalized `runStreamOnHandle`
 runStreamTOnHandle :: (Functor m, MonadIO m) => Handle -> StreamT e m a -> m (Either e a)
 runStreamTOnHandle h st = do
   c <- liftIO $ chunksFromHandle h
