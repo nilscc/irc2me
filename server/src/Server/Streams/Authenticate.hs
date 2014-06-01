@@ -34,5 +34,5 @@ authenticate = do
           _          -> return $ responseErrorMessage (Just "Invalid user name/password")
 
       | otherwise ->
-        throwS $ "Unexpected message: " ++ show msg
+        throwS "authenticate" $ "Unexpected message: " ++ show msg
 

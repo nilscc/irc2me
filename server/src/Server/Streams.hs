@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Server.Streams
   ( Stream, StreamT
@@ -17,6 +18,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Except
 
+import Data.Monoid
 import Data.Serialize
 import Data.ProtocolBuffers
 import Data.ProtocolBuffers.Internal
@@ -33,7 +35,9 @@ type Chunks = [B.ByteString]
 
 newtype StreamT e m a = StreamT { runStreamT :: (Handle, Chunks) -> ExceptT e m (Chunks, a) }
 
-type Stream a = (Applicative m, MonadIO m) => StreamT String m a
+type Stream a = (Applicative m, MonadIO m) => StreamT (First String) m a
+
+-- Instance definitions
 
 instance Monad m => Monad (StreamT e m) where
   return a = StreamT $ \(_,c) -> return (c, a)
@@ -53,16 +57,32 @@ instance (Functor m, Monad m) => Applicative (StreamT e m) where
   pure = return
   (<*>) = ap
 
+instance (Functor m, Monad m, Monoid e) => Alternative (StreamT e m) where
+  empty   = StreamT $ \_ -> empty
+  m <|> n = StreamT $ \s -> runStreamT m s <|> runStreamT n s
+
+instance (Functor m, Monad m, Monoid e) => MonadPlus (StreamT e m) where
+  mzero     = StreamT $ \_ -> mzero
+  mplus m n = StreamT $ \s -> runStreamT m s <|> runStreamT n s
+
 --------------------------------------------------------------------------------
 
-throwS :: Monad m => e -> StreamT e m a
-throwS e = StreamT $ \_ -> throwE e
+throwS :: Monad m => String -> String -> StreamT (First String) m a
+throwS f e = StreamT $ \_ -> throwE (First $ Just $ "[" ++ f ++ "] " ++ e)
 
 chunksFromHandle :: Handle -> IO Chunks
 chunksFromHandle h = BL.toChunks <$> BL.hGetContents h
 
-runStreamOnHandle :: (Functor m, MonadIO m) => Handle -> StreamT e m a -> m (Either e a)
+runStreamOnHandle :: (Functor m, Applicative m, MonadIO m) => Handle -> Stream a -> m (Either String a)
 runStreamOnHandle h st = do
+  res <- runStreamTOnHandle h st
+  case res of
+    Right x                     -> return $ Right x
+    Left (getFirst -> Just err) -> return $ Left err
+    _                           -> return $ Left "Unexpected error in 'runStreamOnHandle'"
+
+runStreamTOnHandle :: (Functor m, MonadIO m) => Handle -> StreamT e m a -> m (Either e a)
+runStreamTOnHandle h st = do
   c <- liftIO $ chunksFromHandle h
   runExceptT $ snd <$> runStreamT st (h,c)
 
@@ -89,14 +109,14 @@ getMessage = StreamT $ \(_,chunks) ->
       -- parse chunk
       case f chunk of
 
-        Fail err _ -> throwE $ "Unexpected error: " ++ show err
+        Fail err _ -> throwE $ First . Just $ "[getMessage] Unexpected error: " ++ show err
 
         Partial f' -> handleChunks rest f'
 
         Done bs chunk' -> do
           -- try to parse current message
           case runGet decodeMessage bs of
-            Left err  -> throwE $ "Failed to parse message: " ++ show err
+            Left err  -> throwE $ First . Just $ "[getMessage] Failed to parse message: " ++ show err
             Right msg -> return (chunk' : rest, msg)
 
   handleChunks [] f =
@@ -104,7 +124,7 @@ getMessage = StreamT $ \(_,chunks) ->
     case f B.empty of
       Done bs _ | Right msg <- runGet decodeMessage bs ->
         return ([], msg)
-      _ -> throwE $ "Unexpected end of input."
+      _ -> throwE $ First . Just $ "[getMessage] Unexpected end of input."
 
 sendMessage :: Encode a => a -> Stream ()
 sendMessage msg = withHandle $ \h -> do
