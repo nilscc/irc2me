@@ -3,8 +3,6 @@
 
 module Server.Streams.Authenticate where
 
-import Control.Monad
-
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
 
@@ -41,7 +39,8 @@ authenticate = do
               Right True -> return account
               _          -> throwS "authenticate" $ "Invalid password for user: " ++ Text.unpack login
 
-          _ -> throwS "authenticate" $ "Invalid login: " ++ Text.unpack login
+          Right Nothing -> throwS "authenticate" $ "Invalid login: " ++ Text.unpack login
+          Left  sqlerr  -> throwS "authenticate" $ "SqlError: " ++ show sqlerr
 
       | otherwise ->
         throwS "authenticate" $ "Unexpected message: " ++ show msg
