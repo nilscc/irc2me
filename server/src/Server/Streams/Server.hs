@@ -10,6 +10,7 @@ import Server.Streams
 import Server.Streams.Authenticate
 import Server.Streams.Updates         ()
 import Server.Streams.Requests
+import Server.Streams.System
 
 serverStream :: Stream ()
 serverStream = do
@@ -23,7 +24,8 @@ serverStream = do
   forever $ do
 
     response <- getServerResponse state $ do
-                  choice [ requestStream
+                  choice [ systemStream
+                         , requestStream
                          , updateStream
                          ]
 

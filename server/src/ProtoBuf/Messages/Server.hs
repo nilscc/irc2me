@@ -10,6 +10,7 @@ import Control.Lens.TH
 import Control.Lens.Operators
 import Data.Text (Text)
 import Data.ProtocolBuffers
+import Data.Monoid
 
 import GHC.Generics (Generic)
 
@@ -17,6 +18,7 @@ import ProtoBuf.Helper
 import ProtoBuf.Instances ()
 import ProtoBuf.Messages.IRC
 import ProtoBuf.Messages.Network
+import ProtoBuf.Messages.SystemMsg
 
 data PB_ResponseCode
   = PB_ResponseOK
@@ -24,8 +26,10 @@ data PB_ResponseCode
   deriving (Eq, Enum, Show)
 
 data PB_ServerMessage = PB_ServerMessage
-  { -- response messages
-    _response_code     :: Optional 10 (Enumeration PB_ResponseCode)
+  { _server_system_msg :: Optional 5 (Enumeration PB_SystemMsg)
+
+    -- response messages
+  , _response_code     :: Optional 10 (Enumeration PB_ResponseCode)
   , _response_msg      :: Optional 15 (Value Text)
 
     -- networks
@@ -46,10 +50,11 @@ makeLenses ''PB_ServerMessage
 
 emptyServerMessage :: PB_ServerMessage
 emptyServerMessage = PB_ServerMessage
-  (putField Nothing)
-  (putField Nothing)
-  (putField [])
-  (putField Nothing)
+  mempty
+  mempty
+  mempty
+  mempty
+  mempty
 
 responseOkMessage :: PB_ServerMessage
 responseOkMessage = emptyServerMessage
