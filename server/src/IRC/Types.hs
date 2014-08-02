@@ -12,6 +12,8 @@ import           Network.IRC.ByteString.Parser
 
 import System.IO
 
+type ID = Integer
+
 type Nickname = ByteString
 type Username = ByteString
 type Realname = ByteString
@@ -27,11 +29,18 @@ data Identity = Identity
 data Userflag = Operator | Voice
   deriving (Show, Eq, Ord, Enum)
 
+data Network = Network
+  { netw_id         :: ID
+  , netw_name       :: String
+  , netw_reconnect  :: Bool
+  , netw_identity   :: Maybe ID
+  }
+  deriving (Show, Eq)
+
 data Server = Server
   { srv_host      :: String
   , srv_port      :: PortID
   , srv_tls       :: TLSSettings
-  , srv_reconnect :: Bool
   }
   deriving (Show, Eq)
 

@@ -12,20 +12,21 @@ import IRC.Types
 --------------------------------------------------------------------------------
 -- "networks" table
 
-data Network = Network
-  { networkId     :: Integer
-  }
-  deriving (Eq, Show, Ord)
-
 -- converters
 
 networkSELECT :: String
-networkSELECT = "SELECT id FROM networks"
+networkSELECT = "SELECT id, name, reconnect, identity FROM networks"
 
 toNetwork :: Converter Network
-toNetwork s = case s of
-  [SqlInteger i] -> Just $ Network i
-  _              -> Nothing
+toNetwork [SqlInteger i, SqlByteString name, SqlBool reconnect, ident ] = Just $
+  Network { netw_id        = i
+          , netw_name      = B8.unpack name
+          , netw_reconnect = reconnect
+          , netw_identity  = case ident of
+                               SqlInteger i' -> Just i'
+                               _             -> Nothing
+          }
+toNetwork _ = Nothing
 
 -- queries
 
@@ -37,11 +38,11 @@ selectNetworks (Account a) = Query
 
 -- updates
 
-addNetwork :: Account -> String -> Update (Maybe Network)
-addNetwork (Account a) name = UpdateReturning
-  "INSERT INTO networks (account, name) VALUES (?, ?) \
-  \  RETURNING id"
-  [toSql a, toSql name]
+addNetwork :: Account -> String -> Bool -> Update (Maybe Network)
+addNetwork (Account a) name reconnect = UpdateReturning
+  "INSERT INTO networks (account, name, reconnect) VALUES (?, ?, ?) \
+  \  RETURNING id, name, reconnect, identity"
+  [toSql a, toSql name, toSql reconnect]
   (convertOne toNetwork)
 
 --------------------------------------------------------------------------------
@@ -50,33 +51,32 @@ addNetwork (Account a) name = UpdateReturning
 -- converters
 
 serverSELECT :: String
-serverSELECT = "SELECT address, port, use_ssl, reconnect FROM network_servers"
+serverSELECT = "SELECT address, port, use_tls FROM network_servers"
 
 toServer :: Converter Server
 toServer s = case s of
-  [SqlString a, SqlInteger p, SqlBool ssl, SqlBool recon] -> Just $
-    Server { srv_host       = a
+  [SqlByteString a, SqlInteger p, SqlBool ssl] -> Just $
+    Server { srv_host       = B8.unpack a
            , srv_port       = PortNumber $ fromIntegral p
            , srv_tls        = if ssl then TLS else OptionalSTARTTLS
-           , srv_reconnect  = recon
            }
   _ -> Nothing
 
 -- queries
 
 selectServers :: Network -> Query [Server]
-selectServers (Network i) = Query
+selectServers netw = Query
   (serverSELECT ++ " WHERE network = ?")
-  [toSql i]
+  [toSql $ netw_id netw]
   (convertList toServer)
 
 -- updates
 
 addServer :: Network -> Server -> Update Bool
-addServer (Network n) server = Update
-  "INSERT INTO network_servers (network, address, port, use_ssl) \
+addServer netw server = Update
+  "INSERT INTO network_servers (network, address, port, use_tls) \
    \    VALUES (?, ?, ?, ?)"
-  [ toSql n
+  [ toSql $ netw_id netw
   , toSql $ srv_host server
   , toSql $ fromPortID $ srv_port server
   , toSql $ srv_tls server == TLS
@@ -102,15 +102,15 @@ toChannel s = case s of
 -- queries
 
 selectChannels :: Network -> Query [Channel]
-selectChannels (Network i) = Query
+selectChannels netw = Query
   (channelSELECT ++ " WHERE network = ?")
-  [toSql i]
+  [toSql (netw_id netw)]
   (convertList toChannel)
 
 -- updates
 
 addChannel :: Network -> Channel -> Update Bool
-addChannel (Network i) chan = Update
+addChannel netw chan = Update
   "INSERT INTO network_channels (network, name) VALUES (?, ?)"
-  [toSql i, toSql chan]
+  [toSql (netw_id netw), toSql chan]
   (== 1)

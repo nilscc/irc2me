@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS account_identities
 CREATE TABLE IF NOT EXISTS networks
 (
   id        serial      PRIMARY KEY,
-  account   integer     NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
   name      text        NOT NULL,
-
-  identity  integer     REFERENCES account_identities (id) ON DELETE SET NULL
+  account   integer     NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+  identity  integer     REFERENCES account_identities (id) ON DELETE SET NULL,
+  reconnect boolean     NOT NULL DEFAULT true
 );
 
 CREATE TABLE IF NOT EXISTS network_servers
@@ -47,8 +47,7 @@ CREATE TABLE IF NOT EXISTS network_servers
 
   address   text        NOT NULL,
   port      integer     NOT NULL,
-  use_ssl   boolean     NOT NULL DEFAULT true,
-  reconnect boolean     NOT NULL DEFAULT true
+  use_tls   boolean     NOT NULL DEFAULT true
 );
 
 CREATE TABLE IF NOT EXISTS network_channels
