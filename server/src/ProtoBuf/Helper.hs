@@ -6,6 +6,7 @@ module ProtoBuf.Helper where
 
 import Control.Lens.Setter
 
+import           Data.Int (Int32, Int64)
 import           Data.ProtocolBuffers
 import           Data.ByteString (ByteString)
 import           Data.Text          (Text)
@@ -49,4 +50,15 @@ instance Convertible a a where
 instance Convertible Text ByteString where
   convert = decodeUtf8
 instance Functor f => Convertible (f Text) (f ByteString) where
-  convert = fmap decodeUtf8
+  convert = fmap convert
+
+instance Integral a => Convertible Int32 a where
+  convert = fromIntegral
+instance (Integral a, Functor f) => Convertible (f Int32) (f a) where
+  convert = fmap convert
+
+instance Integral a => Convertible Int64 a where
+  convert = fromIntegral
+instance (Integral a, Functor f) => Convertible (f Int64) (f a) where
+  convert = fmap convert
+
