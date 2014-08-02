@@ -39,13 +39,18 @@ data IrcMsgType
   deriving (Eq, Enum, Show)
 
 data PB_Namreply = PB_Namreply
-  { namreply_name     :: Required 1 (Value Text)
-  , namreply_userflag :: Optional 2 (Enumeration IRC.Userflag)
+  { _namreply_name     :: Required 1 (Value Text)
+  , _namreply_userflag :: Optional 2 (Enumeration IRC.Userflag)
   }
   deriving (Eq, Show, Generic)
 
+makeLenses ''PB_Namreply
+
 instance Encode PB_Namreply
 instance Decode PB_Namreply
+
+emptyNamreply :: PB_Namreply
+emptyNamreply = PB_Namreply mempty mempty
 
 data PB_IrcMessage = PB_IrcMessage
   { -- message type
@@ -160,4 +165,5 @@ encodeIrcMessage msg =
 putNamreply :: [(IRC.Nickname, Maybe IRC.Userflag)]
             -> Repeated a (Message PB_Namreply)
 putNamreply n = putField $ map `flip` n $ \(name, uf) ->
-  PB_Namreply (putField $ decodeUtf8 name) (putField uf)
+  emptyNamreply & namreply_name             .~~ name
+                & namreply_userflag . field .~  uf
