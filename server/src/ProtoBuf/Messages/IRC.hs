@@ -44,10 +44,10 @@ data PB_Namreply = PB_Namreply
   }
   deriving (Eq, Show, Generic)
 
-makeLenses ''PB_Namreply
-
 instance Encode PB_Namreply
 instance Decode PB_Namreply
+
+makeLenses ''PB_Namreply
 
 emptyNamreply :: PB_Namreply
 emptyNamreply = PB_Namreply mempty mempty
@@ -74,10 +74,10 @@ data PB_IrcMessage = PB_IrcMessage
   }
   deriving (Show, Generic)
 
-makeLenses ''PB_IrcMessage
-
 instance Encode PB_IrcMessage
 instance Decode PB_IrcMessage
+
+makeLenses ''PB_IrcMessage
 
 emptyIrcMessage :: IrcMsgType -> PB_IrcMessage
 emptyIrcMessage ty = PB_IrcMessage
@@ -146,7 +146,7 @@ encodeIrcMessage msg =
     IRC.NamreplyMsg chan names ->
       emptyIrcMessage Ty_NamreplyMsg
         & irc_msg_channels      .~~ [chan]
-        & irc_msg_namreply      .~  putNamreply names
+        & irc_msg_namreply      .~~ toNamreply names
     IRC.ErrorMsg code ->
       emptyIrcMessage Ty_ErrorMsg
         & irc_msg_command       .~~ Just code
@@ -162,8 +162,8 @@ encodeIrcMessage msg =
 -- Helper
 --
 
-putNamreply :: [(IRC.Nickname, Maybe IRC.Userflag)]
-            -> Repeated a (Message PB_Namreply)
-putNamreply n = putField $ map `flip` n $ \(name, uf) ->
+toNamreply :: [(IRC.Nickname, Maybe IRC.Userflag)]
+           -> [PB_Namreply]
+toNamreply n = map `flip` n $ \(name, uf) ->
   emptyNamreply & namreply_name     .~~ name
                 & namreply_userflag .~~ uf
