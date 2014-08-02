@@ -1,15 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RankNTypes #-}
 
 module ProtoBuf.Helper where
 
-import Control.Monad
-import Control.Lens.Lens
 import Control.Lens.Setter
-import Control.Lens.Type
 
 import           Data.ProtocolBuffers
 import           Data.ByteString (ByteString)
@@ -22,8 +17,12 @@ import qualified Network.IRC.ByteString.Parser as I
 --
 -- helper
 --
+
 decodeUtf8 :: ByteString -> Text
 decodeUtf8 = E.decodeUtf8With EE.lenientDecode
+
+encodeUtf8 :: Text -> ByteString
+encodeUtf8 = E.encodeUtf8
 
 maybeNick, maybeServer :: Either I.UserInfo ByteString -> Maybe ByteString
 maybeNick (Left ui)   = Just $ I.userNick ui
@@ -35,34 +34,19 @@ maybeServer _         = Nothing
 -- lens helpers
 --
 
--- | Field lens setter, minimal complete definition: `fieldGetter` and
--- `fieldSetter`
-class FieldLens t t' where
+infixr 4 .~~
+(.~~) :: (HasField a, FieldType a ~ t, Convertible t t')
+      => ASetter' s a
+      -> t' -> s -> s
+lns .~~ val = lns . field .~ convert val
 
-  infixr 4 .~~
-  (.~~) :: (HasField a, FieldType a ~ t)
-        => ASetter' s a
-        -> t' -> s -> s
-  lns .~~ val = lns . field . asT .~ val
+class Convertible t t' where
+  convert :: t' -> t
 
-  asT :: Simple Lens t t'
-  asT = lens fieldGetter fieldSetter
+instance Convertible a a where
+  convert = id
 
-  fieldGetter :: t -> t'
-  fieldSetter :: t -> t' -> t
-
--- general instances
-
-instance FieldLens a a where
-  fieldGetter = id
-  fieldSetter = const id
-
-instance (FieldLens t t', Monad m) => FieldLens (m t) (m t') where
-  fieldGetter        = liftM fieldGetter
-  fieldSetter ft ft' = (liftM fieldSetter ft) >>= flip liftM ft'
-
--- specific conversion instances
-
-instance FieldLens Text ByteString where
-  fieldGetter = E.encodeUtf8
-  fieldSetter = const decodeUtf8
+instance Convertible Text ByteString where
+  convert = decodeUtf8
+instance Functor f => Convertible (f Text) (f ByteString) where
+  convert = fmap decodeUtf8

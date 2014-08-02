@@ -165,5 +165,5 @@ encodeIrcMessage msg =
 putNamreply :: [(IRC.Nickname, Maybe IRC.Userflag)]
             -> Repeated a (Message PB_Namreply)
 putNamreply n = putField $ map `flip` n $ \(name, uf) ->
-  emptyNamreply & namreply_name             .~~ name
-                & namreply_userflag . field .~  uf
+  emptyNamreply & namreply_name     .~~ name
+                & namreply_userflag .~~ uf
