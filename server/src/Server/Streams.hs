@@ -128,7 +128,7 @@ liftMonadTransformer transf streamt = StreamT $ \s -> do
 --------------------------------------------------------------------------------
 -- messages
 
-getMessage :: Decode a => Stream a
+getMessage :: (Monad m, Decode a) => StreamT (First String) m a
 getMessage = withChunks $ \chunks ->
 
   handleChunks chunks $ runGetPartial getVarintPrefixedBS

@@ -9,7 +9,7 @@ import Server.Response
 import Server.Streams
 import Server.Streams.Authenticate
 import Server.Streams.Updates         ()
--- import Server.Streams.Requests        ()
+import Server.Streams.Requests
 
 serverStream :: Stream ()
 serverStream = do
@@ -21,14 +21,18 @@ serverStream = do
   let state = ServerReaderState { connectionAccount = Just account }
 
   forever $ do
+
     response <- getServerResponse state $ do
                   choice [ requestStream
                          , updateStream
                          ]
+
     sendMessage response
 
 requestStream :: ServerResponse
-requestStream = throwS "requestStream" "Not implemented."
+requestStream = choice
+  [ networksStream
+  ]
 
 updateStream ::  ServerResponse
 updateStream = throwS "updateStream" "Not implemented."

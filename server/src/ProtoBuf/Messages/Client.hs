@@ -33,7 +33,7 @@ data PB_ClientMessage = PB_ClientMessage
   , network_add         :: Repeated 101 (Message PB_Network)
   , network_remove      :: Repeated 102 (Message PB_Network)
 
-  , network_get_list    :: Repeated 103 (Value Bool)
+  , network_get_list    :: Optional 103 (Value Bool)
   }
   deriving (Eq, Show, Generic)
 
