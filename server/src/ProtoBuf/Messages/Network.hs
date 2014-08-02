@@ -9,10 +9,13 @@ import Data.Text (Text)
 import Data.Int (Int32, Int64)
 import Data.Monoid
 
+import Control.Lens.Operators
 import Control.Lens.TH
 
 import GHC.Generics (Generic)
 
+import ProtoBuf.Helper
+import qualified IRC.Types as IRC
 import ProtoBuf.Instances ()
 
 data PB_Server = PB_Server
@@ -41,11 +44,14 @@ data PB_Network = PB_Network
 
     -- network settings
   , _network_name      :: Optional 10 (Value Text)
-  , _network_servers   :: Repeated 11 (Message PB_Server)
-  , _network_reconnect :: Optional 12 (Value Bool)
+  , _network_reconnect :: Optional 11 (Value Bool)
+  , _network_identity  :: Optional 12 (Value Int64)
+
+    -- network servers
+  , _network_servers   :: Repeated 20 (Message PB_Server)
 
     -- user commands
-  , _network_commands  :: Repeated 20 (Value Text)
+  -- , _network_commands  :: Repeated 20 (Value Text)
   }
   deriving (Eq, Show, Generic)
 
@@ -63,5 +69,13 @@ emptyNetwork n_id = PB_Network
   mempty
   mempty
   mempty
-  -- user commands
+  -- network servers
   mempty
+  -- user commands
+  --mempty
+
+encodeNetwork :: IRC.Network -> PB_Network
+encodeNetwork netw = emptyNetwork (IRC.netw_id netw)
+  & network_name      .~~ Just (IRC.netw_name netw)
+  & network_reconnect .~~ Just (IRC.netw_reconnect netw)
+  & network_identity  .~~ IRC.netw_identity netw

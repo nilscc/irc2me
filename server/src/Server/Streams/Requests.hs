@@ -2,15 +2,16 @@
 
 module Server.Streams.Requests where
 
-import Control.Monad
+import Control.Lens.Operators
 import Data.ProtocolBuffers
 
 import Database.Query
 import Database.Tables.Networks
 
+import ProtoBuf.Helper
 import ProtoBuf.Messages.Client
---import ProtoBuf.Messages.Network
---import ProtoBuf.Messages.Server
+import ProtoBuf.Messages.Network
+import ProtoBuf.Messages.Server
 
 import Server.Streams
 import Server.Response
@@ -27,8 +28,11 @@ networksStream = do
       | otherwise ->
         throwS "networksStream" "Expected 'network_get_list' field"
 
- where
-
-  sendNetworks = withAccount $ \acc -> do
-                   _nets <- runQuery $ selectNetworks acc
-                   mzero
+sendNetworks :: ServerResponse
+sendNetworks = withAccount $ \acc -> do
+  qres <- runQuery $ selectNetworks acc
+  case qres of
+    Left err    -> throwS "sendNetworks" $ "Unexpected SQL error: " ++ show err
+    Right netws ->
+      return $ responseOkMessage
+                 & network_list .~~ map encodeNetwork netws

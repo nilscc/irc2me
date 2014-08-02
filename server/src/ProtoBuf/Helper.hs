@@ -10,6 +10,7 @@ import           Data.Int (Int32, Int64)
 import           Data.ProtocolBuffers
 import           Data.ByteString (ByteString)
 import           Data.Text          (Text)
+import qualified Data.Text as Text
 import qualified Data.Text.Encoding as E
 import qualified Data.Text.Encoding.Error as EE
 
@@ -50,6 +51,11 @@ instance Convertible a a where
 instance Convertible Text ByteString where
   convert = decodeUtf8
 instance Functor f => Convertible (f Text) (f ByteString) where
+  convert = fmap convert
+
+instance Convertible Text String where
+  convert = Text.pack
+instance Functor f => Convertible (f Text) (f String) where
   convert = fmap convert
 
 instance Integral a => Convertible Int32 a where
