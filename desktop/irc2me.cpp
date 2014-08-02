@@ -5,7 +5,7 @@
 #include <messages.pb.h>
 
 const quint16 Irc2me::DEFAULT_PORT = 6565;
-const QString Irc2me::DEFAULT_SERVER = "online.nils.cc";
+const QString Irc2me::DEFAULT_SERVER = "nils.cc";
 
 Irc2me::Irc2me(QObject *parent)
     : QObject(parent)
@@ -61,6 +61,11 @@ bool Irc2me::send(const Protobuf::Messages::Client &msg, QString *errorMsg)
     return mstream->send(msg, errorMsg);
 }
 
+/*
+ * Specific messages
+ *
+ */
+
 bool Irc2me::auth(const QString &login, const QString &password,
                   QString *errorMsg)
 {
@@ -68,6 +73,15 @@ bool Irc2me::auth(const QString &login, const QString &password,
 
     clientMsg.set_auth_login(login.toStdString());
     clientMsg.set_auth_password(password.toStdString());
+
+    return send(clientMsg, errorMsg);
+}
+
+bool Irc2me::requestNetworkList(QString *errorMsg)
+{
+    Protobuf::Messages::Client clientMsg;
+
+    clientMsg.set_network_get_list(true);
 
     return send(clientMsg, errorMsg);
 }
@@ -98,11 +112,27 @@ void Irc2me::socket_error(QAbstractSocket::SocketError err)
 
 void Irc2me::mstream_newServerMessage(Protobuf::Messages::Server msg)
 {
-    if (!is_authorized && msg.has_response_code())
+    if (!is_authorized)
     {
-        if (msg.response_code() == Protobuf::Messages::Server::ResponseOK)
+        if (msg.has_response_code() &&
+            msg.response_code() == Protobuf::Messages::Server::ResponseOK)
+        {
+            is_authorized = true;
             emit authorized();
+        }
         else
+        {
+            is_authorized = false;
             emit notAuthorized();
+        }
+
+        // quit, auth message is not supposed to contain any other data
+        return;
+    }
+
+    // check for network list
+    if (msg.network_list().size() > 0)
+    {
+        emit networkList(msg.network_list());
     }
 }

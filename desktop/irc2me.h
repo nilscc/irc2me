@@ -7,6 +7,8 @@
 
 #include "protobuf/messagestream.h"
 
+typedef google::protobuf::RepeatedPtrField<Protobuf::Messages::Network> NetworkList;
+
 class Irc2me : public QObject
 {
     Q_OBJECT
@@ -46,6 +48,8 @@ public:
     bool auth(const QString &login, const QString &password,
               QString *errorMsg = nullptr);
 
+    bool requestNetworkList(QString *errorMsg = nullptr);
+
 signals:
 
     void connected();
@@ -55,4 +59,6 @@ signals:
 
     void authorized();
     void notAuthorized();
+
+    void networkList(const NetworkList &);
 };

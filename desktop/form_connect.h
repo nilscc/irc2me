@@ -34,6 +34,7 @@ private slots:
     void irc2me_authorized();
     void irc2me_notAuthorized();
 
-    void on_pushButton_connect_clicked();
+    void irc2me_networkList(const NetworkList &);
 
+    void on_pushButton_connect_clicked();
 };

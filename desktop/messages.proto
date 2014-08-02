@@ -2,10 +2,27 @@ package Protobuf.Messages;
 
 message Network
 {
+    // ID
+    required int64  network_id          = 1;
+
+    // settings
+    optional string network_name        = 10;
+    optional bool   network_reconnect   = 11;
+    optional int64  network_identity    = 12;
+
+    // servers
+    repeated IrcServer network_servers  = 20;
 };
 
 message Identity
 {
+};
+
+message IrcServer
+{
+    optional string server_host         = 1;
+    optional int32  server_port         = 2;
+    optional bool   use_tls             = 10;
 };
 
 message IrcMessage
@@ -15,8 +32,8 @@ message IrcMessage
 message Client
 {
     // acount
-    optional string auth_login            = 1;
-    optional string auth_password         = 2;
+    optional string auth_login          = 1;
+    optional string auth_password       = 2;
 
     // identities
     repeated Identity identity_add      = 11;
@@ -25,6 +42,7 @@ message Client
     // networks
     repeated Network network_add        = 101;
     repeated Network network_remove     = 102;
+    optional bool    network_get_list   = 103;
 };
 
 message Server
