@@ -45,7 +45,16 @@ void Irc2me::connect(const QString &host, quint16 port)
 
 void Irc2me::disconnect()
 {
-    if (mstream) delete mstream; mstream = nullptr;
+    if (mstream)
+    {
+        // send DISCONNECT message
+        Protobuf::Messages::Client clientMsg;
+        clientMsg.set_system_msg(Protobuf::Messages::DISCONNECT);
+        send(clientMsg);
+
+        delete mstream;
+    }
+    mstream = nullptr;
 
     if (socket)
     {

@@ -16,6 +16,7 @@ private:
 
     Ui::FormConnect *ui;
     Irc2me &irc2me;
+    bool connected;
 
     void log(QString msg);
     void lockServerInput(bool lock);

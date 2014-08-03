@@ -29,20 +29,29 @@ message IrcMessage
 {
 };
 
+enum SystemMsg
+{
+    DISCONNECT = 0;
+    PING       = 1;
+    PONG       = 2;
+};
+
 message Client
 {
     // acount
-    optional string auth_login          = 1;
-    optional string auth_password       = 2;
+    optional string    auth_login       = 1;
+    optional string    auth_password    = 2;
+
+    optional SystemMsg system_msg       = 5;
 
     // identities
-    repeated Identity identity_add      = 11;
-    repeated Identity identity_remove   = 12;
+    repeated Identity  identity_add     = 11;
+    repeated Identity  identity_remove  = 12;
 
     // networks
-    repeated Network network_add        = 101;
-    repeated Network network_remove     = 102;
-    optional bool    network_get_list   = 103;
+    repeated Network   network_add      = 101;
+    repeated Network   network_remove   = 102;
+    optional bool      network_get_list = 103;
 };
 
 message Server
@@ -52,6 +61,8 @@ message Server
         ResponseOK = 0;
         ResponseError = 1;
     };
+
+    optional SystemMsg    system_msg    = 5;
 
     // response messages
     optional ResponseCode response_code = 10;
