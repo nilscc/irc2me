@@ -11,7 +11,6 @@ import Control.Lens.Operators
 import Data.Text (Text)
 import Data.ProtocolBuffers
 import Data.Monoid
-import Data.Int
 
 import GHC.Generics (Generic)
 
@@ -19,6 +18,7 @@ import ProtoBuf.Helper
 import ProtoBuf.Instances ()
 import ProtoBuf.Messages.IRC
 import ProtoBuf.Messages.Network
+import ProtoBuf.Messages.SystemMsg
 
 data PB_ResponseCode
   = PB_ResponseOK
@@ -26,7 +26,7 @@ data PB_ResponseCode
   deriving (Eq, Enum, Show)
 
 data PB_ServerMessage = PB_ServerMessage
-  { _server_system_msg :: Optional 5 (Value Int32)
+  { _server_system_msg :: Optional 5 (Enumeration PB_SystemMsg)
 
     -- response messages
   , _response_code     :: Optional 10 (Enumeration PB_ResponseCode)
