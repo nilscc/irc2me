@@ -1,6 +1,8 @@
 #include "form_connect.h"
 #include "ui_connect.h"
 
+#include "form_main.h"
+
 FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::FormConnect)
@@ -22,9 +24,6 @@ FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
             this, SLOT(irc2me_authorized()));
     connect(&irc2me, SIGNAL(notAuthorized()),
             this, SLOT(irc2me_notAuthorized()));
-
-    connect(&irc2me, SIGNAL(networkList(NetworkList)),
-            this, SLOT(irc2me_networkList(NetworkList)));
 }
 
 FormConnect::~FormConnect()
@@ -103,6 +102,10 @@ void FormConnect::on_pushButton_connect_clicked()
         lockServerInput(true);
         log("Disconnecting...");
         irc2me.disconnect();
+
+        // hide main window (if available)
+        if (form_main)
+            form_main->hide();
     }
 }
 
@@ -139,26 +142,17 @@ void FormConnect::irc2me_error(QAbstractSocket::SocketError, QString err)
 void FormConnect::irc2me_authorized()
 {
     log("Authorized!");
-//    lockServerInput(false);
-//    irc2me.disconnect();
 
-    // request network list
-    irc2me.requestNetworkList();
+    // show main form and hide self
+    if (!form_main)
+        form_main = new FormMain(irc2me, *this);
+
+    form_main->show();
+    hide();
 }
 
 void FormConnect::irc2me_notAuthorized()
 {
     log("Failed to login.");
     irc2me.disconnect();
-}
-
-void FormConnect::irc2me_networkList(const NetworkList &networks)
-{
-    log("Network list received.");
-    for (const Protobuf::Messages::Network &network : networks)
-    {
-        QString id = QString::number(network.network_id());
-        QString name = QString::fromStdString(network.network_name());
-        log(" * [" + id + "] " + name );
-    }
 }

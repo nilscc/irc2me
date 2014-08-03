@@ -26,17 +26,20 @@ HEADERS  += \
     irc2me.h \
     protobuf/iodevicestream.h \
     protobuf/messagestream.h \
-    form_connect.h
+    form_connect.h \
+    form_main.h
 
 SOURCES += \
     main.cpp \
     irc2me.cpp \
     protobuf/iodevicestream.cpp \
     protobuf/messagestream.cpp \
-    form_connect.cpp
+    form_connect.cpp \
+    form_main.cpp
 
 FORMS    += \
-    connect.ui
+    connect.ui \
+    form_main.ui
 
 # config
 

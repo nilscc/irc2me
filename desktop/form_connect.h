@@ -16,6 +16,7 @@ private:
 
     Ui::FormConnect *ui;
     Irc2me &irc2me;
+    QMainWindow *form_main = 0;
     bool connected;
 
     void log(QString msg);
@@ -34,8 +35,6 @@ private slots:
 
     void irc2me_authorized();
     void irc2me_notAuthorized();
-
-    void irc2me_networkList(const NetworkList &);
 
     void on_pushButton_connect_clicked();
 };
