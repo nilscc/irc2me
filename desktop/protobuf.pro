@@ -27,7 +27,9 @@ HEADERS  += \
     protobuf/iodevicestream.h \
     protobuf/messagestream.h \
     form_connect.h \
-    form_main.h
+    form_main.h \
+    networklist.h \
+    channelview.h
 
 SOURCES += \
     main.cpp \
@@ -35,11 +37,15 @@ SOURCES += \
     protobuf/iodevicestream.cpp \
     protobuf/messagestream.cpp \
     form_connect.cpp \
-    form_main.cpp
+    form_main.cpp \
+    networklist.cpp \
+    channelview.cpp
 
 FORMS    += \
     connect.ui \
-    form_main.ui
+    form_main.ui \
+    networklist.ui \
+    channelview.ui
 
 # config
 

@@ -7,7 +7,7 @@
 
 #include "protobuf/messagestream.h"
 
-typedef google::protobuf::RepeatedPtrField<Protobuf::Messages::Network> NetworkList;
+typedef google::protobuf::RepeatedPtrField<Protobuf::Messages::Network> NetworkList_T;
 
 class Irc2me : public QObject
 {
@@ -60,5 +60,5 @@ signals:
     void authorized();
     void notAuthorized();
 
-    void networkList(const NetworkList &);
+    void networkList(const NetworkList_T &);
 };

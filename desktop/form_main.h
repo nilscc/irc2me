@@ -1,5 +1,4 @@
-#ifndef FORM_MAIN_H
-#define FORM_MAIN_H
+#pragma once
 
 #include <QMainWindow>
 
@@ -22,6 +21,8 @@ public:
     explicit FormMain(Irc2me&, QMainWindow &form_connect, QWidget *parent = 0);
     ~FormMain();
 
+    void loadDefaultView();
+
 //    public setNetworks()
 
 private:
@@ -29,6 +30,6 @@ private:
 
     Irc2me &irc2me;
     QMainWindow &form_connect;
-};
 
-#endif // FORM_MAIN_H
+    QWidget* newChannelInputWidget();
+};
