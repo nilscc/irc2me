@@ -73,3 +73,14 @@ requireMessageField lens = do
   case msg ^. lens . field of
     Just t  -> return t
     Nothing -> mzero
+
+requireMessageFieldValue
+  :: (HasField a, FieldType a ~ Maybe t, Eq t)
+  => Getter PB_ClientMessage a
+  -> t
+  -> ServerResponseT ()
+requireMessageFieldValue lens val = do
+  msg <- getClientMessage
+  case msg ^. lens . field of
+    Just t | t == val -> return ()
+    _                 -> mzero

@@ -3,7 +3,7 @@
 module Server.Streams.Requests where
 
 import Control.Lens.Operators
-import Data.ProtocolBuffers
+import Control.Monad
 
 import Database.Query
 import Database.Tables.Networks
@@ -17,17 +17,20 @@ import Server.Streams
 import Server.Response
 
 networksStream :: ServerResponse
-networksStream = do
+networksStream = choice
 
-  msg <- getClientMessage
+  [ do guardMessageField network_get_list
+       sendNetworks
 
-  case msg of
+  , do networks <- messageField network_add
+       guard $ not (null networks)
+       throwS "networksStream" "network_add not implemented."
 
-    _ | Just True <- msg ^. network_get_list . field ->
-        sendNetworks
+  , do networks <- messageField network_remove
+       guard $ not (null networks)
+       throwS "networksStream" "network_remove not implemented."
 
-      | otherwise ->
-        throwS "networksStream" "Expected 'network_get_list' field"
+  ]
 
 sendNetworks :: ServerResponse
 sendNetworks = withAccount $ \acc -> do
