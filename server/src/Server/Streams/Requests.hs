@@ -19,7 +19,8 @@ import Server.Response
 networksStream :: ServerResponse
 networksStream = do
 
-  msg <- getMessage
+  msg <- getClientMessage
+
   case msg of
 
     _ | Just True <- getField $ network_get_list msg ->

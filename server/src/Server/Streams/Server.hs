@@ -19,9 +19,12 @@ serverStream = do
 
   sendMessage responseOkMessage
 
-  let state = ServerReaderState { connectionAccount = Just account }
-
   forever $ do
+
+    msg <- getMessage
+
+    let state = ServerReaderState { connectionAccount = Just account
+                                  , clientMessage     = msg }
 
     response <- getServerResponse state $ do
                   choice [ systemStream

@@ -16,13 +16,11 @@ import ProtoBuf.Messages.Server
 
 import Server.Streams
 
-getClientMessage :: Stream PB_ClientMessage
-getClientMessage = getMessage
-
 authenticate :: Stream Account
 authenticate = do
 
-  msg <- getClientMessage
+  msg <- getMessage
+
   case msg of
 
     _ | Just login <- getField $ auth_login msg
