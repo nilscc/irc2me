@@ -1,5 +1,6 @@
 module Server.Streams.System where
 
+import Control.Applicative
 import Control.Monad
 import Control.Lens.Operators
 import Data.ProtocolBuffers
@@ -17,7 +18,7 @@ systemStream = do
 
   msg <- getClientMessage
 
-  case client_system_msg msg ^. field of
+  case toSystemMsg <$> client_system_msg msg ^. field of
 
     Just PB_SystemMsg_PING -> systemMsg PB_SystemMsg_PONG
 
@@ -25,5 +26,6 @@ systemStream = do
       throwS "systemStream" "Disconnected."
 
     _ -> mzero
+
  where
   systemMsg msg = return $ emptyServerMessage & server_system_msg .~~ Just msg

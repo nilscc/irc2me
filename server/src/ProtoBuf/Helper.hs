@@ -58,13 +58,17 @@ instance Convertible Text String where
 instance Functor f => Convertible (f Text) (f String) where
   convert = fmap convert
 
-instance Integral a => Convertible Int32 a where
+instance Convertible Int32 Int where
   convert = fromIntegral
-instance (Integral a, Functor f) => Convertible (f Int32) (f a) where
+instance Functor f => Convertible (f Int32) (f Int) where
   convert = fmap convert
 
-instance Integral a => Convertible Int64 a where
+instance Convertible Int32 Integer where
   convert = fromIntegral
-instance (Integral a, Functor f) => Convertible (f Int64) (f a) where
+instance Functor f => Convertible (f Int32) (f Integer) where
   convert = fmap convert
 
+instance Convertible Int64 Integer where
+  convert = fromIntegral
+instance Functor f => Convertible (f Int64) (f Integer) where
+  convert = fmap convert

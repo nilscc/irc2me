@@ -7,26 +7,20 @@ module ProtoBuf.Messages.Client where
 import Data.ProtocolBuffers
 import Data.Text
 import Data.Word
+import Data.Int
 
 import GHC.Generics (Generic)
 
 import ProtoBuf.Instances ()
 import ProtoBuf.Messages.Identity
 import ProtoBuf.Messages.Network
-import ProtoBuf.Messages.SystemMsg
-
-data PB_List
-  = PB_ListIdentities
-  | PB_ListNetworks
-  | PB_ListChannels
-  deriving (Eq, Enum, Show)
 
 data PB_ClientMessage = PB_ClientMessage
   { -- acount
     auth_login          :: Optional 1 (Value Text)
   , auth_password       :: Optional 2 (Value Text)
 
-  , client_system_msg   :: Optional 5 (Enumeration PB_SystemMsg)
+  , client_system_msg   :: Optional 5 (Value Int32)
 
     -- identities
   , identity_add        :: Repeated 11  (Message PB_Identity)
