@@ -1,8 +1,6 @@
 module Server.Streams.System where
 
-import Control.Monad
 import Control.Lens.Operators
-import Data.ProtocolBuffers
 
 import ProtoBuf.Helper
 import ProtoBuf.Messages.Client
@@ -13,18 +11,15 @@ import Server.Streams
 import Server.Response
 
 systemStream :: ServerResponse
-systemStream = do
+systemStream = choice
 
-  msg <- getClientMessage
+  [ do guardSystemMsg PB_SystemMsg_PING
+       sendSystemMsg  PB_SystemMsg_PONG
 
-  case client_system_msg msg ^. field of
-
-    Just PB_SystemMsg_PING -> systemMsg PB_SystemMsg_PONG
-
-    Just PB_SystemMsg_Disconnect ->
-      throwS "systemStream" "Disconnected."
-
-    _ -> mzero
+  , do guardSystemMsg PB_SystemMsg_Disconnect
+       disconnect Nothing
+  ]
 
  where
-  systemMsg msg = return $ emptyServerMessage & server_system_msg .~~ Just msg
+  guardSystemMsg msg = guardMessageFieldValue client_system_msg $ Just msg
+  sendSystemMsg  msg = return $ emptyServerMessage & server_system_msg .~~ Just msg

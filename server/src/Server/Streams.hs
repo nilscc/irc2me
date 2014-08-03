@@ -7,6 +7,7 @@
 module Server.Streams
   ( -- * Streams
     Stream, StreamT
+  , disconnect
   , throwS
   , choice
   , runStreamOnHandle
@@ -77,6 +78,13 @@ instance MonadTrans (StreamT e) where
     return (c,a)
 
 --------------------------------------------------------------------------------
+
+disconnect
+  :: Monad m
+  => Maybe String       -- ^ optional reason
+  -> StreamT (First String) m a
+disconnect reason = StreamT $ \_ ->
+  throwE $ First $ Just $ maybe "Disconnected." ("Disconnected: " ++) reason
 
 throwS
   :: Monad m

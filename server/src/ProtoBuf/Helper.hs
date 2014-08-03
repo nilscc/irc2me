@@ -67,4 +67,3 @@ instance Integral a => Convertible Int64 a where
   convert = fromIntegral
 instance (Integral a, Functor f) => Convertible (f Int64) (f a) where
   convert = fmap convert
-

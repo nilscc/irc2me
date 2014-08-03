@@ -1,11 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Module for client to server messages
 module ProtoBuf.Messages.Client where
 
+import Control.Lens.TH
+
 import Data.ProtocolBuffers
 import Data.Text
+import Data.Monoid
 import Data.Word
 
 import GHC.Generics (Generic)
@@ -23,25 +27,43 @@ data PB_List
 
 data PB_ClientMessage = PB_ClientMessage
   { -- acount
-    auth_login          :: Optional 1 (Value Text)
-  , auth_password       :: Optional 2 (Value Text)
+    _auth_login          :: Optional 1 (Value Text)
+  , _auth_password       :: Optional 2 (Value Text)
 
-  , client_system_msg   :: Optional 5 (Enumeration PB_SystemMsg)
+    -- system
+  , _client_system_msg   :: Optional 5 (Enumeration PB_SystemMsg)
 
     -- identities
-  , identity_add        :: Repeated 11  (Message PB_Identity)
-  , identity_remove     :: Repeated 12  (Message PB_Identity)
+  , _identity_add        :: Repeated 11  (Message PB_Identity)
+  , _identity_remove     :: Repeated 12  (Message PB_Identity)
 
     -- networks
-  , network_add         :: Repeated 101 (Message PB_Network)
-  , network_remove      :: Repeated 102 (Message PB_Network)
+  , _network_add         :: Repeated 101 (Message PB_Network)
+  , _network_remove      :: Repeated 102 (Message PB_Network)
 
-  , network_get_list    :: Optional 103 (Value Bool)
+  , _network_get_list    :: Optional 103 (Value Bool)
   }
   deriving (Eq, Show, Generic)
 
 instance Encode PB_ClientMessage
 instance Decode PB_ClientMessage
+
+makeLenses ''PB_ClientMessage
+
+emptyClientMessage :: PB_ClientMessage
+emptyClientMessage = PB_ClientMessage
+  -- account
+  mempty
+  mempty
+  -- system
+  mempty
+  -- identities
+  mempty
+  mempty
+  -- networks
+  mempty
+  mempty
+  mempty
 
 --------------------------------------------------------------------------------
 -- Requests

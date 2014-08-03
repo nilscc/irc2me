@@ -1,7 +1,15 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
+
 module Server.Response where
 
+import Control.Lens.Getter
 import Control.Monad.Reader
+
+import Data.Maybe
 import Data.Monoid
+import Data.ProtocolBuffers
 
 import Database.Tables.Accounts
 import ProtoBuf.Messages.Client
@@ -30,3 +38,38 @@ withAccount f = do
 
 getClientMessage :: ServerResponseT PB_ClientMessage
 getClientMessage = lift $ asks clientMessage
+
+messageField
+  :: (HasField a)
+  => Getter PB_ClientMessage a
+  -> ServerResponseT (FieldType a)
+messageField lens = do
+  msg <- getClientMessage
+  return $ msg ^. lens . field
+
+guardMessageField
+  :: (HasField a, FieldType a ~ Maybe t)
+  => Getter PB_ClientMessage a
+  -> ServerResponseT ()
+guardMessageField lens = do
+  msg <- getClientMessage
+  guard $ isJust $ msg ^. lens . field
+
+guardMessageFieldValue
+  :: (HasField a, Eq (FieldType a))
+  => Getter PB_ClientMessage a
+  -> FieldType a
+  -> ServerResponseT ()
+guardMessageFieldValue lens val = do
+  msg <- getClientMessage
+  guard $ (msg ^. lens . field) == val
+
+requireMessageField
+  :: (HasField a, FieldType a ~ Maybe t)
+  => Getter PB_ClientMessage a
+  -> ServerResponseT t
+requireMessageField lens = do
+  msg <- getClientMessage
+  case msg ^. lens . field of
+    Just t  -> return t
+    Nothing -> mzero

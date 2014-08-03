@@ -23,7 +23,7 @@ networksStream = do
 
   case msg of
 
-    _ | Just True <- getField $ network_get_list msg ->
+    _ | Just True <- msg ^. network_get_list . field ->
         sendNetworks
 
       | otherwise ->

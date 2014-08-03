@@ -3,6 +3,8 @@
 
 module Server.Streams.Authenticate where
 
+import Control.Lens.Operators
+
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
 
@@ -23,8 +25,8 @@ authenticate = do
 
   case msg of
 
-    _ | Just login <- getField $ auth_login msg
-      , Just pw    <- getField $ auth_password msg -> do
+    _ | Just login <- msg ^. auth_login . field
+      , Just pw    <- msg ^. auth_password . field -> do
 
         -- run database query
         maccount <- runQuery $ selectAccountByLogin (Text.unpack login)
