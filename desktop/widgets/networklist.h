@@ -51,7 +51,8 @@ private:
     const int NETWORK_ID_ROLE = Qt::UserRole + 0;
     const int CHANNEL_ID_ROLE = Qt::UserRole + 1;
 
-    void addNetwork(const Network &network);
+    QTreeWidgetItem* addNetwork(const Network &network);
+    QTreeWidgetItem* addChannel(const Network &network, const IrcChannel &channel);
 
     void updateNetworkList();
 };

@@ -70,11 +70,11 @@ void NetworkList::emitChannelSelected(QTreeWidgetItem *item, int column)
 }
 
 /*
- * Helper
+ * Private functions
  *
  */
 
-void NetworkList::addNetwork(const Protobuf::Messages::Network &network)
+QTreeWidgetItem* NetworkList::addNetwork(const Protobuf::Messages::Network &network)
 {
     string networkname = network.network_name();
     int64_t networkid = network.network_id();
@@ -90,36 +90,59 @@ void NetworkList::addNetwork(const Protobuf::Messages::Network &network)
     // add item to lookup map
     networkItems[networkid] = netwItem;
 
+    // add network to list
+    addTopLevelItem(netwItem);
+
     for (const auto &channel : network.network_channels())
     {
-        int64_t channelid  = channel.channel_id();
-        string channelname = channel.channel_name();
-
-        // create channel item
-        QTreeWidgetItem *chnItem = new QTreeWidgetItem();
-        chnItem->setText(0, QString::fromStdString(channelname));
-
-        // store channel ID
-        chnItem->setData(0, NETWORK_ID_ROLE, networkid);
-        chnItem->setData(0, CHANNEL_ID_ROLE, channelid);
-
-        // add item to lookup map
-        channelItems[networkid][channelid] = chnItem;
+        QTreeWidgetItem *chnItem = addChannel(network, channel);
 
         // add channel to network as child
         netwItem->addChild(chnItem);
     }
 
-    // add network to list
-    addTopLevelItem(netwItem);
+    return netwItem;
+}
+
+QTreeWidgetItem* NetworkList::addChannel(const Network &network, const IrcChannel &channel)
+{
+    int64_t networkid = network.network_id();
+
+    int64_t channelid  = channel.channel_id();
+    string channelname = channel.channel_name();
+
+    // create channel item
+    QTreeWidgetItem *chnItem = new QTreeWidgetItem();
+    chnItem->setText(0, QString::fromStdString(channelname));
+
+    // store channel ID
+    chnItem->setData(0, NETWORK_ID_ROLE, networkid);
+    chnItem->setData(0, CHANNEL_ID_ROLE, channelid);
+
+    // add item to lookup map
+    channelItems[networkid][channelid] = chnItem;
+
+    return chnItem;
 }
 
 void NetworkList::updateNetworkList()
 {
-    for (const auto &network : networks)
+    for (const auto &network_pair : networks)
     {
+        int64_t networkid = network_pair.first;
+        const Network &network = network_pair.second;
+
         // check if network is already being displayed
-        if (networkItems.count(network.first) == 0)
-            addNetwork(network.second);
+        if (networkItems.count(networkid) == 0)
+            addNetwork(network);
+
+        for (const auto &channel_pair : channels[networkid])
+        {
+            int channelid = channel_pair.first;
+            const IrcChannel &channel = channel_pair.second;
+
+            if (channelItems.count(channelid) == 0)
+                addChannel(network, channel);
+        }
     }
 }
