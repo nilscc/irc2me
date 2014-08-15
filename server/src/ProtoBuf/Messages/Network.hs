@@ -18,6 +18,8 @@ import ProtoBuf.Helper
 import qualified IRC.Types as IRC
 import ProtoBuf.Instances ()
 
+import ProtoBuf.Messages.Channel
+
 data PB_Server = PB_Server
   { _server_host       :: Optional 1  (Value Text)
   , _server_port       :: Optional 2  (Value Int32)
@@ -50,6 +52,9 @@ data PB_Network = PB_Network
     -- network servers
   , _network_servers   :: Repeated 20 (Message PB_Server)
 
+    -- network channels
+  , _network_channels  :: Repeated 30 (Message PB_Channel)
+
     -- user commands
   -- , _network_commands  :: Repeated 20 (Value Text)
   }
@@ -70,6 +75,8 @@ emptyNetwork n_id = PB_Network
   mempty
   mempty
   -- network servers
+  mempty
+  -- network channels
   mempty
   -- user commands
   --mempty
