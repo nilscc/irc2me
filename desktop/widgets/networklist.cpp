@@ -86,11 +86,6 @@ QTreeWidgetItem* NetworkList::addNetwork(const Protobuf::Messages::Network &netw
     QTreeWidgetItem *netwItem = new QTreeWidgetItem();
     netwItem->setText(0, QString::fromStdString(networkname));
 
-    if (network.has_network_online() && network.network_online())
-        netwItem->setTextColor(0, networkActiveColor);
-    else
-        netwItem->setTextColor(0, networkInactiveColor);
-
     // store network ID
     netwItem->setData(0, NETWORK_ID_ROLE, networkid);
     netwItem->setData(0, CHANNEL_ID_ROLE, -1);
@@ -123,10 +118,6 @@ QTreeWidgetItem* NetworkList::addChannel(const Network &network, const IrcChanne
     QTreeWidgetItem *chnItem = new QTreeWidgetItem();
     chnItem->setText(0, QString::fromStdString(channelname));
 
-    if (channel.has_channel_online() && channel.channel_online())
-        chnItem->setTextColor(0, channelActiveColor);
-    else
-        chnItem->setTextColor(0, channelInactiveColor);
 
     // store channel ID
     chnItem->setData(0, NETWORK_ID_ROLE, networkid);
@@ -149,13 +140,29 @@ void NetworkList::updateNetworkList()
         if (networkItems.count(networkid) == 0)
             addNetwork(network);
 
+        QTreeWidgetItem *netwItem = networkItems[networkid];
+
+        // color network
+        if (network.network_online())
+            netwItem->setTextColor(0, networkActiveColor);
+        else
+            netwItem->setTextColor(0, networkInactiveColor);
+
         for (const auto &channel_pair : channels[networkid])
         {
             int channelid = channel_pair.first;
             const IrcChannel &channel = channel_pair.second;
 
-            if (channelItems.count(channelid) == 0)
+            if (channelItems[networkid].count(channelid) == 0)
                 addChannel(network, channel);
+
+            QTreeWidgetItem *chnItem = channelItems[networkid][channelid];
+
+            // color channels
+            if (network.network_online() && channel.channel_online())
+                chnItem->setTextColor(0, channelActiveColor);
+            else
+                chnItem->setTextColor(0, channelInactiveColor);
         }
     }
 }
