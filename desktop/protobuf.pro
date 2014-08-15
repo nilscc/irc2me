@@ -31,7 +31,8 @@ HEADERS  += \
     channelviewer.h \
     ircchannel.h \
     widgets/hostselector.h \
-    widgets/networklist.h
+    widgets/networklist.h \
+    irc2me/backlog.h
 
 SOURCES += \
     main.cpp \
@@ -43,7 +44,8 @@ SOURCES += \
     channelviewer.cpp \
     ircchannel.cpp \
     widgets/hostselector.cpp \
-    widgets/networklist.cpp
+    widgets/networklist.cpp \
+    irc2me/backlog.cpp
 
 FORMS    += \
     connect.ui \
