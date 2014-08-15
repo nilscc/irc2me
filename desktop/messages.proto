@@ -5,6 +5,9 @@ message Network
     // ID
     required int64  network_id           = 1;
 
+    // status
+    optional bool   network_online       = 5;
+
     // settings
     optional string network_name         = 10;
     optional bool   network_reconnect    = 11;
@@ -21,6 +24,9 @@ message IrcChannel
 {
     // ID
     required int64  channel_id          = 1;
+
+    // status
+    optional bool   channel_online      = 5;
 
     // name
     optional string channel_name        = 10;

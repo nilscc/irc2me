@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QTreeWidget>
+#include <QAction>
 #include <map>
 
 #include "irc2me.h"
@@ -22,6 +23,14 @@ public:
     // setup functions
     void connectTo(Irc2me &irc2me);
 
+    // colors:
+
+    QColor networkInactiveColor = QColor(90,90,90);
+    QColor networkActiveColor   = QColor(0, 0, 0);
+
+    QColor channelInactiveColor = networkInactiveColor;
+    QColor channelActiveColor   = networkActiveColor;
+
 public slots:
 
     void setNetworkList(const NetworkList_T &list);
@@ -36,6 +45,12 @@ private slots:
     void emitChannelSelected(QTreeWidgetItem *item, int column);
 
 private:
+
+    // menues
+
+    // TODO
+
+    // displaying network list
 
     using NetworkMap_T    = std::map<int, Network>;
     using ChannelMap_T    = std::map<int, std::map<int, IrcChannel>>;

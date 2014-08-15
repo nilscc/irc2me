@@ -3,7 +3,9 @@
 using namespace std;
 
 NetworkList::NetworkList(QWidget *parent) :
-    QTreeWidget(parent)
+    QTreeWidget(parent)/*,
+    networkAction(QAction(this)),
+    channelAction(QAction(this))*/
 {
     setRootIsDecorated(false);
     setHeaderHidden(true);
@@ -12,6 +14,7 @@ NetworkList::NetworkList(QWidget *parent) :
     connect(this, SIGNAL(itemActivated(QTreeWidgetItem*,int)),
             this, SLOT(emitChannelSelected(QTreeWidgetItem*,int)));
 
+//    connect(this, SIGNAL())
 }
 
 void NetworkList::connectTo(Irc2me &irc2me)
@@ -83,6 +86,11 @@ QTreeWidgetItem* NetworkList::addNetwork(const Protobuf::Messages::Network &netw
     QTreeWidgetItem *netwItem = new QTreeWidgetItem();
     netwItem->setText(0, QString::fromStdString(networkname));
 
+    if (network.has_network_online() && network.network_online())
+        netwItem->setTextColor(0, networkActiveColor);
+    else
+        netwItem->setTextColor(0, networkInactiveColor);
+
     // store network ID
     netwItem->setData(0, NETWORK_ID_ROLE, networkid);
     netwItem->setData(0, CHANNEL_ID_ROLE, -1);
@@ -114,6 +122,11 @@ QTreeWidgetItem* NetworkList::addChannel(const Network &network, const IrcChanne
     // create channel item
     QTreeWidgetItem *chnItem = new QTreeWidgetItem();
     chnItem->setText(0, QString::fromStdString(channelname));
+
+    if (channel.has_channel_online() && channel.channel_online())
+        chnItem->setTextColor(0, channelActiveColor);
+    else
+        chnItem->setTextColor(0, channelInactiveColor);
 
     // store channel ID
     chnItem->setData(0, NETWORK_ID_ROLE, networkid);
