@@ -3,9 +3,7 @@
 using namespace std;
 
 NetworkList::NetworkList(QWidget *parent) :
-    QTreeWidget(parent)/*,
-    networkAction(QAction(this)),
-    channelAction(QAction(this))*/
+    QTreeWidget(parent)
 {
     setRootIsDecorated(false);
     setHeaderHidden(true);
@@ -13,8 +11,6 @@ NetworkList::NetworkList(QWidget *parent) :
     // connect private slots
     connect(this, SIGNAL(itemActivated(QTreeWidgetItem*,int)),
             this, SLOT(emitChannelSelected(QTreeWidgetItem*,int)));
-
-//    connect(this, SIGNAL())
 }
 
 void NetworkList::connectTo(Irc2me &irc2me)
@@ -45,6 +41,49 @@ void NetworkList::setNetworkList(const NetworkList_T &list)
 
     updateNetworkList();
 }
+
+void NetworkList::updateNetworkList()
+{
+    for (const auto &network_pair : networks)
+    {
+        int64_t networkid = network_pair.first;
+        const Network &network = network_pair.second;
+
+        // check if network is already being displayed
+        if (networkItems.count(networkid) == 0)
+            addNetwork(network);
+
+        QTreeWidgetItem *netwItem = networkItems[networkid];
+
+        // color network
+        if (network.network_online())
+            netwItem->setTextColor(0, networkActiveColor);
+        else
+            netwItem->setTextColor(0, networkInactiveColor);
+
+        for (const auto &channel_pair : channels[networkid])
+        {
+            int channelid = channel_pair.first;
+            const IrcChannel &channel = channel_pair.second;
+
+            if (channelItems[networkid].count(channelid) == 0)
+                addChannel(network, channel);
+
+            QTreeWidgetItem *chnItem = channelItems[networkid][channelid];
+
+            // color channels
+            if (network.network_online() && channel.channel_online())
+                chnItem->setTextColor(0, channelActiveColor);
+            else
+                chnItem->setTextColor(0, channelInactiveColor);
+        }
+    }
+}
+
+/*
+ * Private slots
+ *
+ */
 
 void NetworkList::emitChannelSelected(QTreeWidgetItem *item, int column)
 {
@@ -129,40 +168,3 @@ QTreeWidgetItem* NetworkList::addChannel(const Network &network, const IrcChanne
     return chnItem;
 }
 
-void NetworkList::updateNetworkList()
-{
-    for (const auto &network_pair : networks)
-    {
-        int64_t networkid = network_pair.first;
-        const Network &network = network_pair.second;
-
-        // check if network is already being displayed
-        if (networkItems.count(networkid) == 0)
-            addNetwork(network);
-
-        QTreeWidgetItem *netwItem = networkItems[networkid];
-
-        // color network
-        if (network.network_online())
-            netwItem->setTextColor(0, networkActiveColor);
-        else
-            netwItem->setTextColor(0, networkInactiveColor);
-
-        for (const auto &channel_pair : channels[networkid])
-        {
-            int channelid = channel_pair.first;
-            const IrcChannel &channel = channel_pair.second;
-
-            if (channelItems[networkid].count(channelid) == 0)
-                addChannel(network, channel);
-
-            QTreeWidgetItem *chnItem = channelItems[networkid][channelid];
-
-            // color channels
-            if (network.network_online() && channel.channel_online())
-                chnItem->setTextColor(0, channelActiveColor);
-            else
-                chnItem->setTextColor(0, channelInactiveColor);
-        }
-    }
-}

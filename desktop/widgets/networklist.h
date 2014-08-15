@@ -35,6 +35,8 @@ public slots:
 
     void setNetworkList(const NetworkList_T &list);
 
+    void updateNetworkList();
+
 signals:
 
     void channelSelected(const Network &, const IrcChannel &);
@@ -69,5 +71,4 @@ private:
     QTreeWidgetItem* addNetwork(const Network &network);
     QTreeWidgetItem* addChannel(const Network &network, const IrcChannel &channel);
 
-    void updateNetworkList();
 };
