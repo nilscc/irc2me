@@ -21,7 +21,7 @@ public:
     explicit FormMain(Irc2me&, QMainWindow &form_connect, QWidget *parent = 0);
     ~FormMain();
 
-    void loadDefaultView();
+//    void loadDefaultView();
 
 //    public setNetworks()
 
@@ -31,5 +31,5 @@ private:
     Irc2me &irc2me;
     QMainWindow &form_connect;
 
-    QWidget* newChannelInputWidget();
+//    QWidget* newChannelInputWidget();
 };

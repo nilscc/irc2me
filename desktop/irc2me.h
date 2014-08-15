@@ -7,7 +7,7 @@
 
 #include "protobuf/messagestream.h"
 
-typedef google::protobuf::RepeatedPtrField<Protobuf::Messages::Network> NetworkList_T;
+using NetworkList_T = google::protobuf::RepeatedPtrField<Protobuf::Messages::Network>;
 
 class Irc2me : public QObject
 {

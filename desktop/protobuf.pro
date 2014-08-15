@@ -28,8 +28,10 @@ HEADERS  += \
     protobuf/messagestream.h \
     form_connect.h \
     form_main.h \
-    networklist.h \
-    channelview.h
+    channelviewer.h \
+    ircchannel.h \
+    widgets/hostselector.h \
+    widgets/networklist.h
 
 SOURCES += \
     main.cpp \
@@ -38,14 +40,14 @@ SOURCES += \
     protobuf/messagestream.cpp \
     form_connect.cpp \
     form_main.cpp \
-    networklist.cpp \
-    channelview.cpp
+    channelviewer.cpp \
+    ircchannel.cpp \
+    widgets/hostselector.cpp \
+    widgets/networklist.cpp
 
 FORMS    += \
     connect.ui \
-    form_main.ui \
-    networklist.ui \
-    channelview.ui
+    form_main.ui
 
 # config
 
@@ -59,3 +61,5 @@ LIBS += -lprotobuf
 OTHER_FILES += \
     $$PROTOS \
     generate_proto.pri
+
+RESOURCES +=
