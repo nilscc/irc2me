@@ -25,8 +25,8 @@ public:
 
     // colors:
 
-    QColor networkInactiveColor = QColor(90,90,90);
-    QColor networkActiveColor   = QColor(0, 0, 0);
+    QColor networkInactiveColor = QColor(120,120,120);
+    QColor networkActiveColor   = QColor(0,  0,  0);
 
     QColor channelInactiveColor = networkInactiveColor;
     QColor channelActiveColor   = networkActiveColor;
