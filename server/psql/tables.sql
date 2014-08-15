@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS account_identities
 CREATE TABLE IF NOT EXISTS networks
 (
   id        serial      PRIMARY KEY,
+  ord       integer,
   name      text        NOT NULL,
   account   integer     NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
   identity  integer     REFERENCES account_identities (id) ON DELETE SET NULL,

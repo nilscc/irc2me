@@ -32,7 +32,7 @@ toNetwork _ = Nothing
 
 selectNetworks :: Account -> Query [Network]
 selectNetworks (Account a) = Query
-  (networkSELECT ++ " WHERE account = ?")
+  (networkSELECT ++ " WHERE account = ? ORDER BY ord, id")
   [toSql a]
   (convertList toNetwork)
 
