@@ -36,7 +36,7 @@ data PB_ServerMessage = PB_ServerMessage
   , _network_list      :: Repeated 20 (Message PB_Network)
 
     -- IRC messages
-  , _irc_msg           :: Optional 30 (Message PB_IrcMessage)
+  , _irc_msg           :: Optional 50 (Message PB_IrcMessage)
   }
   deriving (Show, Generic)
 

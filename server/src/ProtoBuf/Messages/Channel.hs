@@ -13,6 +13,7 @@ import GHC.Generics (Generic)
 
 data PB_Channel = PB_Channel
   { _channel_id       :: Required 1  (Value Int64)
+  , _channel_online   :: Optional 5  (Value Bool)
   , _channel_name     :: Optional 10 (Value Text)
   }
   deriving (Show, Generic, Eq)
@@ -25,4 +26,5 @@ makeLenses ''PB_Channel
 emptyChannel :: Integer -> PB_Channel
 emptyChannel ch_id = PB_Channel
   (putField $ fromIntegral ch_id)
+  mempty
   mempty

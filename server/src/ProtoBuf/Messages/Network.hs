@@ -44,6 +44,9 @@ emptyServer hn p = PB_Server
 data PB_Network = PB_Network
   { _network_id        :: Required 1  (Value Int64)
 
+    -- status
+  , _network_online    :: Optional 5  (Value Bool)
+
     -- network settings
   , _network_name      :: Optional 10 (Value Text)
   , _network_reconnect :: Optional 11 (Value Bool)
@@ -70,6 +73,8 @@ emptyNetwork
   -> PB_Network
 emptyNetwork n_id = PB_Network
   (putField $ fromIntegral n_id)
+  -- network status
+  mempty
   -- network settings
   mempty
   mempty
