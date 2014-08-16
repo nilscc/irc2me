@@ -31,20 +31,24 @@ public:
     QColor channelInactiveColor = networkInactiveColor;
     QColor channelActiveColor   = networkActiveColor;
 
-public slots:
-
-    void setNetworkList(const NetworkList_T &list);
-
-    void updateNetworkList();
-
 signals:
 
-    void channelSelected(const Network &, const IrcChannel &);
+    void channelSelected(ID_T networkid, ID_T channelid);
 
 private slots:
 
     // link from `itemActivated` to `channelSelected`
     void emitChannelSelected(QTreeWidgetItem *item, int column);
+
+    // link to irc2me network signals
+
+    void setNetworkOnline    (ID_T networkid, bool online);
+    void setNetworkName      (ID_T networkid, std::string name);
+
+    // link to irc2me channel signals
+
+    void setChannelOnline    (ID_T networkid, ID_T channelid, bool online);
+    void setChannelName      (ID_T networkid, ID_T channelid, std::string name);
 
 private:
 
@@ -54,13 +58,8 @@ private:
 
     // displaying network list
 
-    using NetworkMap_T    = std::map<int, Network>;
-    using ChannelMap_T    = std::map<int, std::map<int, IrcChannel>>;
     using ItemMap_T       = std::map<int, QTreeWidgetItem*>;
     using NestedItemMap_T = std::map<int, ItemMap_T>;
-
-    NetworkMap_T    networks;
-    ChannelMap_T    channels;
 
     ItemMap_T       networkItems;
     NestedItemMap_T channelItems;
@@ -68,7 +67,6 @@ private:
     const int NETWORK_ID_ROLE = Qt::UserRole + 0;
     const int CHANNEL_ID_ROLE = Qt::UserRole + 1;
 
-    QTreeWidgetItem* addNetwork(const Network &network);
-    QTreeWidgetItem* addChannel(const Network &network, const IrcChannel &channel);
-
+    QTreeWidgetItem *getNetworkItem(ID_T networkid);
+    QTreeWidgetItem *getChannelItem(ID_T networkid, ID_T channelid);
 };
