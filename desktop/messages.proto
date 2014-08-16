@@ -90,5 +90,5 @@ message Server
     repeated Network      network_list  = 20;
 
     // IRC messages
-    repeated IrcMessage   irc_msg       = 30;
+    repeated IrcMessage   irc_msg       = 50;
 };
