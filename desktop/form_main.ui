@@ -6,36 +6,35 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>997</width>
-    <height>577</height>
+    <width>942</width>
+    <height>612</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>irc2me</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout_2">
-    <item>
-     <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1">
-      <item>
-       <widget class="NetworkList" name="treeWidget_networklist">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QSplitter" name="splitter">
+      <property name="childrenCollapsible">
+       <bool>false</bool>
+      </property>
+      <widget class="NetworkList" name="treeWidget_networklist">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <column>
+        <property name="text">
+         <string notr="true">1</string>
         </property>
-        <column>
-         <property name="text">
-          <string notr="true">1</string>
-         </property>
-        </column>
-       </widget>
-      </item>
-      <item>
-       <widget class="ChannelViewer" name="tableWidget"/>
-      </item>
-     </layout>
+       </column>
+      </widget>
+      <widget class="ChannelViewer" name="tableWidget"/>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -44,7 +43,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>997</width>
+     <width>942</width>
      <height>21</height>
     </rect>
    </property>

@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QBoxLayout>
+#include <QList>
 
 FormMain::FormMain(Irc2me &irc2me, QMainWindow &form_connect, QWidget *parent) :
     QMainWindow(parent),
@@ -12,6 +13,12 @@ FormMain::FormMain(Irc2me &irc2me, QMainWindow &form_connect, QWidget *parent) :
     form_connect(form_connect)
 {
     ui->setupUi(this);
+
+    // setup splitter layout
+
+    ui->splitter->setStretchFactor(0, 0);
+    ui->splitter->setStretchFactor(1, 1);
+    ui->splitter->setSizes(QList<int>() << 150 << 1);
 
     // connect UI
     connect(ui->actionShow_connection_status, SIGNAL(triggered()),
