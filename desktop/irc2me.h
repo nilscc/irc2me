@@ -7,7 +7,23 @@
 
 #include "protobuf/messagestream.h"
 
-using NetworkList_T = google::protobuf::RepeatedPtrField<Protobuf::Messages::Network>;
+/*
+ * protobuf type aliases
+ *
+ */
+
+template <class T>
+using Repeated_T = google::protobuf::RepeatedField<T>;
+
+using Network_T     = Protobuf::Messages::Network;
+using NetworkList_T = Repeated_T<Network_T>;
+
+using ID_T = int64_t;
+
+/*
+ * irc2me class definition
+ *
+ */
 
 class Irc2me : public QObject
 {
@@ -50,15 +66,29 @@ public:
 
     bool requestNetworkList(QString *errorMsg = nullptr);
 
+
 signals:
+
+    // connection signals
 
     void connected();
     void disconnected();
 
     void error(QAbstractSocket::SocketError, QString errorString);
 
+    // authentication signals
+
     void authorized();
     void notAuthorized();
 
-    void networkList(const NetworkList_T &);
+    // network signals
+
+    void networkOnline    (ID_T networkid, bool online);
+    void networkName      (ID_T networkid, std::string name);
+    void networkReconnect (ID_T networkid, bool reconnect);
+
+    // channel signals
+
+    void channelOnline    (ID_T networkid, ID_T channelid, bool online);
+    void channelName      (ID_T networkid, ID_T channelid, std::string name);
 };

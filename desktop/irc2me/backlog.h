@@ -1,10 +1,7 @@
-#ifndef BACKLOG_H
-#define BACKLOG_H
+#pragma once
 
 class Backlog
 {
 public:
     Backlog();
 };
-
-#endif // BACKLOG_H

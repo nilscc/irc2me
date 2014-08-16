@@ -140,8 +140,32 @@ void Irc2me::mstream_newServerMessage(Protobuf::Messages::Server msg)
     }
 
     // check for network list
-    if (msg.network_list().size() > 0)
+    if (msg.network_list_size() > 0)
     {
-        emit networkList(msg.network_list());
+        for (const Protobuf::Messages::Network &network : msg.network_list())
+        {
+            ID_T networkid = network.network_id();
+
+            if (network.has_network_online())
+                emit networkOnline(networkid, network.network_online());
+
+            if (network.has_network_name())
+                emit networkName(networkid, network.network_name());
+
+            if (network.network_channels_size() > 0)
+            {
+                for (const Protobuf::Messages::IrcChannel &channel : network.network_channels())
+                {
+                    ID_T channelid = channel.channel_id();
+
+                    if (channel.has_channel_name())
+                        emit channelName(networkid, channelid, channel.channel_name());
+
+                    if (channel.has_channel_online())
+                        emit channelOnline(networkid, channelid, channel.channel_online());
+                }
+            }
+        }
+
     }
 }
