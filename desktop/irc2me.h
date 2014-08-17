@@ -16,6 +16,12 @@
 template <class T>
 using Repeated_T = google::protobuf::RepeatedField<T>;
 
+template <class T>
+using RepeatedPtr_T = google::protobuf::RepeatedPtrField<T>;
+
+using Identity_T     = Protobuf::Messages::Identity;
+using IdentityList_T = RepeatedPtr_T<Identity_T>;
+
 using Network_T     = Protobuf::Messages::Network;
 using NetworkList_T = Repeated_T<Network_T>;
 
@@ -50,9 +56,14 @@ private slots:
 
 public slots:
 
-    // requests
+    // identity requests
 
-    void requestNetworkNames  ();
+    void requestIdentities();
+//    void requestNewIdentity();
+
+    // network requests
+
+    void requestNetworkNames();
     void requestNetworkDetails(std::vector<ID_T> networkids = std::vector<ID_T>());
 
 public:
@@ -87,6 +98,10 @@ signals:
 
     void authorized();
     void notAuthorized();
+
+    // identity signals
+
+    void identities       (const IdentityList_T &identities);
 
     // network signals
 

@@ -94,6 +94,15 @@ bool Irc2me::send(const Msg::Client &msg, QString *errorMsg)
  *
  */
 
+void Irc2me::requestIdentities()
+{
+    Msg::Client clientMsg;
+
+    clientMsg.set_identity_get_all(true);
+
+    send(clientMsg);
+}
+
 void Irc2me::requestNetworkNames()
 {
     Msg::Client clientMsg;
@@ -168,6 +177,13 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
 
         // quit, auth message is not supposed to contain any other data
         return;
+    }
+
+
+    // check for identity list
+    if (msg.identity_list_size() > 0)
+    {
+        emit identities(msg.identity_list());
     }
 
     // check for network list

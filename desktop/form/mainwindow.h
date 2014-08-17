@@ -3,6 +3,7 @@
 #include <QMainWindow>
 
 #include "form/connect.h"
+#include "form/identities.h"
 #include "irc2me.h"
 
 namespace Ui {
@@ -30,7 +31,7 @@ private:
 
     Irc2me &irc2me;
     FormConnect &form_connect;
-    QMainWindow *form_ident;
+    FormIdentities *form_ident;
     QMainWindow *form_networks;
 
 };

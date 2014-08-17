@@ -1,5 +1,6 @@
-#ifndef FORM_NETWORKS_H
-#define FORM_NETWORKS_H
+#pragma once
+
+#include "irc2me.h"
 
 #include <QMainWindow>
 
@@ -13,18 +14,20 @@ class FormNetworks : public QMainWindow
 
 public:
 
-    explicit FormNetworks(QWidget *parent = 0);
+    explicit FormNetworks(Irc2me &irc2me, QWidget *parent = 0);
     ~FormNetworks();
 
 private slots:
 
-    void on_pushButton_cancel_clicked();
+    void on_pushButton_close_clicked();
+
+    void on_pushButton_network_add_clicked();
 
 private:
 
     Ui::FormNetworks *ui;
 
+    Irc2me &irc2me;
+
     void reset();
 };
-
-#endif // FORM_NETWORKS_H

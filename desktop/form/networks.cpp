@@ -1,9 +1,10 @@
 #include "form/networks.h"
 #include "ui_networks.h"
 
-FormNetworks::FormNetworks(QWidget *parent) :
+FormNetworks::FormNetworks(Irc2me &irc2me, QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::FormNetworks)
+    ui(new Ui::FormNetworks),
+    irc2me(irc2me)
 {
     ui->setupUi(this);
 
@@ -50,9 +51,14 @@ void FormNetworks::reset()
  *
  */
 
-void FormNetworks::on_pushButton_cancel_clicked()
+void FormNetworks::on_pushButton_close_clicked()
 {
     reset();
 
     close();
+}
+
+void FormNetworks::on_pushButton_network_add_clicked()
+{
+
 }

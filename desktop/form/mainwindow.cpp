@@ -85,7 +85,7 @@ void FormMainWindow::showStatusWindow()
 void FormMainWindow::showNetworksWindow()
 {
     if (form_networks == nullptr)
-        form_networks = new FormNetworks();
+        form_networks = new FormNetworks(irc2me);
 
     form_networks->show();
 }
@@ -93,7 +93,7 @@ void FormMainWindow::showNetworksWindow()
 void FormMainWindow::showIdentitiesWindow()
 {
     if (form_ident == nullptr)
-        form_ident = new FormIdentities();
+        form_ident = new FormIdentities(irc2me);
 
     form_ident->show();
 }
