@@ -1,8 +1,12 @@
 module Server.Streams.Server where
 
 import Control.Applicative
+import Control.Lens.Operators
 import Control.Monad
 
+import Data.ProtocolBuffers
+
+import ProtoBuf.Messages.Client
 import ProtoBuf.Messages.Server
 
 import Server.Response
@@ -32,7 +36,11 @@ serverStream = do
                          , updateStream
                          ]
 
-    sendMessage response
+    sendMessage $ addResponseId msg response
+
+ where
+  addResponseId msg response =
+    response & server_response_id.field .~ (msg ^. client_response_id.field)
 
 requestStream :: ServerResponse
 requestStream = choice

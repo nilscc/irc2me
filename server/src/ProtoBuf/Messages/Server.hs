@@ -14,6 +14,7 @@ import Data.Monoid
 
 import GHC.Generics (Generic)
 
+import ProtoBuf.Types
 import ProtoBuf.Helper
 import ProtoBuf.Instances ()
 import ProtoBuf.Messages.Identity
@@ -26,7 +27,8 @@ data PB_ResponseCode
   deriving (Eq, Enum, Show)
 
 data PB_ServerMessage = PB_ServerMessage
-  { _server_system_msg :: Optional 5 (Enumeration PB_SystemMsg)
+  { _server_response_id :: Optional 3 (Value ID_T)
+  , _server_system_msg  :: Optional 5 (Enumeration PB_SystemMsg)
 
     -- response messages
   , _response_code     :: Optional 10 (Enumeration PB_ResponseCode)
@@ -50,6 +52,7 @@ makeLenses ''PB_ServerMessage
 
 emptyServerMessage :: PB_ServerMessage
 emptyServerMessage = PB_ServerMessage
+  mempty
   mempty
   mempty
   mempty

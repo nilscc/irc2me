@@ -96,7 +96,7 @@ toIdentity s = case s of
 
 selectIdentities :: Account -> Query [Identity]
 selectIdentities (Account a) = Query
-  (identitySELECT ++ " WHERE account = ?")
+  (identitySELECT ++ " WHERE account = ? ORDER BY nick")
   [toSql a]
   (convertList toIdentity)
 
@@ -114,3 +114,25 @@ addIdentity (Account a) usr = UpdateReturning
   , arrayPack $ map B8.unpack $ ident_nick_alt usr
   ]
   (convertOne toID)
+
+deleteIdentity :: Account -> ID -> Update Bool
+deleteIdentity (Account a) i = Update
+  "DELETE FROM account_identities WHERE account = ? AND id = ?"
+  [ toSql a
+  , toSql i
+  ]
+  (== 1)
+
+setIdentity :: Account -> Identity -> Update Bool
+setIdentity (Account a) ident = Update
+  "UPDATE account_identities \
+  \   SET username = ?, realname = ?, nick = ?, nick_alt = ?  \
+  \ WHERE account = ? AND id = ?"
+  [ toSql $ ident_name     ident
+  , toSql $ ident_realname ident
+  , toSql $ ident_nick     ident
+  , arrayPack $ map B8.unpack $ ident_nick_alt ident
+  , toSql $ a
+  , toSql $ ident_id       ident
+  ]
+  (== 1)

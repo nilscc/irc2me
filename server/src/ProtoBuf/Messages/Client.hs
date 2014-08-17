@@ -15,6 +15,7 @@ import GHC.Generics (Generic)
 
 import ProtoBuf.Types
 import ProtoBuf.Instances ()
+import ProtoBuf.Messages.Network
 import ProtoBuf.Messages.Identity
 import ProtoBuf.Messages.SystemMsg
 
@@ -25,22 +26,23 @@ data PB_List
   deriving (Eq, Enum, Show)
 
 data PB_ClientMessage = PB_ClientMessage
-  { -- acount
-    _auth_login             :: Optional 1 (Value Text)
-  , _auth_password          :: Optional 2 (Value Text)
-
-    -- system
-  , _client_system_msg      :: Optional 5 (Enumeration PB_SystemMsg)
+  { -- system
+    _client_response_id     :: Optional 3  (Value ID_T)
+  , _client_system_msg      :: Optional 5  (Enumeration PB_SystemMsg)
+    -- acount
+  , _auth_login             :: Optional 10 (Value Text)
+  , _auth_password          :: Optional 11 (Value Text)
 
     -- identities
-  , _ident_get_new          :: Optional 11  (Value Bool)
-  , _ident_remove           :: Repeated 12  (Value ID_T)
-  , _ident_get_all          :: Optional 13  (Value Bool)
+  , _ident_set              :: Repeated 20  (Message PB_Identity)
+  , _ident_get_new          :: Optional 21  (Value Bool)
+  , _ident_remove           :: Repeated 22  (Value ID_T)
+  , _ident_get_all          :: Optional 23  (Value Bool)
 
     -- networks
+  , _network_set            :: Repeated 100 (Message PB_Network)
   , _network_get_new        :: Optional 101 (Value Bool)
   , _network_remove         :: Repeated 102 (Value ID_T)
-
   , _network_get_all_names  :: Optional 103 (Value Bool)
   , _network_get_details    :: Repeated 104 (Value ID_T)
   }
@@ -53,16 +55,19 @@ makeLenses ''PB_ClientMessage
 
 emptyClientMessage :: PB_ClientMessage
 emptyClientMessage = PB_ClientMessage
+  -- system
+  mempty
+  mempty
   -- account
   mempty
-  mempty
-  -- system
   mempty
   -- identities
   mempty
   mempty
   mempty
+  mempty
   -- networks
+  mempty
   mempty
   mempty
   mempty
