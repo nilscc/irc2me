@@ -52,7 +52,7 @@ public slots:
 
     // requests
 
-    void requestNetworkNames  (std::vector<ID_T> networkids = std::vector<ID_T>());
+    void requestNetworkNames  ();
     void requestNetworkDetails(std::vector<ID_T> networkids = std::vector<ID_T>());
 
 public:

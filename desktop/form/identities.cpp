@@ -1,15 +1,13 @@
-#include "form_networks.h"
-#include "ui_form_networks.h"
+#include "form/identities.h"
+#include "ui_identities.h"
 
-FormNetworks::FormNetworks(QWidget *parent) :
+FormIdentities::FormIdentities(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::FormNetworks)
+    ui(new Ui::FormIdentities)
 {
     ui->setupUi(this);
 
-    // set size
-
-    resize(700, 400);
+    resize(500, 300);
 
     // setup splitter layout
 
@@ -20,39 +18,17 @@ FormNetworks::FormNetworks(QWidget *parent) :
     ui->splitter->setCollapsible(1, false);
 
     // show only title + close button
-
     setWindowFlags(Qt::FramelessWindowHint);
     setWindowFlags(Qt::WindowTitleHint);
     setWindowFlags(Qt::WindowCloseButtonHint);
-
-    // show correct tab
-
-    ui->tabWidget->setCurrentIndex(0);
 }
 
-FormNetworks::~FormNetworks()
+FormIdentities::~FormIdentities()
 {
     delete ui;
 }
 
-/*
- * private functions
- *
- */
-
-void FormNetworks::reset()
+void FormIdentities::on_pushButton_close_clicked()
 {
-
-}
-
-/*
- * UI slots
- *
- */
-
-void FormNetworks::on_pushButton_cancel_clicked()
-{
-    reset();
-
     close();
 }

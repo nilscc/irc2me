@@ -94,19 +94,11 @@ bool Irc2me::send(const Msg::Client &msg, QString *errorMsg)
  *
  */
 
-void Irc2me::requestNetworkNames(vector<ID_T> networkids)
+void Irc2me::requestNetworkNames()
 {
     Msg::Client clientMsg;
 
-    if (networkids.size() > 0)
-    {
-        for (ID_T id : networkids)
-            clientMsg.add_network_get_names(id);
-    }
-    else
-    {
-//        clientMsg.
-    }
+    clientMsg.set_network_get_all_names(true);
 
     send(clientMsg);
 }

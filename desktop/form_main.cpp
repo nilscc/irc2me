@@ -1,5 +1,7 @@
 #include "form_main.h"
 #include "form_networks.h"
+#include "form/identities.h"
+
 #include "ui_form_main.h"
 #include "widgets/networklist.h"
 
@@ -12,6 +14,7 @@ FormMain::FormMain(Irc2me &irc2me, QMainWindow &form_connect, QWidget *parent) :
     ui(new Ui::FormMain),
     irc2me(irc2me),
     form_connect(form_connect),
+    form_ident(nullptr),
     form_networks(nullptr)
 
 {
@@ -29,7 +32,10 @@ FormMain::FormMain(Irc2me &irc2me, QMainWindow &form_connect, QWidget *parent) :
     connect(ui->actionShow_connection_status, SIGNAL(triggered()),
             this, SLOT(showStatusWindow()));
 
-    connect(ui->actionManage_networks, SIGNAL(triggered()),
+    connect(ui->action_Identities, SIGNAL(triggered()),
+            this, SLOT(showIdentitiesWindow()));
+
+    connect(ui->action_Networks, SIGNAL(triggered()),
             this, SLOT(showNetworksWindow()));
 
     connect(ui->actionClose, SIGNAL(triggered()),
@@ -45,6 +51,13 @@ FormMain::~FormMain()
         form_networks->close();
         form_networks->deleteLater();
         form_networks = nullptr;
+    }
+
+    if (form_ident != nullptr)
+    {
+        form_ident->close();
+        form_ident->deleteLater();
+        form_ident = nullptr;
     }
 
     delete ui;
@@ -68,9 +81,15 @@ void FormMain::showStatusWindow()
 void FormMain::showNetworksWindow()
 {
     if (form_networks == nullptr)
-    {
         form_networks = new FormNetworks();
-    }
 
     form_networks->show();
+}
+
+void FormMain::showIdentitiesWindow()
+{
+    if (form_ident == nullptr)
+        form_ident = new FormIdentities();
+
+    form_ident->show();
 }

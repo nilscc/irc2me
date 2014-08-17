@@ -55,7 +55,9 @@
      <string>&amp;Connection</string>
     </property>
     <addaction name="actionShow_connection_status"/>
-    <addaction name="actionManage_networks"/>
+    <addaction name="separator"/>
+    <addaction name="action_Identities"/>
+    <addaction name="action_Networks"/>
     <addaction name="separator"/>
     <addaction name="actionClose"/>
    </widget>
@@ -72,9 +74,14 @@
     <string>&amp;Exit</string>
    </property>
   </action>
-  <action name="actionManage_networks">
+  <action name="action_Networks">
    <property name="text">
-    <string>Manage &amp;networks</string>
+    <string>&amp;Networks</string>
+   </property>
+  </action>
+  <action name="action_Identities">
+   <property name="text">
+    <string>&amp;Identities</string>
    </property>
   </action>
  </widget>
