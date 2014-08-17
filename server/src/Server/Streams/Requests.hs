@@ -19,7 +19,7 @@ import Server.Response
 networksStream :: ServerResponse
 networksStream = choice
 
-  [ do guardMessageField network_get_list
+  [ do guardMessageField network_get_all_names
        sendNetworks
 
   , do networks <- messageField network_add
