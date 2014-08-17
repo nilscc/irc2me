@@ -70,12 +70,12 @@ message Client
     optional SystemMsg system_msg              = 5;
 
     // identities
-    repeated Identity  identity_add            = 11;
+    optional bool      identity_get_new        = 11;
     repeated int64     identity_remove         = 12;
     optional bool      identity_get_all        = 13;
 
     // networks
-    repeated string    network_add             = 101;
+    optional bool      network_get_new         = 101;
     repeated int64     network_remove          = 102;
     optional bool      network_get_all_names   = 103;
     repeated int64     network_get_details     = 104;
