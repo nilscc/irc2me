@@ -122,3 +122,17 @@ deleteIdentity (Account a) i = Update
   , toSql i
   ]
   (== 1)
+
+setIdentity :: Account -> Identity -> Update Bool
+setIdentity (Account a) ident = Update
+  "UPDATE account_identities \
+  \   SET username = ?, realname = ?, nick = ?, nick_alt = ?  \
+  \ WHERE account = ? AND id = ?"
+  [ toSql $ ident_name     ident
+  , toSql $ ident_realname ident
+  , toSql $ ident_nick     ident
+  , arrayPack $ map B8.unpack $ ident_nick_alt ident
+  , toSql $ a
+  , toSql $ ident_id       ident
+  ]
+  (== 1)

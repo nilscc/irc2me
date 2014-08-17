@@ -15,7 +15,8 @@ import GHC.Generics (Generic)
 
 import ProtoBuf.Types
 import ProtoBuf.Instances ()
--- import ProtoBuf.Messages.Identity
+import ProtoBuf.Messages.Network
+import ProtoBuf.Messages.Identity
 import ProtoBuf.Messages.SystemMsg
 
 data PB_List
@@ -33,11 +34,13 @@ data PB_ClientMessage = PB_ClientMessage
   , _auth_password          :: Optional 11 (Value Text)
 
     -- identities
+  , _ident_set              :: Repeated 20  (Message PB_Identity)
   , _ident_get_new          :: Optional 21  (Value Bool)
   , _ident_remove           :: Repeated 22  (Value ID_T)
   , _ident_get_all          :: Optional 23  (Value Bool)
 
     -- networks
+  , _network_set            :: Repeated 100 (Message PB_Network)
   , _network_get_new        :: Optional 101 (Value Bool)
   , _network_remove         :: Repeated 102 (Value ID_T)
   , _network_get_all_names  :: Optional 103 (Value Bool)
@@ -62,7 +65,9 @@ emptyClientMessage = PB_ClientMessage
   mempty
   mempty
   mempty
+  mempty
   -- networks
+  mempty
   mempty
   mempty
   mempty

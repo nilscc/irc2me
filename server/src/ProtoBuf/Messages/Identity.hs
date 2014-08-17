@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module ProtoBuf.Messages.Identity where
 
@@ -10,6 +11,7 @@ import Control.Lens.TH
 import Data.Text (Text)
 import Data.ProtocolBuffers
 import Data.Monoid
+import Data.Maybe
 
 import GHC.Generics (Generic)
 
@@ -41,9 +43,18 @@ emptyIdentity i = PB_Identity
   mempty
   mempty
 
-encodeIdentities :: Identity -> PB_Identity
-encodeIdentities ident = emptyIdentity (ident_id ident)
+encodeIdentity :: Identity -> PB_Identity
+encodeIdentity ident = emptyIdentity (ident_id ident)
   & pb_ident_nick     .~~ Just (ident_nick     ident)
   & pb_ident_nick_alt .~~       ident_nick_alt ident
   & pb_ident_name     .~~ Just (ident_name     ident)
   & pb_ident_realname .~~ Just (ident_realname ident)
+
+decodeIdentity :: PB_Identity -> Identity
+decodeIdentity pbident = Identity
+  { ident_id        =   fromIntegral $                pbident ^. pb_ident_id       . field
+  , ident_nick      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_nick     . field
+  , ident_nick_alt  = map encodeUtf8 $                pbident ^. pb_ident_nick_alt . field
+  , ident_name      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_name     . field
+  , ident_realname  =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_realname . field
+  }

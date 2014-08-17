@@ -38,6 +38,10 @@ identityStream = choice
   , do identids <- messageField ident_remove
        guard $ not (null identids)
        deleteIdentities identids
+
+  , do idents <- messageField ident_set
+       guard $ not (null idents)
+       setIdentities idents
   ]
 
 sendNewIdentity :: ServerResponse
@@ -48,7 +52,7 @@ sendNewIdentity = withAccount $ \acc -> do
     Right Nothing  -> throwS "sendNewIdentity" $ "The impossible happened."
     Right (Just i) -> do
       return $ responseOkMessage
-             & ident_list .~~ map encodeIdentities [emptyIdent { ident_id = i }]
+             & ident_list .~~ [emptyIdentity i]
  where
   emptyIdent = Identity
     { ident_id = 0
@@ -65,7 +69,7 @@ sendIdentities = withAccount $ \acc -> do
     Left err     -> throwS "sendIdentities" $ "Unexpected SQL error: " ++ show err
     Right idents -> do
       return $ responseOkMessage
-             & ident_list .~~ map encodeIdentities idents
+             & ident_list .~~ map encodeIdentity idents
 
 deleteIdentities :: [ID_T] -> ServerResponse
 deleteIdentities identids = withAccount $ \acc -> do
@@ -76,6 +80,16 @@ deleteIdentities identids = withAccount $ \acc -> do
     then return responseOkMessage
     else return $ responseErrorMessage $ Just "Invalid identity delete."
 
+setIdentities :: [PB_Identity] -> ServerResponse
+setIdentities idents = withAccount $ \acc -> do
+
+  let idents' = map decodeIdentity idents
+  qres <- mapM (runUpdate . setIdentity acc) idents'
+
+  if all (Right True ==) qres
+    then return $ responseOkMessage
+                & ident_list .~~ idents
+    else return $ responseErrorMessage $ Just "Invalid identity set."
 
 
 --
