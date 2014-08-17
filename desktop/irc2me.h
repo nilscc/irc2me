@@ -43,6 +43,8 @@ private:
 
     bool is_authorized;
 
+    ID_T response_id = 0;
+
 private slots:
 
     void socket_connected();
@@ -59,7 +61,11 @@ public slots:
     // identity requests
 
     void requestIdentities();
-//    void requestNewIdentity();
+    void requestNewIdentity();
+
+    void setIdentities(const std::vector<Identity_T> &idents);
+
+    ID_T deleteIdentities(const std::vector<ID_T> &identids);
 
     // network requests
 
@@ -93,6 +99,10 @@ signals:
 
     void socketError(QAbstractSocket::SocketError, QString errorString);
     void sendError(QString errorString);
+
+    // responses
+
+    void response(ID_T id, Protobuf::Messages::Server::ResponseCode code, const std::string &msg);
 
     // authentication signals
 
