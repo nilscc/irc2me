@@ -86,9 +86,9 @@ setIdentities idents = withAccount $ \acc -> do
   let idents' = map decodeIdentity idents
   qres <- mapM (runUpdate . setIdentity acc) idents'
 
-  if all (Right True ==) qres
+  if any (Right True ==) qres
     then return $ responseOkMessage
-                & ident_list .~~ idents
+                & ident_list .~~ [ ident | (Right True, ident) <- zip qres idents ]
     else return $ responseErrorMessage $ Just "Invalid identity set."
 
 
