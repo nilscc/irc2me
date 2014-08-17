@@ -34,6 +34,12 @@ message IrcChannel
 
 message Identity
 {
+    required int64 id                   = 1;
+
+    optional string nick                = 10;
+    repeated string nick_alt            = 11;
+    optional string name                = 12;
+    optional string realname            = 13;
 };
 
 message IrcServer
@@ -66,6 +72,7 @@ message Client
     // identities
     repeated Identity  identity_add            = 11;
     repeated int64     identity_remove         = 12;
+    optional bool      identity_get_all        = 13;
 
     // networks
     repeated string    network_add             = 101;
@@ -88,9 +95,9 @@ message Server
     optional ResponseCode response_code = 10;
     optional string       response_msg  = 15;
 
-    // Networks
-    repeated Network      network_list  = 20;
+    // Identities
+    repeated Identity     identity_list = 20;
 
-    // IRC messages
-    repeated IrcMessage   irc_msg       = 50;
+    // Networks
+    repeated Network      network_list  = 30;
 };
