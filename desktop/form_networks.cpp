@@ -12,6 +12,8 @@ FormNetworks::FormNetworks(QWidget *parent) :
     ui->splitter->setStretchFactor(0, 0);
     ui->splitter->setStretchFactor(1, 1);
     ui->splitter->setSizes(QList<int>() << 200 << 1);
+    ui->splitter->setCollapsible(0, false);
+    ui->splitter->setCollapsible(1, false);
 }
 
 FormNetworks::~FormNetworks()
