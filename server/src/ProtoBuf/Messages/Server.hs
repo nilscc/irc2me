@@ -16,7 +16,7 @@ import GHC.Generics (Generic)
 
 import ProtoBuf.Helper
 import ProtoBuf.Instances ()
-import ProtoBuf.Messages.IRC
+import ProtoBuf.Messages.Identity
 import ProtoBuf.Messages.Network
 import ProtoBuf.Messages.SystemMsg
 
@@ -32,11 +32,11 @@ data PB_ServerMessage = PB_ServerMessage
   , _response_code     :: Optional 10 (Enumeration PB_ResponseCode)
   , _response_msg      :: Optional 15 (Value Text)
 
-    -- networks
-  , _network_list      :: Repeated 20 (Message PB_Network)
+    -- identities
+  , _ident_list        :: Repeated 20 (Message PB_Identity)
 
-    -- IRC messages
-  , _irc_msg           :: Optional 50 (Message PB_IrcMessage)
+    -- networks
+  , _network_list      :: Repeated 30 (Message PB_Network)
   }
   deriving (Show, Generic)
 

@@ -6,7 +6,7 @@ module ProtoBuf.Messages.Network where
 
 import Data.ProtocolBuffers
 import Data.Text (Text)
-import Data.Int (Int32, Int64)
+import Data.Int (Int32)
 import Data.Monoid
 
 import Control.Lens.Operators
@@ -14,6 +14,7 @@ import Control.Lens.TH
 
 import GHC.Generics (Generic)
 
+import ProtoBuf.Types
 import ProtoBuf.Helper
 import qualified IRC.Types as IRC
 import ProtoBuf.Instances ()
@@ -42,7 +43,7 @@ emptyServer hn p = PB_Server
   mempty
 
 data PB_Network = PB_Network
-  { _network_id        :: Required 1  (Value Int64)
+  { _network_id        :: Required 1  (Value ID_T)
 
     -- status
   , _network_online    :: Optional 5  (Value Bool)
@@ -50,7 +51,7 @@ data PB_Network = PB_Network
     -- network settings
   , _network_name      :: Optional 10 (Value Text)
   , _network_reconnect :: Optional 11 (Value Bool)
-  , _network_identity  :: Optional 12 (Value Int64)
+  , _network_identity  :: Optional 12 (Value ID_T)
 
     -- network servers
   , _network_servers   :: Repeated 20 (Message PB_Server)
