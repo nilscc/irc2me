@@ -4,6 +4,8 @@
 
 #include "irc2me.h"
 
+class FormMain;
+
 namespace Ui {
 class FormConnect;
 }
@@ -16,8 +18,8 @@ private:
 
     Ui::FormConnect *ui;
     Irc2me &irc2me;
-    QMainWindow *form_main = 0;
-    bool connected;
+    FormMain *form_main = nullptr;
+    bool connected = false;
 
     void log(QString msg);
     void lockServerInput(bool lock);
@@ -26,6 +28,11 @@ public:
 
     explicit FormConnect(Irc2me &irc, QWidget *parent = 0);
     ~FormConnect();
+
+    void unsetFormMain();
+
+    void connectToServer();
+    void disconnectFromServer();
 
 private slots:
 

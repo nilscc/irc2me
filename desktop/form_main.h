@@ -2,6 +2,7 @@
 
 #include <QMainWindow>
 
+#include "form_connect.h"
 #include "irc2me.h"
 
 namespace Ui {
@@ -14,7 +15,7 @@ class FormMain : public QMainWindow
 
 public:
 
-    explicit FormMain(Irc2me&, QMainWindow &form_connect, QWidget *parent = 0);
+    explicit FormMain(Irc2me&, FormConnect &form_connect, QWidget *parent = 0);
     ~FormMain();
 
 private slots:
@@ -28,7 +29,7 @@ private:
     Ui::FormMain *ui;
 
     Irc2me &irc2me;
-    QMainWindow &form_connect;
+    FormConnect &form_connect;
     QMainWindow *form_ident;
     QMainWindow *form_networks;
 

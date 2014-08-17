@@ -9,7 +9,7 @@
 #include <QBoxLayout>
 #include <QList>
 
-FormMain::FormMain(Irc2me &irc2me, QMainWindow &form_connect, QWidget *parent) :
+FormMain::FormMain(Irc2me &irc2me, FormConnect &form_connect, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::FormMain),
     irc2me(irc2me),
@@ -61,6 +61,9 @@ FormMain::~FormMain()
     }
 
     delete ui;
+
+    form_connect.unsetFormMain();
+    form_connect.disconnectFromServer();
 }
 
 /*
