@@ -1,17 +1,18 @@
-#include "form_main.h"
-#include "form_networks.h"
+#include "ui_mainwindow.h"
+
+#include "form/mainwindow.h"
+#include "form/networks.h"
 #include "form/identities.h"
 
-#include "ui_form_main.h"
 #include "widgets/networklist.h"
 
 #include <QApplication>
 #include <QBoxLayout>
 #include <QList>
 
-FormMain::FormMain(Irc2me &irc2me, FormConnect &form_connect, QWidget *parent) :
+FormMainWindow::FormMainWindow(Irc2me &irc2me, FormConnect &form_connect, QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::FormMain),
+    ui(new Ui::FormMainWindow),
     irc2me(irc2me),
     form_connect(form_connect),
     form_ident(nullptr),
@@ -44,7 +45,7 @@ FormMain::FormMain(Irc2me &irc2me, FormConnect &form_connect, QWidget *parent) :
     ui->treeWidget_networklist->connectTo(irc2me);
 }
 
-FormMain::~FormMain()
+FormMainWindow::~FormMainWindow()
 {
     if (form_networks != nullptr)
     {
@@ -71,17 +72,17 @@ FormMain::~FormMain()
  *
  */
 
-void FormMain::quit()
+void FormMainWindow::quit()
 {
     QApplication::quit();
 }
 
-void FormMain::showStatusWindow()
+void FormMainWindow::showStatusWindow()
 {
     form_connect.show();
 }
 
-void FormMain::showNetworksWindow()
+void FormMainWindow::showNetworksWindow()
 {
     if (form_networks == nullptr)
         form_networks = new FormNetworks();
@@ -89,7 +90,7 @@ void FormMain::showNetworksWindow()
     form_networks->show();
 }
 
-void FormMain::showIdentitiesWindow()
+void FormMainWindow::showIdentitiesWindow()
 {
     if (form_ident == nullptr)
         form_ident = new FormIdentities();

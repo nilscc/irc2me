@@ -1,5 +1,4 @@
-#ifndef IDENTITIES_H
-#define IDENTITIES_H
+#pragma once
 
 #include <QMainWindow>
 
@@ -21,5 +20,3 @@ private slots:
 private:
     Ui::FormIdentities *ui;
 };
-
-#endif // IDENTITIES_H

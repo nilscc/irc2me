@@ -2,21 +2,21 @@
 
 #include <QMainWindow>
 
-#include "form_connect.h"
+#include "form/connect.h"
 #include "irc2me.h"
 
 namespace Ui {
-class FormMain;
+class FormMainWindow;
 }
 
-class FormMain : public QMainWindow
+class FormMainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
 
-    explicit FormMain(Irc2me&, FormConnect &form_connect, QWidget *parent = 0);
-    ~FormMain();
+    explicit FormMainWindow(Irc2me&, FormConnect &form_connect, QWidget *parent = 0);
+    ~FormMainWindow();
 
 private slots:
 
@@ -26,7 +26,7 @@ private slots:
     void showIdentitiesWindow();
 
 private:
-    Ui::FormMain *ui;
+    Ui::FormMainWindow *ui;
 
     Irc2me &irc2me;
     FormConnect &form_connect;

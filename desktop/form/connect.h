@@ -4,7 +4,7 @@
 
 #include "irc2me.h"
 
-class FormMain;
+class FormMainWindow;
 
 namespace Ui {
 class FormConnect;
@@ -18,7 +18,7 @@ private:
 
     Ui::FormConnect *ui;
     Irc2me &irc2me;
-    FormMain *form_main = nullptr;
+    FormMainWindow *form_main = nullptr;
     bool connected = false;
 
     void log(QString msg);

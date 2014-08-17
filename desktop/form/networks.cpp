@@ -1,5 +1,5 @@
-#include "form_networks.h"
-#include "ui_form_networks.h"
+#include "form/networks.h"
+#include "ui_networks.h"
 
 FormNetworks::FormNetworks(QWidget *parent) :
     QMainWindow(parent),

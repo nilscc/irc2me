@@ -1,7 +1,7 @@
-#include "form_connect.h"
+#include "form/connect.h"
 #include "ui_connect.h"
 
-#include "form_main.h"
+#include "form/mainwindow.h"
 
 FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
     : QMainWindow(parent)
@@ -171,7 +171,7 @@ void FormConnect::irc2me_authorized()
 
     // show main form and hide self
     if (!form_main)
-        form_main = new FormMain(irc2me, *this);
+        form_main = new FormMainWindow(irc2me, *this);
 
     form_main->show();
     hide();
