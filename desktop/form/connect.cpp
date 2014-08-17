@@ -113,7 +113,10 @@ void FormConnect::disconnectFromServer()
 
     // hide main window (if available)
     if (form_main != nullptr)
-        form_main->hide();
+    {
+        form_main->close();
+        form_main = nullptr;
+    }
 }
 
 /*
@@ -151,18 +154,24 @@ void FormConnect::irc2me_disconnected()
     lockServerInput(false);
     connected = false;
     ui->pushButton_connect->setText(tr("Connect"));
+
+    if (form_main)
+    {
+        form_main->close();
+        form_main = nullptr;
+    }
 }
 
 void FormConnect::irc2me_socketError(QAbstractSocket::SocketError, QString err)
 {
+    show();
     log(tr("Error") + ": " + err);
-    lockServerInput(false);
 }
 
 void FormConnect::irc2me_sendError(QString err)
 {
+    show();
     log(tr("Error") + ": " + err);
-    lockServerInput(false);
 }
 
 void FormConnect::irc2me_authorized()
