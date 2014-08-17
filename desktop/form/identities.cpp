@@ -25,6 +25,10 @@ FormIdentities::FormIdentities(Irc2me &irc2me, QWidget *parent) :
     setWindowFlags(Qt::WindowTitleHint);
     setWindowFlags(Qt::WindowCloseButtonHint);
 
+    // connect to irc2me
+    connect(&irc2me, SIGNAL(identities(IdentityList_T)),
+            this, SLOT(addIdentities(IdentityList_T)));
+
     // request all identities
     irc2me.requestIdentities();
 
@@ -44,7 +48,7 @@ void FormIdentities::on_pushButton_close_clicked()
 
 void FormIdentities::on_pushButton_ident_add_clicked()
 {
-
+    irc2me.requestNewIdentity();
 }
 
 /*
@@ -84,11 +88,15 @@ void FormIdentities::loadIdentityDetails(ID_T identid)
 
 void FormIdentities::addIdentities(const IdentityList_T &idents)
 {
+    ID_T firstNewIdentity = -1;
 
     for (const Protobuf::Messages::Identity &ident : idents)
     {
         ID_T identid = ident.id();
         QString nick = QString::fromStdString(ident.nick());
+
+        if (firstNewIdentity < 0)
+            firstNewIdentity = identid;
 
         // add to identity map
         identities[identid] = ident;
@@ -97,7 +105,7 @@ void FormIdentities::addIdentities(const IdentityList_T &idents)
         if (identityItems.count(identid) == 0)
         {
             // create and add new item
-            QListWidgetItem *item = new QListWidgetItem(ui->listWidget_identities);
+            QListWidgetItem *item = new QListWidgetItem();
             ui->listWidget_identities->addItem(item);
 
             // set widget data
@@ -107,8 +115,11 @@ void FormIdentities::addIdentities(const IdentityList_T &idents)
             identityItems[identid] = item;
         }
 
-        identityItems[identid]->setText(nick);
+        identityItems[identid]->setText("[" + QString::number(identid) + "] " + nick);
     }
+
+    if (firstNewIdentity > 0)
+        loadIdentityDetails(firstNewIdentity);
 }
 
 void FormIdentities::on_listWidget_identities_itemActivated(QListWidgetItem *item)

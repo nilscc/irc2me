@@ -59,7 +59,7 @@ public slots:
     // identity requests
 
     void requestIdentities();
-//    void requestNewIdentity();
+    void requestNewIdentity();
 
     // network requests
 

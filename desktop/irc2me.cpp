@@ -103,6 +103,15 @@ void Irc2me::requestIdentities()
     send(clientMsg);
 }
 
+void Irc2me::requestNewIdentity()
+{
+    Msg::Client clientMsg;
+
+    clientMsg.set_identity_get_new(true);
+
+    send(clientMsg);
+}
+
 void Irc2me::requestNetworkNames()
 {
     Msg::Client clientMsg;
