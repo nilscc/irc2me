@@ -36,7 +36,8 @@ serverStream = do
 
 requestStream :: ServerResponse
 requestStream = choice
-  [ networksStream
+  [ identityStream
+  , networksStream
   ]
 
 updateStream ::  ServerResponse

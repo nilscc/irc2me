@@ -19,10 +19,11 @@ type Username = ByteString
 type Realname = ByteString
 
 data Identity = Identity
-  { usr_nick     :: Nickname
-  , usr_nick_alt :: [Nickname] -- ^ alternative nicks (when nickname in use)
-  , usr_name     :: Username
-  , usr_realname :: Realname
+  { ident_id       :: ID
+  , ident_nick     :: Nickname
+  , ident_nick_alt :: [Nickname] -- ^ alternative nicks (when nickname in use)
+  , ident_name     :: Username
+  , ident_realname :: Realname
   }
   deriving (Show, Eq, Ord)
 

@@ -11,6 +11,16 @@ import Database.HDBC
 import Database.Query
 import IRC.Types
 
+-- ID type
+
+toID :: Converter ID
+toID [SqlInteger i] = Just i
+toID _              = Nothing
+
+--
+-- Accounts
+--
+
 newtype Account = Account { accountId :: Integer }
   deriving (Eq, Show, Ord)
 
@@ -69,15 +79,16 @@ addAccount login encrypted = UpdateReturning
 -- converters
 
 identitySELECT :: String
-identitySELECT = "SELECT username, realname, nick, nick_alt FROM account_identities"
+identitySELECT = "SELECT id, username, realname, nick, nick_alt FROM account_identities"
 
 toIdentity :: Converter Identity
 toIdentity s = case s of
-  [SqlByteString u, SqlByteString r, SqlByteString n, na] -> Just $
-    Identity { usr_name = u
-             , usr_realname = r
-             , usr_nick = n
-             , usr_nick_alt = maybe [] (map B8.pack) $ arrayUnpack na
+  [SqlInteger i, SqlByteString u, SqlByteString r, SqlByteString n, na] -> Just $
+    Identity { ident_id = i
+             , ident_name = u
+             , ident_realname = r
+             , ident_nick = n
+             , ident_nick_alt = maybe [] (map B8.pack) $ arrayUnpack na
              }
   _ -> Nothing
 
@@ -91,14 +102,15 @@ selectIdentities (Account a) = Query
 
 -- updates
 
-addIdentity :: Account -> Identity -> Update Bool
-addIdentity (Account a) usr = Update
+addIdentity :: Account -> Identity -> Update (Maybe ID)
+addIdentity (Account a) usr = UpdateReturning
   "INSERT INTO account_identities (account, username, realname, nick, nick_alt) \
-  \     VALUES                    (?      , ?       , ?       , ?   , ?)"
+  \     VALUES                    (?      , ?       , ?       , ?   , ?)        \
+  \  RETURNING id"
   [ toSql a
-  , toSql $ usr_name usr
-  , toSql $ usr_realname usr
-  , toSql $ usr_nick usr
-  , arrayPack $ map B8.unpack $ usr_nick_alt usr
+  , toSql $ ident_name usr
+  , toSql $ ident_realname usr
+  , toSql $ ident_nick usr
+  , arrayPack $ map B8.unpack $ ident_nick_alt usr
   ]
-  (== 1)
+  (convertOne toID)
