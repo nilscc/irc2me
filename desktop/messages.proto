@@ -1,0 +1,94 @@
+package Protobuf.Messages;
+
+message Network
+{
+    // ID
+    required int64  network_id           = 1;
+
+    // status
+    optional bool   network_online       = 5;
+
+    // settings
+    optional string network_name         = 10;
+    optional bool   network_reconnect    = 11;
+    optional int64  network_identity     = 12;
+
+    // servers
+    repeated IrcServer network_servers   = 20;
+
+    // channels
+    repeated IrcChannel network_channels = 30;
+};
+
+message IrcChannel
+{
+    // ID
+    required int64  channel_id          = 1;
+
+    // status
+    optional bool   channel_online      = 5;
+
+    // name
+    optional string channel_name        = 10;
+};
+
+message Identity
+{
+};
+
+message IrcServer
+{
+    optional string server_host         = 1;
+    optional int32  server_port         = 2;
+    optional bool   use_tls             = 10;
+};
+
+message IrcMessage
+{
+};
+
+enum SystemMsg
+{
+    DISCONNECT = 0;
+    PING       = 1;
+    PONG       = 2;
+};
+
+message Client
+{
+    // acount
+    optional string    auth_login       = 1;
+    optional string    auth_password    = 2;
+
+    optional SystemMsg system_msg       = 5;
+
+    // identities
+    repeated Identity  identity_add     = 11;
+    repeated Identity  identity_remove  = 12;
+
+    // networks
+    repeated Network   network_add      = 101;
+    repeated Network   network_remove   = 102;
+    optional bool      network_get_list = 103;
+};
+
+message Server
+{
+    enum ResponseCode
+    {
+        ResponseOK = 0;
+        ResponseError = 1;
+    };
+
+    optional SystemMsg    system_msg    = 5;
+
+    // response messages
+    optional ResponseCode response_code = 10;
+    optional string       response_msg  = 15;
+
+    // Networks
+    repeated Network      network_list  = 20;
+
+    // IRC messages
+    repeated IrcMessage   irc_msg       = 50;
+};
