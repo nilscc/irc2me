@@ -4,6 +4,7 @@
 #include <QString>
 #include <QAbstractSocket>
 #include <QTcpSocket>
+#include <vector>
 
 #include "protobuf/messagestream.h"
 
@@ -47,6 +48,13 @@ private slots:
 
     void mstream_newServerMessage(Protobuf::Messages::Server);
 
+public slots:
+
+    // requests
+
+    void requestNetworkNames  (std::vector<ID_T> networkids = std::vector<ID_T>());
+    void requestNetworkDetails(std::vector<ID_T> networkids = std::vector<ID_T>());
+
 public:
 
     explicit Irc2me(QObject *parent = 0);
@@ -64,8 +72,6 @@ public:
     bool auth(const QString &login, const QString &password,
               QString *errorMsg = nullptr);
 
-    bool requestNetworkList(QString *errorMsg = nullptr);
-
 
 signals:
 
@@ -74,7 +80,8 @@ signals:
     void connected();
     void disconnected();
 
-    void error(QAbstractSocket::SocketError, QString errorString);
+    void socketError(QAbstractSocket::SocketError, QString errorString);
+    void sendError(QString errorString);
 
     // authentication signals
 

@@ -31,7 +31,8 @@ private slots:
 
     void irc2me_connected();
     void irc2me_disconnected();
-    void irc2me_error(QAbstractSocket::SocketError, QString msg);
+    void irc2me_socketError(QAbstractSocket::SocketError, QString msg);
+    void irc2me_sendError(QString err);
 
     void irc2me_authorized();
     void irc2me_notAuthorized();

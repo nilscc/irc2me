@@ -15,13 +15,16 @@ FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
 
     connect(&irc2me, SIGNAL(connected()),
             this, SLOT(irc2me_connected()));
+
     connect(&irc2me, SIGNAL(disconnected()),
             this, SLOT(irc2me_disconnected()));
-    connect(&irc2me, SIGNAL(error(QAbstractSocket::SocketError, QString)),
-            this, SLOT(irc2me_error(QAbstractSocket::SocketError, QString)));
+
+    connect(&irc2me, SIGNAL(socketError(QAbstractSocket::SocketError,QString)),
+            this, SLOT(irc2me_socketError(QAbstractSocket::SocketError,QString)));
 
     connect(&irc2me, SIGNAL(authorized()),
             this, SLOT(irc2me_authorized()));
+
     connect(&irc2me, SIGNAL(notAuthorized()),
             this, SLOT(irc2me_notAuthorized()));
 }
@@ -133,7 +136,13 @@ void FormConnect::irc2me_disconnected()
     ui->pushButton_connect->setText(tr("Connect"));
 }
 
-void FormConnect::irc2me_error(QAbstractSocket::SocketError, QString err)
+void FormConnect::irc2me_socketError(QAbstractSocket::SocketError, QString err)
+{
+    log(tr("Error") + ": " + err);
+    lockServerInput(false);
+}
+
+void FormConnect::irc2me_sendError(QString err)
 {
     log(tr("Error") + ": " + err);
     lockServerInput(false);
