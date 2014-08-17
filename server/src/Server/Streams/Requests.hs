@@ -1,4 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Server.Streams.Requests where
 
@@ -8,6 +9,8 @@ import Control.Monad
 import Database.Query
 import Database.Tables.Accounts
 import Database.Tables.Networks
+
+import IRC.Types (Identity(..))
 
 import ProtoBuf.Helper
 import ProtoBuf.Messages.Client
@@ -27,9 +30,28 @@ identityStream = choice
 
   [ do guardMessageField ident_get_all
        sendIdentities
+
   , do guardMessageField ident_get_new
-       throwS "identityStream" "ident_get_new not implemented."
+       sendNewIdentity
   ]
+
+sendNewIdentity :: ServerResponse
+sendNewIdentity = withAccount $ \acc -> do
+  qres <- runUpdate $ addIdentity acc emptyIdent
+  case qres of
+    Left err       -> throwS "sendNewIdentity" $ "Unexpected SQL error: " ++ show err
+    Right Nothing  -> throwS "sendNewIdentity" $ "The impossible happened."
+    Right (Just i) -> do
+      return $ responseOkMessage
+             & ident_list .~~ map encodeIdentities [emptyIdent { ident_id = i }]
+ where
+  emptyIdent = Identity
+    { ident_id = 0
+    , ident_nick = ""
+    , ident_nick_alt = []
+    , ident_name = ""
+    , ident_realname = ""
+    }
 
 sendIdentities :: ServerResponse
 sendIdentities = withAccount $ \acc -> do
