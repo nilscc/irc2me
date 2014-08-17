@@ -62,7 +62,27 @@ void FormIdentities::on_pushButton_ident_add_clicked()
 
 void FormIdentities::on_pushButton_ident_save_clicked()
 {
+    if (currentIdentity < 0)
+        return;
 
+    Identity_T ident;
+
+    string nick     = ui->lineEdit_ident_nick->text().trimmed().toStdString();
+    string username = ui->lineEdit_ident_username->text().trimmed().toStdString();
+    string realname = ui->lineEdit_ident_realname->text().trimmed().toStdString();
+
+    ident.set_id(currentIdentity);
+    ident.set_nick(nick);
+    ident.set_name(username);
+    ident.set_realname(realname);
+
+    // add list of alternative nicknames
+    QStringList nick_alts = ui->lineEdit_ident_nick_alt->text().split(",", QString::SkipEmptyParts);
+    auto lis = ident.mutable_nick_alt();
+    for (QString &nick_alt : nick_alts)
+        *lis->Add() = nick_alt.trimmed().toStdString();
+
+    irc2me.setIdentities(vector<Identity_T>({ident}));
 }
 
 void FormIdentities::on_pushButton_ident_delete_clicked()
@@ -85,6 +105,8 @@ void FormIdentities::loadIdentityDetails(ID_T identid)
     if (identities.count(identid) == 0)
         return;
 
+    setInputEnabled(true);
+
     const Identity_T &ident = identities[identid];
 
     QString nick     = QString::fromStdString( ident.nick() );
@@ -106,8 +128,6 @@ void FormIdentities::loadIdentityDetails(ID_T identid)
     ui->lineEdit_ident_nick->setFocus();
 
     currentIdentity = identid;
-
-    setInputEnabled(true);
 }
 
 /*
@@ -117,20 +137,25 @@ void FormIdentities::loadIdentityDetails(ID_T identid)
 
 void FormIdentities::deleteFromUI(ID_T identid)
 {
-    qDebug() << "deleteFromUI(" << identid << "):" << identityItems.count(identid);
-
     if (identityItems.count(identid) != 1)
         return;
 
     // delete list item
     QListWidgetItem *item = identityItems[identid];
+
+    // get row of itembefore deleting it
+    int row = ui->listWidget_identities->row(item);
+
     delete item;
+
+    // adjust row index
+    row = max<int>(0, min<int>(ui->listWidget_identities->count()-1, row));
 
     // remove from map
     identityItems.erase(identid);
 
     // select first item or disable input
-    QListWidgetItem *first = ui->listWidget_identities->item(0);
+    QListWidgetItem *first = ui->listWidget_identities->item(row);
     if (first)
     {
         bool ok;
@@ -153,16 +178,16 @@ void FormIdentities::deleteFromUI(ID_T identid)
 
 void FormIdentities::response(ID_T id, Protobuf::Messages::Server::ResponseCode code, const std::string &msg)
 {
+    Q_UNUSED(msg); // TODO
+
     // check if response is to delete request
     if (deleteResponseIDs.count(id) == 1)
     {
-        qDebug() << "Response to DELETE IDENTITY:" << code << QString::fromStdString(msg);
-
         if (code == Server::ResponseOK)
         {
             deleteFromUI(deleteResponseIDs[id]);
-            deleteResponseIDs.erase(id);
         }
+        deleteResponseIDs.erase(id);
     }
 }
 

@@ -13,6 +13,13 @@ FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
     ui->lineEdit_server->setText(Irc2me::DEFAULT_SERVER);
     ui->lineEdit_port->setText(QString::number(Irc2me::DEFAULT_PORT));
 
+    // show only title + close button
+    setWindowFlags(Qt::FramelessWindowHint);
+    setWindowFlags(Qt::WindowTitleHint);
+    setWindowFlags(Qt::WindowCloseButtonHint);
+
+    // connect
+
     connect(&irc2me, SIGNAL(connected()),
             this, SLOT(irc2me_connected()));
 
@@ -166,12 +173,16 @@ void FormConnect::irc2me_socketError(QAbstractSocket::SocketError, QString err)
 {
     show();
     log(tr("Error") + ": " + err);
+    if (!connected)
+        lockServerInput(false);
 }
 
 void FormConnect::irc2me_sendError(QString err)
 {
     show();
     log(tr("Error") + ": " + err);
+    if (!connected)
+        lockServerInput(false);
 }
 
 void FormConnect::irc2me_authorized()

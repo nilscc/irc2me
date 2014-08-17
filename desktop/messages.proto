@@ -79,6 +79,7 @@ message Client
     optional bool      identity_get_all        = 23;
 
     // networks
+    repeated Network   network_set             = 100;
     optional bool      network_get_new         = 101;
     repeated int64     network_remove          = 102;
     optional bool      network_get_all_names   = 103;
