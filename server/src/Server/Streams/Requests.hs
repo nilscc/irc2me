@@ -27,6 +27,8 @@ identityStream = choice
 
   [ do guardMessageField ident_get_all
        sendIdentities
+  , do guardMessageField ident_get_new
+       throwS "identityStream" "ident_get_new not implemented."
   ]
 
 sendIdentities :: ServerResponse
@@ -48,9 +50,8 @@ networksStream = choice
   [ do guardMessageField network_get_all_names
        sendNetworks
 
-  , do networks <- messageField network_add
-       guard $ not (null networks)
-       throwS "networksStream" "network_add not implemented."
+  , do guardMessageField network_get_new
+       throwS "networksStream" "network_get_new not implemented."
 
   , do networks <- messageField network_remove
        guard $ not (null networks)

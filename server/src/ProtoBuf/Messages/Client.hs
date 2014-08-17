@@ -33,12 +33,12 @@ data PB_ClientMessage = PB_ClientMessage
   , _client_system_msg      :: Optional 5 (Enumeration PB_SystemMsg)
 
     -- identities
-  , _ident_add              :: Repeated 11  (Message PB_Identity)
+  , _ident_get_new          :: Optional 11  (Value Bool)
   , _ident_remove           :: Repeated 12  (Value ID_T)
   , _ident_get_all          :: Optional 13  (Value Bool)
 
     -- networks
-  , _network_add            :: Repeated 101 (Value Text)
+  , _network_get_new        :: Optional 101 (Value Bool)
   , _network_remove         :: Repeated 102 (Value ID_T)
 
   , _network_get_all_names  :: Optional 103 (Value Bool)
