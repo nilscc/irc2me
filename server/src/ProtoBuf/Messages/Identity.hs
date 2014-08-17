@@ -22,9 +22,9 @@ import ProtoBuf.Instances ()
 data PB_Identity = PB_Identity
   { _pb_ident_id          :: Required 1  (Value ID_T)
   , _pb_ident_nick        :: Optional 10 (Value Text)
-  , _pb_ident_nick_alt    :: Repeated 10 (Value Text)
-  , _pb_ident_name        :: Optional 10 (Value Text)
-  , _pb_ident_realname    :: Optional 10 (Value Text)
+  , _pb_ident_nick_alt    :: Repeated 11 (Value Text)
+  , _pb_ident_name        :: Optional 12 (Value Text)
+  , _pb_ident_realname    :: Optional 13 (Value Text)
   }
   deriving (Eq, Show, Generic)
 
