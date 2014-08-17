@@ -32,7 +32,7 @@ void NetworkList::connectTo(Irc2me &irc2me)
             this, SLOT(setChannelName(ID_T,ID_T,std::string)));
 
     // request data
-    irc2me.requestNetworkList();
+    irc2me.requestNetworkNames();
 }
 
 /*

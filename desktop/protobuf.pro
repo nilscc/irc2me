@@ -26,33 +26,32 @@ HEADERS  += \
     irc2me.h \
     protobuf/iodevicestream.h \
     protobuf/messagestream.h \
-    form_connect.h \
-    form_main.h \
-    channelviewer.h \
-    ircchannel.h \
     widgets/hostselector.h \
     widgets/networklist.h \
     irc2me/backlog.h \
-    form_networks.h
+    form/identities.h \
+    form/connect.h \
+    form/networks.h \
+    form/mainwindow.h
 
 SOURCES += \
     main.cpp \
     irc2me.cpp \
     protobuf/iodevicestream.cpp \
     protobuf/messagestream.cpp \
-    form_connect.cpp \
-    form_main.cpp \
-    channelviewer.cpp \
-    ircchannel.cpp \
     widgets/hostselector.cpp \
     widgets/networklist.cpp \
     irc2me/backlog.cpp \
-    form_networks.cpp
+    form/identities.cpp \
+    form/connect.cpp \
+    form/networks.cpp \
+    form/mainwindow.cpp
 
 FORMS    += \
     connect.ui \
-    form_main.ui \
-    form_networks.ui
+    identities.ui \
+    networks.ui \
+    mainwindow.ui
 
 # config
 

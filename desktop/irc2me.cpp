@@ -7,6 +7,10 @@
 const quint16 Irc2me::DEFAULT_PORT = 6565;
 const QString Irc2me::DEFAULT_SERVER = "nils.cc";
 
+namespace Msg = Protobuf::Messages;
+
+using namespace std;
+
 Irc2me::Irc2me(QObject *parent)
     : QObject(parent)
     , socket(nullptr)
@@ -48,8 +52,8 @@ void Irc2me::disconnect()
     if (mstream)
     {
         // send DISCONNECT message
-        Protobuf::Messages::Client clientMsg;
-        clientMsg.set_system_msg(Protobuf::Messages::DISCONNECT);
+        Msg::Client clientMsg;
+        clientMsg.set_system_msg(Msg::DISCONNECT);
         send(clientMsg);
 
         delete mstream;
@@ -65,9 +69,52 @@ void Irc2me::disconnect()
     if (socket) delete socket; socket = nullptr;
 }
 
-bool Irc2me::send(const Protobuf::Messages::Client &msg, QString *errorMsg)
+bool Irc2me::send(const Msg::Client &msg, QString *errorMsg)
 {
-    return mstream->send(msg, errorMsg);
+    bool ownErrorMsg = (errorMsg == nullptr);
+
+    if (ownErrorMsg)
+        errorMsg = new QString();
+
+    bool success = mstream->send(msg, errorMsg);
+
+    if (ownErrorMsg)
+    {
+        if (!success && errorMsg->length() > 0)
+            emit sendError(*errorMsg);
+
+        delete errorMsg;
+    }
+
+    return success;
+}
+
+/*
+ * Request slots
+ *
+ */
+
+void Irc2me::requestIdentities()
+{
+    Msg::Client clientMsg;
+
+    clientMsg.set_identity_get_all(true);
+
+    send(clientMsg);
+}
+
+void Irc2me::requestNetworkNames()
+{
+    Msg::Client clientMsg;
+
+    clientMsg.set_network_get_all_names(true);
+
+    send(clientMsg);
+}
+
+void Irc2me::requestNetworkDetails(vector<ID_T> networkids)
+{
+    Q_UNUSED(networkids);
 }
 
 /*
@@ -78,7 +125,7 @@ bool Irc2me::send(const Protobuf::Messages::Client &msg, QString *errorMsg)
 bool Irc2me::auth(const QString &login, const QString &password,
                   QString *errorMsg)
 {
-    Protobuf::Messages::Client clientMsg;
+    Msg::Client clientMsg;
 
     clientMsg.set_auth_login(login.toStdString());
     clientMsg.set_auth_password(password.toStdString());
@@ -86,14 +133,6 @@ bool Irc2me::auth(const QString &login, const QString &password,
     return send(clientMsg, errorMsg);
 }
 
-bool Irc2me::requestNetworkList(QString *errorMsg)
-{
-    Protobuf::Messages::Client clientMsg;
-
-    clientMsg.set_network_get_list(true);
-
-    return send(clientMsg, errorMsg);
-}
 
 /*
  * Slots
@@ -106,6 +145,7 @@ void Irc2me::socket_connected()
 
     QObject::connect(mstream, SIGNAL(newServerMessage(Protobuf::Messages::Server)),
                      this, SLOT(mstream_newServerMessage(Protobuf::Messages::Server)));
+
     emit connected();
 }
 
@@ -116,15 +156,15 @@ void Irc2me::socket_disconnected()
 
 void Irc2me::socket_error(QAbstractSocket::SocketError err)
 {
-    emit error(err, socket->errorString());
+    emit socketError(err, socket->errorString());
 }
 
-void Irc2me::mstream_newServerMessage(Protobuf::Messages::Server msg)
+void Irc2me::mstream_newServerMessage(Msg::Server msg)
 {
     if (!is_authorized)
     {
         if (msg.has_response_code() &&
-            msg.response_code() == Protobuf::Messages::Server::ResponseOK)
+            msg.response_code() == Msg::Server::ResponseOK)
         {
             is_authorized = true;
             emit authorized();
@@ -139,10 +179,17 @@ void Irc2me::mstream_newServerMessage(Protobuf::Messages::Server msg)
         return;
     }
 
+
+    // check for identity list
+    if (msg.identity_list_size() > 0)
+    {
+        emit identities(msg.identity_list());
+    }
+
     // check for network list
     if (msg.network_list_size() > 0)
     {
-        for (const Protobuf::Messages::Network &network : msg.network_list())
+        for (const Msg::Network &network : msg.network_list())
         {
             ID_T networkid = network.network_id();
 
@@ -154,7 +201,7 @@ void Irc2me::mstream_newServerMessage(Protobuf::Messages::Server msg)
 
             if (network.network_channels_size() > 0)
             {
-                for (const Protobuf::Messages::IrcChannel &channel : network.network_channels())
+                for (const Msg::IrcChannel &channel : network.network_channels())
                 {
                     ID_T channelid = channel.channel_id();
 

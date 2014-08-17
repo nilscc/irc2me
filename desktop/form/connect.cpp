@@ -1,7 +1,7 @@
-#include "form_connect.h"
+#include "form/connect.h"
 #include "ui_connect.h"
 
-#include "form_main.h"
+#include "form/mainwindow.h"
 
 FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
     : QMainWindow(parent)
@@ -15,13 +15,16 @@ FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
 
     connect(&irc2me, SIGNAL(connected()),
             this, SLOT(irc2me_connected()));
+
     connect(&irc2me, SIGNAL(disconnected()),
             this, SLOT(irc2me_disconnected()));
-    connect(&irc2me, SIGNAL(error(QAbstractSocket::SocketError, QString)),
-            this, SLOT(irc2me_error(QAbstractSocket::SocketError, QString)));
+
+    connect(&irc2me, SIGNAL(socketError(QAbstractSocket::SocketError,QString)),
+            this, SLOT(irc2me_socketError(QAbstractSocket::SocketError,QString)));
 
     connect(&irc2me, SIGNAL(authorized()),
             this, SLOT(irc2me_authorized()));
+
     connect(&irc2me, SIGNAL(notAuthorized()),
             this, SLOT(irc2me_notAuthorized()));
 }
@@ -48,6 +51,74 @@ void FormConnect::lockServerInput(bool lock)
     ui->lineEdit_server->setDisabled(lock);
 }
 
+void FormConnect::unsetFormMain()
+{
+    form_main = nullptr;
+}
+
+void FormConnect::connectToServer()
+{
+    if (connected)
+        return;
+
+    QString server = ui->lineEdit_server->text();
+    QString port = ui->lineEdit_port->text();
+    QString login = ui->lineEdit_login->text();
+    QString pw = ui->lineEdit_password->text();
+
+    // check server
+    if (server == "")
+    {
+        log(tr("No server specified."));
+        return;
+    }
+
+    // try to read port number
+    short port_num;
+    if (port == "")
+    {
+        port_num = Irc2me::DEFAULT_PORT;
+        log(tr("No port specified, using default port") + " " + QString::number(port_num));
+    }
+    else
+    {
+        bool port_ok;
+        port_num = port.toShort(&port_ok);
+        if (!port_ok)
+        {
+            log(tr("Invalid port number") + ": " + port);
+            return;
+        }
+    }
+
+    if (login == "" || pw == "")
+    {
+        log(tr("Missing login info"));
+        return;
+    }
+
+    lockServerInput(true);
+    log(tr("Connecting to") + " " + server + ":" + QString::number(port_num) + "...");
+    irc2me.connect(server, port_num);
+}
+
+void FormConnect::disconnectFromServer()
+{
+    if (!connected)
+        return;
+
+    lockServerInput(true);
+    log(tr("Disconnecting..."));
+    irc2me.disconnect();
+
+    // hide main window (if available)
+    if (form_main != nullptr)
+    {
+        form_main->close();
+        form_main = nullptr;
+    }
+}
+
 /*
  * Slots
  *
@@ -56,57 +127,9 @@ void FormConnect::lockServerInput(bool lock)
 void FormConnect::on_pushButton_connect_clicked()
 {
     if (!connected)
-    {
-        QString server = ui->lineEdit_server->text();
-        QString port = ui->lineEdit_port->text();
-        QString login = ui->lineEdit_login->text();
-        QString pw = ui->lineEdit_password->text();
-
-        // check server
-        if (server == "")
-        {
-            log(tr("No server specified."));
-            return;
-        }
-
-        // try to read port number
-        short port_num;
-        if (port == "")
-        {
-            port_num = Irc2me::DEFAULT_PORT;
-            log(tr("No port specified, using default port") + " " + QString::number(port_num));
-        }
-        else
-        {
-            bool port_ok;
-            port_num = port.toShort(&port_ok);
-            if (!port_ok)
-            {
-                log(tr("Invalid port number") + ": " + port);
-                return;
-            }
-        }
-
-        if (login == "" || pw == "")
-        {
-            log(tr("Missing login info"));
-            return;
-        }
-
-        lockServerInput(true);
-        log(tr("Connecting to") + " " + server + ":" + QString::number(port_num) + "...");
-        irc2me.connect(server, port_num);
-    }
+        connectToServer();
     else
-    {
-        lockServerInput(true);
-        log(tr("Disconnecting..."));
-        irc2me.disconnect();
-
-        // hide main window (if available)
-        if (form_main)
-            form_main->hide();
-    }
+        disconnectFromServer();
 }
 
 void FormConnect::irc2me_connected()
@@ -131,12 +154,24 @@ void FormConnect::irc2me_disconnected()
     lockServerInput(false);
     connected = false;
     ui->pushButton_connect->setText(tr("Connect"));
+
+    if (form_main)
+    {
+        form_main->close();
+        form_main = nullptr;
+    }
 }
 
-void FormConnect::irc2me_error(QAbstractSocket::SocketError, QString err)
+void FormConnect::irc2me_socketError(QAbstractSocket::SocketError, QString err)
 {
+    show();
     log(tr("Error") + ": " + err);
-    lockServerInput(false);
+}
+
+void FormConnect::irc2me_sendError(QString err)
+{
+    show();
+    log(tr("Error") + ": " + err);
 }
 
 void FormConnect::irc2me_authorized()
@@ -145,7 +180,7 @@ void FormConnect::irc2me_authorized()
 
     // show main form and hide self
     if (!form_main)
-        form_main = new FormMain(irc2me, *this);
+        form_main = new FormMainWindow(irc2me, *this);
 
     form_main->show();
     hide();

@@ -34,6 +34,12 @@ message IrcChannel
 
 message Identity
 {
+    required int64 id                   = 1;
+
+    optional string nick                = 10;
+    repeated string nick_alt            = 11;
+    optional string name                = 12;
+    optional string realname            = 13;
 };
 
 message IrcServer
@@ -54,22 +60,25 @@ enum SystemMsg
     PONG       = 2;
 };
 
+
 message Client
 {
     // acount
-    optional string    auth_login       = 1;
-    optional string    auth_password    = 2;
+    optional string    auth_login              = 1;
+    optional string    auth_password           = 2;
 
-    optional SystemMsg system_msg       = 5;
+    optional SystemMsg system_msg              = 5;
 
     // identities
-    repeated Identity  identity_add     = 11;
-    repeated Identity  identity_remove  = 12;
+    optional bool      identity_get_new        = 11;
+    repeated int64     identity_remove         = 12;
+    optional bool      identity_get_all        = 13;
 
     // networks
-    repeated Network   network_add      = 101;
-    repeated Network   network_remove   = 102;
-    optional bool      network_get_list = 103;
+    optional bool      network_get_new         = 101;
+    repeated int64     network_remove          = 102;
+    optional bool      network_get_all_names   = 103;
+    repeated int64     network_get_details     = 104;
 };
 
 message Server
@@ -86,9 +95,9 @@ message Server
     optional ResponseCode response_code = 10;
     optional string       response_msg  = 15;
 
-    // Networks
-    repeated Network      network_list  = 20;
+    // Identities
+    repeated Identity     identity_list = 20;
 
-    // IRC messages
-    repeated IrcMessage   irc_msg       = 50;
+    // Networks
+    repeated Network      network_list  = 30;
 };

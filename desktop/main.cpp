@@ -1,4 +1,4 @@
-#include "form_connect.h"
+#include "form/connect.h"
 #include <QApplication>
 #include <QTranslator>
 
