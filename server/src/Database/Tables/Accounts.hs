@@ -114,3 +114,11 @@ addIdentity (Account a) usr = UpdateReturning
   , arrayPack $ map B8.unpack $ ident_nick_alt usr
   ]
   (convertOne toID)
+
+deleteIdentity :: Account -> ID -> Update Bool
+deleteIdentity (Account a) i = Update
+  "DELETE FROM account_identities WHERE account = ? AND id = ?"
+  [ toSql a
+  , toSql i
+  ]
+  (== 1)

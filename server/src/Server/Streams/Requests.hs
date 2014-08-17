@@ -12,6 +12,7 @@ import Database.Tables.Networks
 
 import IRC.Types (Identity(..))
 
+import ProtoBuf.Types
 import ProtoBuf.Helper
 import ProtoBuf.Messages.Client
 import ProtoBuf.Messages.Identity
@@ -33,6 +34,10 @@ identityStream = choice
 
   , do guardMessageField ident_get_new
        sendNewIdentity
+
+  , do identids <- messageField ident_remove
+       guard $ not (null identids)
+       deleteIdentities identids
   ]
 
 sendNewIdentity :: ServerResponse
@@ -61,6 +66,17 @@ sendIdentities = withAccount $ \acc -> do
     Right idents -> do
       return $ responseOkMessage
              & ident_list .~~ map encodeIdentities idents
+
+deleteIdentities :: [ID_T] -> ServerResponse
+deleteIdentities identids = withAccount $ \acc -> do
+
+  qres <- mapM (runUpdate . deleteIdentity acc . fromIntegral) identids
+
+  if all (Right True ==) qres
+    then return responseOkMessage
+    else return $ responseErrorMessage $ Just "Invalid identity delete."
+
+
 
 --
 -- Networks
