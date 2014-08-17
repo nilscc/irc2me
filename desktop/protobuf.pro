@@ -32,7 +32,8 @@ HEADERS  += \
     ircchannel.h \
     widgets/hostselector.h \
     widgets/networklist.h \
-    irc2me/backlog.h
+    irc2me/backlog.h \
+    form_networks.h
 
 SOURCES += \
     main.cpp \
@@ -45,11 +46,13 @@ SOURCES += \
     ircchannel.cpp \
     widgets/hostselector.cpp \
     widgets/networklist.cpp \
-    irc2me/backlog.cpp
+    irc2me/backlog.cpp \
+    form_networks.cpp
 
 FORMS    += \
     connect.ui \
-    form_main.ui
+    form_main.ui \
+    form_networks.ui
 
 # config
 

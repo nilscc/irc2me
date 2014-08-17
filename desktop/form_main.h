@@ -16,20 +16,18 @@ private slots:
 
     void quit();
     void showStatusWindow();
+    void showNetworksWindow();
 
 public:
+
     explicit FormMain(Irc2me&, QMainWindow &form_connect, QWidget *parent = 0);
     ~FormMain();
-
-//    void loadDefaultView();
-
-//    public setNetworks()
 
 private:
     Ui::FormMain *ui;
 
     Irc2me &irc2me;
     QMainWindow &form_connect;
+    QMainWindow *form_networks;
 
-//    QWidget* newChannelInputWidget();
 };
