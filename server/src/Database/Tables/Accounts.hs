@@ -96,7 +96,7 @@ toIdentity s = case s of
 
 selectIdentities :: Account -> Query [Identity]
 selectIdentities (Account a) = Query
-  (identitySELECT ++ " WHERE account = ?")
+  (identitySELECT ++ " WHERE account = ? ORDER BY nick")
   [toSql a]
   (convertList toIdentity)
 
