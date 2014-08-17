@@ -67,9 +67,10 @@ message Client
     repeated Identity  identity_remove  = 12;
 
     // networks
-    repeated Network   network_add      = 101;
-    repeated Network   network_remove   = 102;
-    optional bool      network_get_list = 103;
+    repeated Network   network_add         = 101;
+    repeated Network   network_remove      = 102;
+    repeated int64     network_get_names   = 103;
+    repeated int64     network_get_details = 104;
 };
 
 message Server
