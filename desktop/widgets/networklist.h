@@ -58,8 +58,8 @@ private:
 
     // displaying network list
 
-    using ItemMap_T       = std::map<int, QTreeWidgetItem*>;
-    using NestedItemMap_T = std::map<int, ItemMap_T>;
+    using ItemMap_T       = std::map<ID_T, QTreeWidgetItem*>;
+    using NestedItemMap_T = std::map<ID_T, ItemMap_T>;
 
     ItemMap_T       networkItems;
     NestedItemMap_T channelItems;

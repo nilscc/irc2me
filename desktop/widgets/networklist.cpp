@@ -84,8 +84,8 @@ void NetworkList::emitChannelSelected(QTreeWidgetItem *item, int column)
     Q_UNUSED(column);
 
     bool n_ok, ch_ok;
-    int networkid = item->data(0, NETWORK_ID_ROLE).toInt(&n_ok);
-    int channelid = item->data(0, CHANNEL_ID_ROLE).toInt(&ch_ok);
+    ID_T networkid = item->data(0, NETWORK_ID_ROLE).toLongLong(&n_ok);
+    ID_T channelid = item->data(0, CHANNEL_ID_ROLE).toLongLong(&ch_ok);
 
     // quit on error
     if (! (n_ok && ch_ok))
