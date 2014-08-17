@@ -26,8 +26,6 @@ HEADERS  += \
     irc2me.h \
     protobuf/iodevicestream.h \
     protobuf/messagestream.h \
-    channelviewer.h \
-    ircchannel.h \
     widgets/hostselector.h \
     widgets/networklist.h \
     irc2me/backlog.h \
@@ -41,8 +39,6 @@ SOURCES += \
     irc2me.cpp \
     protobuf/iodevicestream.cpp \
     protobuf/messagestream.cpp \
-    channelviewer.cpp \
-    ircchannel.cpp \
     widgets/hostselector.cpp \
     widgets/networklist.cpp \
     irc2me/backlog.cpp \
