@@ -2,6 +2,7 @@
 #include "ui_identities.h"
 
 using namespace std;
+using namespace Protobuf::Messages;
 
 FormIdentities::FormIdentities(Irc2me &irc2me, QWidget *parent) :
     QMainWindow(parent),
@@ -29,6 +30,9 @@ FormIdentities::FormIdentities(Irc2me &irc2me, QWidget *parent) :
     connect(&irc2me, SIGNAL(identities(IdentityList_T)),
             this, SLOT(addIdentities(IdentityList_T)));
 
+    connect(&irc2me, SIGNAL(response(ID_T,Protobuf::Messages::Server::ResponseCode,std::string)),
+            this, SLOT(response(ID_T,Protobuf::Messages::Server::ResponseCode,std::string)));
+
     // request all identities
     irc2me.requestIdentities();
 
@@ -41,6 +45,11 @@ FormIdentities::~FormIdentities()
     delete ui;
 }
 
+/*
+ * UI slots
+ *
+ */
+
 void FormIdentities::on_pushButton_close_clicked()
 {
     close();
@@ -49,6 +58,21 @@ void FormIdentities::on_pushButton_close_clicked()
 void FormIdentities::on_pushButton_ident_add_clicked()
 {
     irc2me.requestNewIdentity();
+}
+
+void FormIdentities::on_pushButton_ident_save_clicked()
+{
+
+}
+
+void FormIdentities::on_pushButton_ident_delete_clicked()
+{
+    if (currentIdentity < 0)
+        return;
+
+    ID_T response_id = irc2me.deleteIdentities(vector<ID_T>({currentIdentity}));
+
+    deleteResponseIDs[response_id] = currentIdentity;
 }
 
 /*
@@ -78,13 +102,69 @@ void FormIdentities::loadIdentityDetails(ID_T identid)
     ui->lineEdit_ident_username->setText(username);
     ui->lineEdit_ident_realname->setText(realname);
 
-    ui->groupBox->setEnabled(true);
+    ui->listWidget_identities->setCurrentItem(identityItems[identid]);
+    ui->lineEdit_ident_nick->setFocus();
+
+    currentIdentity = identid;
+
+    setInputEnabled(true);
+}
+
+/*
+ * Private functions
+ *
+ */
+
+void FormIdentities::deleteFromUI(ID_T identid)
+{
+    qDebug() << "deleteFromUI(" << identid << "):" << identityItems.count(identid);
+
+    if (identityItems.count(identid) != 1)
+        return;
+
+    // delete list item
+    QListWidgetItem *item = identityItems[identid];
+    delete item;
+
+    // remove from map
+    identityItems.erase(identid);
+
+    // select first item or disable input
+    QListWidgetItem *first = ui->listWidget_identities->item(0);
+    if (first)
+    {
+        bool ok;
+        ID_T newid = first->data(IDENTITY_ID_ROLE).toInt(&ok);
+        if (ok)
+            loadIdentityDetails(newid);
+        else
+            setInputEnabled(false);
+    }
+    else
+    {
+        setInputEnabled(false);
+    }
 }
 
 /*
  * Private slots
  *
  */
+
+void FormIdentities::response(ID_T id, Protobuf::Messages::Server::ResponseCode code, const std::string &msg)
+{
+    // check if response is to delete request
+    if (deleteResponseIDs.count(id) == 1)
+    {
+        qDebug() << "Response to DELETE IDENTITY:" << code << QString::fromStdString(msg);
+
+        if (code == Server::ResponseOK)
+        {
+            deleteFromUI(deleteResponseIDs[id]);
+            deleteResponseIDs.erase(id);
+        }
+    }
+}
 
 void FormIdentities::addIdentities(const IdentityList_T &idents)
 {
@@ -109,20 +189,25 @@ void FormIdentities::addIdentities(const IdentityList_T &idents)
             ui->listWidget_identities->addItem(item);
 
             // set widget data
-            item->setData(IDENTITY_ID_ROLE, identid);
+            item->setData(IDENTITY_ID_ROLE, QVariant(identid));
 
             // add to item list
             identityItems[identid] = item;
         }
 
-        identityItems[identid]->setText("[" + QString::number(identid) + "] " + nick);
+        identityItems[identid]->setText(nick);
     }
 
     if (firstNewIdentity > 0)
         loadIdentityDetails(firstNewIdentity);
 }
 
-void FormIdentities::on_listWidget_identities_itemActivated(QListWidgetItem *item)
+void FormIdentities::setInputEnabled(bool enabled)
+{
+    ui->groupBox->setEnabled(enabled);
+}
+
+void FormIdentities::on_listWidget_identities_itemClicked(QListWidgetItem *item)
 {
     bool ok;
     ID_T identid = item->data(IDENTITY_ID_ROLE).toInt(&ok);

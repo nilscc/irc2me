@@ -94,6 +94,8 @@ bool Irc2me::send(const Msg::Client &msg, QString *errorMsg)
  *
  */
 
+// Identity slots
+
 void Irc2me::requestIdentities()
 {
     Msg::Client clientMsg;
@@ -111,6 +113,34 @@ void Irc2me::requestNewIdentity()
 
     send(clientMsg);
 }
+
+void Irc2me::setIdentities(const std::vector<Identity_T> &idents)
+{
+    Msg::Client clientMsg;
+
+    auto lis = clientMsg.mutable_identity_set();
+    for (const Protobuf::Messages::Identity &ident : idents)
+        *lis->Add() = ident;
+
+    send(clientMsg);
+}
+
+ID_T Irc2me::deleteIdentities(const std::vector<ID_T> &identids)
+{
+    Msg::Client clientMsg;
+
+    for (ID_T id : identids)
+        clientMsg.add_identity_remove(id);
+
+    // response ID
+    clientMsg.set_response_id(response_id++);
+
+    send(clientMsg);
+
+    return clientMsg.response_id();
+}
+
+// Network slots
 
 void Irc2me::requestNetworkNames()
 {
@@ -188,6 +218,13 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
         return;
     }
 
+//    if (msg.has_response_code() && msg.response_code() == Msg::Server::ResponseError)
+//        emit responseError();
+
+    if (msg.has_response_id())
+    {
+        emit response(msg.response_id(), msg.response_code(), msg.response_msg());
+    }
 
     // check for identity list
     if (msg.identity_list_size() > 0)
