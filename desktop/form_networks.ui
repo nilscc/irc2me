@@ -32,7 +32,7 @@
         <bool>true</bool>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="tab_2">
         <attribute name="title">
@@ -329,6 +329,26 @@
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>listWidget_networks</tabstop>
+  <tabstop>pushButton_network_add</tabstop>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>lineEdit_networkname</tabstop>
+  <tabstop>lineEdit_ident_nickname</tabstop>
+  <tabstop>lineEdit_ident_nickname_alt</tabstop>
+  <tabstop>lineEdit_ident_username</tabstop>
+  <tabstop>lineEdit_ident_realname</tabstop>
+  <tabstop>checkBox_reconnect</tabstop>
+  <tabstop>pushButton_network_delete</tabstop>
+  <tabstop>listWidget_servers</tabstop>
+  <tabstop>pushButton_server_add</tabstop>
+  <tabstop>pushButton_server_delete</tabstop>
+  <tabstop>lineEdit_server_address</tabstop>
+  <tabstop>spinBox_server_port</tabstop>
+  <tabstop>checkBox_server_tls</tabstop>
+  <tabstop>pushButton_ok</tabstop>
+  <tabstop>pushButton_cancel</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
