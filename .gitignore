@@ -1,7 +1,6 @@
 dist/
-irc2mobile-server
-backend-tests
 build-*/
+server/server
 
 *.swp
 .hs_tags

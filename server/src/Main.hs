@@ -2,13 +2,12 @@
 
 module Main where
 
-import IRC
-import Network
-import ProtoBuf ()
+import Server.Connections
 
-import Database.Tables.Accounts ()
-import Database.Tables.Networks ()
+main :: IO ()
+main = serverStart defaultServerConf
 
+{-
 user :: Identity
 user = Identity { usr_nick     = "McManiaC"
                 , usr_nick_alt = ["irc2mob"]
@@ -34,3 +33,4 @@ main = do
       channels = [ ("##test", Nothing) ]
 
   runIRC user server channels
+-}

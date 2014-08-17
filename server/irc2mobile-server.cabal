@@ -23,6 +23,7 @@ executable irc2mobile-server
   build-depends:       base == 4.*,
                        bytestring,
                        containers,
+                       mtl, transformers,
                        network,
                        time,
                        stm,
@@ -37,7 +38,8 @@ executable irc2mobile-server
                        crypto-random,
                        HDBC, HDBC-postgresql,
                        scrypt,
-                       parsec
+                       parsec,
+                       lens
 
 executable backend-tests
   main-is:             Test/Main.hs

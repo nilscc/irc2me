@@ -25,6 +25,8 @@ defaultServerConf = ServerConf
 serverStart :: ServerConf -> IO ()
 serverStart conf = do
 
+  putStrLn $ "Starting server on " ++ show (serverPort conf)
+
   socket <- listenOn (PortNumber $ serverPort conf)
 
   finally `flip` Socket.close socket $

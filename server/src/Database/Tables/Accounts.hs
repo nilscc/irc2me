@@ -38,10 +38,10 @@ selectAccountByLogin login = Query
   [toSql login]
   (convertOne toAccount)
 
-checkPassword :: String -> ByteString -> Query Bool
-checkPassword login pw = Query
-  "SELECT password FROM accounts WHERE login = ?"
-  [toSql login]
+checkPassword :: Account -> ByteString -> Query Bool
+checkPassword (Account acc) pw = Query
+  "SELECT password FROM accounts WHERE id = ?"
+  [toSql acc]
   (verify . convertOne fromBytea)
  where
   verify = \case
