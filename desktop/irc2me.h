@@ -49,9 +49,6 @@ class Irc2me : public QObject
 
 public slots:
 
-
-    void setIdentities(const std::vector<Identity_T> &idents);
-
 public:
 
     explicit Irc2me(QObject *parent = 0);
@@ -78,10 +75,12 @@ public:
 
     // Identities
 
+
+    void setIdentities     (const std::vector<Identity_T> &idents,
+                            Callback_T<ResponseCode_T, std::vector<ID_T>> ids = Callback_T<ResponseCode_T, std::vector<ID_T>>()
+                            );
+
     void deleteIdentities  (std::vector<ID_T> identids, Callback_T<ResponseCode_T> callback);
-
-    void requestNewIdentity(Callback_T<ResponseCode_T, std::unique_ptr<Identity_T>> callback);
-
     void requestIdentities (Callback_T<ResponseCode_T, IdentityList_T> callback);
 
     // Networks

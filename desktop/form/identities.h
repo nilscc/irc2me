@@ -28,6 +28,8 @@ private:
 
     // irc2me slots
 
+    void addIdentityItem(Identity_T identity, QListWidgetItem *item = nullptr);
+
     void addIdentities(const IdentityList_T &idents);
 
     Ui::FormIdentities *ui;

@@ -148,24 +148,7 @@ void Irc2me::requestIdentities(Callback_T<ResponseCode_T, IdentityList_T> callba
     send(clientMsg);
 }
 
-void Irc2me::requestNewIdentity(Callback_T<ResponseCode_T, std::unique_ptr<Identity_T>> callback)
-{
-    Msg::Client clientMsg;
-
-    clientMsg.set_identity_get_new(true);
-
-    if (callback)
-        addCallback(clientMsg, [callback](Server_T msg) {
-            unique_ptr<Identity_T> identity;
-            if (msg.identity_list_size() > 0)
-                identity = unique_ptr<Identity_T>(new Identity_T(msg.identity_list(0)));
-            callback(msg.response_code(), identity);
-        });
-
-    send(clientMsg);
-}
-
-void Irc2me::setIdentities(const std::vector<Identity_T> &idents)
+void Irc2me::setIdentities(const std::vector<Identity_T> &idents, Callback_T<ResponseCode_T, vector<ID_T>> callback)
 {
     Msg::Client clientMsg;
 
@@ -173,6 +156,21 @@ void Irc2me::setIdentities(const std::vector<Identity_T> &idents)
     for (const Protobuf::Messages::Identity &ident : idents)
         *lis->Add() = ident;
 
+    if (callback)
+        addCallback(clientMsg, [callback](Server_T msg)
+        {
+            vector<ID_T> ids;
+            for (const Identity_T &ident: msg.identity_list())
+            {
+                if (!ident.has_id())
+                {
+                    qDebug() << "Missing IDENTITY ID on SET IDENTITIES resposne";
+                    break;
+                }
+                ids.push_back(ident.id());
+            }
+            callback(msg.response_code(), ids);
+        });
     send(clientMsg);
 }
 
