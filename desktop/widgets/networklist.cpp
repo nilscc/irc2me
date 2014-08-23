@@ -20,8 +20,8 @@ void NetworkList::connectTo(Irc2me &irc2me)
     connect(&irc2me, SIGNAL(networkOnline(ID_T,bool)),
             this, SLOT(setNetworkOnline(ID_T,bool)));
 
-    connect(&irc2me, SIGNAL(networkName(ID_T,std::string)),
-            this, SLOT(setNetworkName(ID_T,std::string)));
+//    connect(&irc2me, SIGNAL(networkName(ID_T,std::string)),
+//            this, SLOT(setNetworkName(ID_T,std::string)));
 
     // connect channel signals
 
@@ -31,8 +31,16 @@ void NetworkList::connectTo(Irc2me &irc2me)
     connect(&irc2me, SIGNAL(channelName(ID_T,ID_T,std::string)),
             this, SLOT(setChannelName(ID_T,ID_T,std::string)));
 
-    // request data
-    irc2me.requestNetworkNames();
+    irc2me.requestNetworkNames([this](const ResponseCode_T &responseCode, const NetworkList_T &networkList) {
+        if (responseCode == Server_T::ResponseOK)
+        {
+            for (const Network_T &network : networkList)
+            {
+
+                setNetworkName(network.network_id(), network.network_name());
+            }
+        }
+    });
 }
 
 /*

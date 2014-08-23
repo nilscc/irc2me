@@ -20,20 +20,20 @@ FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
 
     // connect
 
-    connect(&irc2me, SIGNAL(connected()),
-            this, SLOT(irc2me_connected()));
+    connect(&irc2me, &Irc2me::connected,
+            this,    &FormConnect::irc2me_connected);
 
-    connect(&irc2me, SIGNAL(disconnected()),
-            this, SLOT(irc2me_disconnected()));
+    connect(&irc2me, &Irc2me::disconnected,
+            this,    &FormConnect::irc2me_disconnected);
 
-    connect(&irc2me, SIGNAL(socketError(QAbstractSocket::SocketError,QString)),
-            this, SLOT(irc2me_socketError(QAbstractSocket::SocketError,QString)));
+    connect(&irc2me, &Irc2me::socketError,
+            this,    &FormConnect::irc2me_socketError);
 
-    connect(&irc2me, SIGNAL(authorized()),
-            this, SLOT(irc2me_authorized()));
+    connect(&irc2me, &Irc2me::authorized,
+            this,    &FormConnect::irc2me_authorized);
 
-    connect(&irc2me, SIGNAL(notAuthorized()),
-            this, SLOT(irc2me_notAuthorized()));
+    connect(&irc2me, &Irc2me::notAuthorized,
+            this,    &FormConnect::irc2me_notAuthorized);
 }
 
 FormConnect::~FormConnect()
