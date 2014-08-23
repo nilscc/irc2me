@@ -35,9 +35,8 @@ data PB_ClientMessage = PB_ClientMessage
 
     -- identities
   , _ident_set              :: Repeated 20  (Message PB_Identity)
-  , _ident_get_new          :: Optional 21  (Value Bool)
-  , _ident_remove           :: Repeated 22  (Value ID_T)
-  , _ident_get_all          :: Optional 23  (Value Bool)
+  , _ident_remove           :: Repeated 21  (Value ID_T)
+  , _ident_get_all          :: Optional 22  (Value Bool)
 
     -- networks
   , _network_set            :: Repeated 100 (Message PB_Network)
@@ -62,7 +61,6 @@ emptyClientMessage = PB_ClientMessage
   mempty
   mempty
   -- identities
-  mempty
   mempty
   mempty
   mempty

@@ -6,6 +6,9 @@ module Server.Streams.Requests where
 import Control.Lens.Operators
 import Control.Monad
 
+import Data.Maybe
+import Data.List
+
 import Database.Query
 import Database.Tables.Accounts
 import Database.Tables.Networks
@@ -32,16 +35,13 @@ identityStream = choice
   [ do guardMessageField ident_get_all
        sendIdentities
 
-  , do guardMessageField ident_get_new
-       sendNewIdentity
+  , do idents <- messageField ident_set
+       guard $ not (null idents)
+       setIdentities idents
 
   , do identids <- messageField ident_remove
        guard $ not (null identids)
        deleteIdentities identids
-
-  , do idents <- messageField ident_set
-       guard $ not (null idents)
-       setIdentities idents
   ]
 
 sendNewIdentity :: ServerResponse
@@ -83,13 +83,22 @@ deleteIdentities identids = withAccount $ \acc -> do
 setIdentities :: [PB_Identity] -> ServerResponse
 setIdentities idents = withAccount $ \acc -> do
 
-  let idents' = map decodeIdentity idents
-  qres <- mapM (runUpdate . setIdentity acc) idents'
+  let (oldIdents, newIdents) = partition (hasField pb_ident_id) idents
 
-  if any (Right True ==) qres
-    then return $ responseOkMessage
-                & ident_list .~~ [ ident | (Right True, ident) <- zip qres idents ]
-    else return $ responseErrorMessage $ Just "Invalid identity set."
+  -- update "old" identities
+  up_res <- mapM (runUpdate . setIdentity acc . decodeIdentity) oldIdents
+  let updateSuccess = all (Right True ==) up_res
+
+  -- insert "new" identities
+  in_res <- mapM (runUpdate . addIdentity acc . decodeIdentity) newIdents
+  let insertSuccess = all (either (const False) isJust) in_res
+
+  -- return list of new IDs on success
+  if (updateSuccess && insertSuccess) then
+    return $ responseOkMessage
+           & ident_list .~~ [ emptyIdentity i | Right (Just i) <- in_res ]
+   else
+    return $ responseErrorMessage $ Just "Invalid IDENTIY SET"
 
 
 --

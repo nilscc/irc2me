@@ -1,11 +1,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 module ProtoBuf.Helper where
 
+import Control.Lens.Operators
+import Control.Lens.Getter
 import Control.Lens.Setter
 
+import           Data.Maybe
 import           Data.Int (Int32, Int64)
 import           Data.ProtocolBuffers
 import           Data.ByteString (ByteString)
@@ -31,6 +35,9 @@ maybeNick (Left ui)   = Just $ I.userNick ui
 maybeNick _           = Nothing
 maybeServer (Right s) = Just s
 maybeServer _         = Nothing
+
+hasField :: (HasField a, FieldType a ~ Maybe x) => Getter msg a -> msg -> Bool
+hasField lns msg = isJust $ msg ^. lns . field
 
 --
 -- lens helpers

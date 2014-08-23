@@ -22,7 +22,7 @@ import ProtoBuf.Helper
 import ProtoBuf.Instances ()
 
 data PB_Identity = PB_Identity
-  { _pb_ident_id          :: Required 1  (Value ID_T)
+  { _pb_ident_id          :: Optional 1  (Value ID_T)
   , _pb_ident_nick        :: Optional 10 (Value Text)
   , _pb_ident_nick_alt    :: Repeated 11 (Value Text)
   , _pb_ident_name        :: Optional 12 (Value Text)
@@ -37,7 +37,7 @@ makeLenses ''PB_Identity
 
 emptyIdentity :: Integral id => id -> PB_Identity
 emptyIdentity i = PB_Identity
-  (putField $ fromIntegral i)
+  (putField $ Just $ fromIntegral i)
   mempty
   mempty
   mempty
@@ -52,7 +52,7 @@ encodeIdentity ident = emptyIdentity (ident_id ident)
 
 decodeIdentity :: PB_Identity -> Identity
 decodeIdentity pbident = Identity
-  { ident_id        =   fromIntegral $                pbident ^. pb_ident_id       . field
+  { ident_id        =          maybe 0 fromIntegral $ pbident ^. pb_ident_id       . field
   , ident_nick      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_nick     . field
   , ident_nick_alt  = map encodeUtf8 $                pbident ^. pb_ident_nick_alt . field
   , ident_name      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_name     . field
