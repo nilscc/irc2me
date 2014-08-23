@@ -27,14 +27,15 @@ FormIdentities::FormIdentities(Irc2me &irc2me, QWidget *parent) :
     setWindowFlags(Qt::WindowCloseButtonHint);
 
     // connect to irc2me
-    connect(&irc2me, SIGNAL(identities(IdentityList_T)),
-            this, SLOT(addIdentities(IdentityList_T)));
 
-    connect(&irc2me, SIGNAL(response(ID_T,Protobuf::Messages::Server::ResponseCode,std::string)),
-            this, SLOT(response(ID_T,Protobuf::Messages::Server::ResponseCode,std::string)));
+    connect(&irc2me, &Irc2me::identities,
+            this, &FormIdentities::addIdentities);
 
-    // request all identities
-    irc2me.requestIdentities();
+    // load data
+    irc2me.requestIdentities([this](const ResponseCode_T &code, const IdentityList_T &idents) {
+        if (code == Server_T::ResponseOK)
+            addIdentities(idents);
+    });
 
     // disable editing group
     ui->groupBox->setEnabled(false);
@@ -46,44 +47,41 @@ FormIdentities::~FormIdentities()
 }
 
 /*
- * UI slots
+ * Identity
  *
  */
 
-void FormIdentities::on_pushButton_close_clicked()
+void FormIdentities::addIdentityItem(Identity_T identity, QListWidgetItem *item)
 {
-    close();
+    // pick item if not given
+    if (!item)
+    {
+        if (identityItems.count(identity.id()) == 0)
+        {
+            item = new QListWidgetItem();
+            ui->listWidget_identities->addItem(item);
+        }
+        else
+            item = identityItems[identity.id()];
+    }
+
+    // set item properties
+    item->setTextColor(Qt::black);
+    item->setText(QString::fromStdString(identity.nick()));
+
+    item->setData(IDENTITY_ID_ROLE, identity.id());
+
+    // update identity lookup maps
+    identities   [identity.id()] = identity;
+    identityItems[identity.id()] = item;
 }
-
-void FormIdentities::on_pushButton_ident_add_clicked()
-{
-    irc2me.requestNewIdentity();
-}
-
-void FormIdentities::on_pushButton_ident_save_clicked()
-{
-
-}
-
-void FormIdentities::on_pushButton_ident_delete_clicked()
-{
-    if (currentIdentity < 0)
-        return;
-
-    ID_T response_id = irc2me.deleteIdentities(vector<ID_T>({currentIdentity}));
-
-    deleteResponseIDs[response_id] = currentIdentity;
-}
-
-/*
- * Public functions
- *
- */
 
 void FormIdentities::loadIdentityDetails(ID_T identid)
 {
     if (identities.count(identid) == 0)
         return;
+
+    setInputEnabled(true);
 
     const Identity_T &ident = identities[identid];
 
@@ -106,9 +104,138 @@ void FormIdentities::loadIdentityDetails(ID_T identid)
     ui->lineEdit_ident_nick->setFocus();
 
     currentIdentity = identid;
-
-    setInputEnabled(true);
 }
+
+/*
+ * UI slots
+ *
+ */
+
+void FormIdentities::on_pushButton_close_clicked()
+{
+    close();
+}
+
+void FormIdentities::on_pushButton_ident_add_clicked()
+{
+    currentIdentity = -1;
+
+    ui->lineEdit_ident_nick->clear();
+    ui->lineEdit_ident_nick_alt->clear();
+    ui->lineEdit_ident_realname->clear();
+    ui->lineEdit_ident_username->clear();
+
+    ui->lineEdit_ident_nick->setFocus();
+
+    if (!newIdentityItem)
+    {
+        newIdentityItem = new QListWidgetItem();
+        ui->listWidget_identities->addItem(newIdentityItem);
+
+        newIdentityItem->setData(IDENTITY_ID_ROLE, -1);
+        newIdentityItem->setTextColor(QColor(Qt::gray));
+        newIdentityItem->setText("New identity...");
+    }
+
+    ui->listWidget_identities->setCurrentItem(newIdentityItem);
+}
+
+void FormIdentities::removeNewIdentityItemFromList()
+{
+    if (newIdentityItem)
+    {
+        delete newIdentityItem;
+        newIdentityItem = 0;
+    }
+}
+
+void FormIdentities::on_pushButton_ident_save_clicked()
+{
+    string nick     = ui->lineEdit_ident_nick->text().trimmed().toStdString();
+    string username = ui->lineEdit_ident_username->text().trimmed().toStdString();
+    string realname = ui->lineEdit_ident_realname->text().trimmed().toStdString();
+
+    // validate input - TODO
+    if (nick.empty() || username.empty())
+        return;
+
+    Identity_T ident;
+    ident.set_nick(nick);
+    ident.set_name(username);
+    ident.set_realname(realname);
+
+    // add list of alternative nicknames
+    QStringList nick_alts = ui->lineEdit_ident_nick_alt->text().split(",", QString::SkipEmptyParts);
+    auto lis = ident.mutable_nick_alt();
+    for (QString &nick_alt : nick_alts)
+        *lis->Add() = nick_alt.trimmed().toStdString();
+
+    // check if this is a new identity
+    if (currentIdentity < 0)
+    {
+        irc2me.setIdentities(vector<Identity_T>({ident}),
+                             [this, ident]
+                             ( const ResponseCode_T &rc
+                             , const vector<ID_T> &ids
+                             ) mutable {
+
+            // validate response
+            if (rc != Server_T::ResponseOK || ids.size() != 1)
+            {
+                qDebug() << "Incorrect SET IDENTITIES response"; // FIXME
+                return;
+            }
+
+            // set ID of identity
+            ident.set_id(ids[0]);
+
+            // add identity to list widget
+            addIdentityItem(ident, newIdentityItem);
+            newIdentityItem = nullptr;
+
+            // check if we still dont have a "current" identity
+            if (currentIdentity < 0)
+                currentIdentity = ident.id();
+
+        });
+    }
+    else
+    {
+        ident.set_id(currentIdentity);
+
+        irc2me.setIdentities(vector<Identity_T>({ident}),
+                             [this, ident]
+                             ( const ResponseCode_T &rc
+                             , const vector<ID_T> &ids
+                             ) mutable {
+            if (rc != Server_T::ResponseOK || ids.size() != 0)
+            {
+                qDebug() << "Incorrect SET IDENTITIES response"; // FIXME
+                return;
+            }
+
+            addIdentityItem(ident);
+        });
+    }
+}
+
+void FormIdentities::on_pushButton_ident_delete_clicked()
+{
+    if (currentIdentity < 0)
+        return;
+
+    ID_T id = currentIdentity;
+
+    irc2me.deleteIdentities(vector<ID_T>({id}), [this, id](const ResponseCode_T &code) {
+
+        if (code == Server::ResponseOK)
+            deleteFromUI(id);
+        else
+            qDebug() << "DELETE FAIL on ID" << id;
+
+    });
+}
+
 
 /*
  * Private functions
@@ -117,20 +244,25 @@ void FormIdentities::loadIdentityDetails(ID_T identid)
 
 void FormIdentities::deleteFromUI(ID_T identid)
 {
-    qDebug() << "deleteFromUI(" << identid << "):" << identityItems.count(identid);
-
     if (identityItems.count(identid) != 1)
         return;
 
     // delete list item
     QListWidgetItem *item = identityItems[identid];
+
+    // get row of itembefore deleting it
+    int row = ui->listWidget_identities->row(item);
+
     delete item;
+
+    // adjust row index
+    row = max<int>(0, min<int>(ui->listWidget_identities->count()-1, row));
 
     // remove from map
     identityItems.erase(identid);
 
     // select first item or disable input
-    QListWidgetItem *first = ui->listWidget_identities->item(0);
+    QListWidgetItem *first = ui->listWidget_identities->item(row);
     if (first)
     {
         bool ok;
@@ -151,51 +283,16 @@ void FormIdentities::deleteFromUI(ID_T identid)
  *
  */
 
-void FormIdentities::response(ID_T id, Protobuf::Messages::Server::ResponseCode code, const std::string &msg)
-{
-    // check if response is to delete request
-    if (deleteResponseIDs.count(id) == 1)
-    {
-        qDebug() << "Response to DELETE IDENTITY:" << code << QString::fromStdString(msg);
-
-        if (code == Server::ResponseOK)
-        {
-            deleteFromUI(deleteResponseIDs[id]);
-            deleteResponseIDs.erase(id);
-        }
-    }
-}
-
 void FormIdentities::addIdentities(const IdentityList_T &idents)
 {
     ID_T firstNewIdentity = -1;
 
     for (const Protobuf::Messages::Identity &ident : idents)
     {
-        ID_T identid = ident.id();
-        QString nick = QString::fromStdString(ident.nick());
-
         if (firstNewIdentity < 0)
-            firstNewIdentity = identid;
+            firstNewIdentity = ident.id();
 
-        // add to identity map
-        identities[identid] = ident;
-
-        // check if new item
-        if (identityItems.count(identid) == 0)
-        {
-            // create and add new item
-            QListWidgetItem *item = new QListWidgetItem();
-            ui->listWidget_identities->addItem(item);
-
-            // set widget data
-            item->setData(IDENTITY_ID_ROLE, QVariant(identid));
-
-            // add to item list
-            identityItems[identid] = item;
-        }
-
-        identityItems[identid]->setText(nick);
+        addIdentityItem(ident);
     }
 
     if (firstNewIdentity > 0)
@@ -213,6 +310,9 @@ void FormIdentities::on_listWidget_identities_itemClicked(QListWidgetItem *item)
     ID_T identid = item->data(IDENTITY_ID_ROLE).toInt(&ok);
     if (!ok)
         return;
+
+    if (identid >= 0)
+        removeNewIdentityItemFromList();
 
     loadIdentityDetails(identid);
 }

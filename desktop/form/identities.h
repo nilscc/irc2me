@@ -22,28 +22,16 @@ public:
 
     void loadIdentityDetails(ID_T identid);
 
-private slots:
-
-    // irc2me slots
-
-    void response(ID_T, Protobuf::Messages::Server::ResponseCode, const std::string &msg);
-
-    void addIdentities(const IdentityList_T &idents);
-
-    // UI slots
-
-    void on_pushButton_close_clicked();
-    void on_pushButton_ident_add_clicked();
-
-    void on_pushButton_ident_save_clicked();
-
-    void on_pushButton_ident_delete_clicked();
-
-    void on_listWidget_identities_itemClicked(QListWidgetItem *item);
+private:
 
     void setInputEnabled(bool enabled = true);
 
-private:
+    // irc2me slots
+
+    void addIdentityItem(Identity_T identity, QListWidgetItem *item = nullptr);
+
+    void addIdentities(const IdentityList_T &idents);
+
     Ui::FormIdentities *ui;
 
     Irc2me &irc2me;
@@ -59,4 +47,21 @@ private:
     std::map<ID_T, ID_T> deleteResponseIDs;
 
     void deleteFromUI(ID_T identid);
+
+    QListWidgetItem *newIdentityItem = nullptr;
+    void removeNewIdentityItemFromList();
+
+private slots:
+
+    // UI slots
+
+    void on_pushButton_close_clicked();
+    void on_pushButton_ident_add_clicked();
+
+    void on_pushButton_ident_save_clicked();
+
+    void on_pushButton_ident_delete_clicked();
+
+    void on_listWidget_identities_itemClicked(QListWidgetItem *item);
+
 };

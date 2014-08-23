@@ -13,20 +13,27 @@ FormConnect::FormConnect(Irc2me &irc2me, QWidget *parent)
     ui->lineEdit_server->setText(Irc2me::DEFAULT_SERVER);
     ui->lineEdit_port->setText(QString::number(Irc2me::DEFAULT_PORT));
 
-    connect(&irc2me, SIGNAL(connected()),
-            this, SLOT(irc2me_connected()));
+    // show only title + close button
+    setWindowFlags(Qt::FramelessWindowHint);
+    setWindowFlags(Qt::WindowTitleHint);
+    setWindowFlags(Qt::WindowCloseButtonHint);
 
-    connect(&irc2me, SIGNAL(disconnected()),
-            this, SLOT(irc2me_disconnected()));
+    // connect
 
-    connect(&irc2me, SIGNAL(socketError(QAbstractSocket::SocketError,QString)),
-            this, SLOT(irc2me_socketError(QAbstractSocket::SocketError,QString)));
+    connect(&irc2me, &Irc2me::connected,
+            this,    &FormConnect::irc2me_connected);
 
-    connect(&irc2me, SIGNAL(authorized()),
-            this, SLOT(irc2me_authorized()));
+    connect(&irc2me, &Irc2me::disconnected,
+            this,    &FormConnect::irc2me_disconnected);
 
-    connect(&irc2me, SIGNAL(notAuthorized()),
-            this, SLOT(irc2me_notAuthorized()));
+    connect(&irc2me, &Irc2me::socketError,
+            this,    &FormConnect::irc2me_socketError);
+
+    connect(&irc2me, &Irc2me::authorized,
+            this,    &FormConnect::irc2me_authorized);
+
+    connect(&irc2me, &Irc2me::notAuthorized,
+            this,    &FormConnect::irc2me_notAuthorized);
 }
 
 FormConnect::~FormConnect()
@@ -166,12 +173,16 @@ void FormConnect::irc2me_socketError(QAbstractSocket::SocketError, QString err)
 {
     show();
     log(tr("Error") + ": " + err);
+    if (!connected)
+        lockServerInput(false);
 }
 
 void FormConnect::irc2me_sendError(QString err)
 {
     show();
     log(tr("Error") + ": " + err);
+    if (!connected)
+        lockServerInput(false);
 }
 
 void FormConnect::irc2me_authorized()

@@ -24,6 +24,42 @@ Irc2me::~Irc2me()
     disconnect();
 }
 
+/*
+ * Message sending
+ *
+ */
+
+bool Irc2me::send(Client_T msg, QString *errorMsg)
+{
+    bool ownErrorMsg = (errorMsg == nullptr);
+
+    if (ownErrorMsg)
+        errorMsg = new QString();
+
+    bool success = mstream->send(msg, errorMsg);
+
+    if (ownErrorMsg)
+    {
+        if (!success && errorMsg->length() > 0)
+            emit sendError(*errorMsg);
+
+        delete errorMsg;
+    }
+
+    return success;
+}
+
+bool Irc2me::send(Client_T msg, Callback_T<Server_T> callback)
+{
+    addCallback(msg, callback);
+    return send(msg);
+}
+
+/*
+ * Connection & authentication
+ *
+ */
+
 void Irc2me::connect(const QString &host, quint16 port)
 {
     disconnect();
@@ -34,12 +70,15 @@ void Irc2me::connect(const QString &host, quint16 port)
 
         socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
 
-        QObject::connect(socket, SIGNAL(connected()),
-                         this, SLOT(socket_connected()));
-        QObject::connect(socket, SIGNAL(disconnected()),
-                         this, SLOT(socket_disconnected()));
+        QObject::connect(socket, &QAbstractSocket::connected,
+                         this,   &Irc2me::socket_connected);
+
+        QObject::connect(socket, &QAbstractSocket::disconnected,
+                         this,   &Irc2me::socket_disconnected);
+
+        // new 'connect' method not possible for 'error' yet :(
         QObject::connect(socket, SIGNAL(error(QAbstractSocket::SocketError)),
-                         this, SLOT(socket_error(QAbstractSocket::SocketError)));
+                         this,   SLOT(socket_error(QAbstractSocket::SocketError)));
     }
 
     socket->connectToHost(host, port);
@@ -69,24 +108,23 @@ void Irc2me::disconnect()
     if (socket) delete socket; socket = nullptr;
 }
 
-bool Irc2me::send(const Msg::Client &msg, QString *errorMsg)
+
+void Irc2me::addCallback(Client_T &clientMsg, Callback_T<Server_T> cb)
 {
-    bool ownErrorMsg = (errorMsg == nullptr);
-
-    if (ownErrorMsg)
-        errorMsg = new QString();
-
-    bool success = mstream->send(msg, errorMsg);
-
-    if (ownErrorMsg)
+    if (cb)
     {
-        if (!success && errorMsg->length() > 0)
-            emit sendError(*errorMsg);
-
-        delete errorMsg;
+        clientMsg.set_response_id(response_id++);
+        responseCallbacks[clientMsg.response_id()] = cb;
     }
+}
 
-    return success;
+void Irc2me::runCallback(ID_T responseId, const Server_T &msg)
+{
+    if (responseCallbacks.count(responseId) == 1 && responseCallbacks[responseId])
+    {
+        responseCallbacks[responseId](msg);
+        responseCallbacks.erase(responseId);
+    }
 }
 
 /*
@@ -96,25 +134,21 @@ bool Irc2me::send(const Msg::Client &msg, QString *errorMsg)
 
 // Identity slots
 
-void Irc2me::requestIdentities()
+void Irc2me::requestIdentities(Callback_T<ResponseCode_T, IdentityList_T> callback)
 {
     Msg::Client clientMsg;
 
     clientMsg.set_identity_get_all(true);
 
-    send(clientMsg);
-}
-
-void Irc2me::requestNewIdentity()
-{
-    Msg::Client clientMsg;
-
-    clientMsg.set_identity_get_new(true);
+    if (callback)
+        addCallback(clientMsg, [callback](Server_T msg) {
+            callback(msg.response_code(), msg.identity_list());
+        });
 
     send(clientMsg);
 }
 
-void Irc2me::setIdentities(const std::vector<Identity_T> &idents)
+void Irc2me::setIdentities(const std::vector<Identity_T> &idents, Callback_T<ResponseCode_T, vector<ID_T>> callback)
 {
     Msg::Client clientMsg;
 
@@ -122,33 +156,48 @@ void Irc2me::setIdentities(const std::vector<Identity_T> &idents)
     for (const Protobuf::Messages::Identity &ident : idents)
         *lis->Add() = ident;
 
+    if (callback)
+        addCallback(clientMsg, [callback](Server_T msg)
+        {
+            vector<ID_T> ids;
+            for (const Identity_T &ident: msg.identity_list())
+            {
+                if (!ident.has_id())
+                {
+                    qDebug() << "Missing IDENTITY ID on SET IDENTITIES resposne";
+                    break;
+                }
+                ids.push_back(ident.id());
+            }
+            callback(msg.response_code(), ids);
+        });
     send(clientMsg);
 }
 
-ID_T Irc2me::deleteIdentities(const std::vector<ID_T> &identids)
+void Irc2me::deleteIdentities(std::vector<ID_T> identids, Callback_T<ResponseCode_T> callback)
 {
     Msg::Client clientMsg;
 
     for (ID_T id : identids)
         clientMsg.add_identity_remove(id);
 
-    // response ID
-    clientMsg.set_response_id(response_id++);
-
-    send(clientMsg);
-
-    return clientMsg.response_id();
+    send(clientMsg, [callback](const Server_T &msg) {
+        callback(msg.response_code());
+    });
 }
 
 // Network slots
 
-void Irc2me::requestNetworkNames()
+void Irc2me::requestNetworkNames(Callback_T<ResponseCode_T, NetworkList_T> cb)
 {
     Msg::Client clientMsg;
 
     clientMsg.set_network_get_all_names(true);
 
-    send(clientMsg);
+    send(clientMsg, [cb](const Server_T &msg){
+        cb(msg.response_code(), msg.network_list());
+    });
+
 }
 
 void Irc2me::requestNetworkDetails(vector<ID_T> networkids)
@@ -182,8 +231,8 @@ void Irc2me::socket_connected()
 {
     mstream = new MessageStream(*socket);
 
-    QObject::connect(mstream, SIGNAL(newServerMessage(Protobuf::Messages::Server)),
-                     this, SLOT(mstream_newServerMessage(Protobuf::Messages::Server)));
+    QObject::connect(mstream, &MessageStream::newServerMessage,
+                     this,    &Irc2me::mstream_newServerMessage);
 
     emit connected();
 }
@@ -202,8 +251,7 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
 {
     if (!is_authorized)
     {
-        if (msg.has_response_code() &&
-            msg.response_code() == Msg::Server::ResponseOK)
+        if (msg.has_response_code() && msg.response_code() == Server_T::ResponseOK)
         {
             is_authorized = true;
             emit authorized();
@@ -218,13 +266,9 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
         return;
     }
 
-//    if (msg.has_response_code() && msg.response_code() == Msg::Server::ResponseError)
-//        emit responseError();
-
+    // handle responses
     if (msg.has_response_id())
-    {
-        emit response(msg.response_id(), msg.response_code(), msg.response_msg());
-    }
+        return runCallback(msg.response_id(), msg);
 
     // check for identity list
     if (msg.identity_list_size() > 0)
