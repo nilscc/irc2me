@@ -17,7 +17,6 @@ import Database.Tables.Networks
 
 import IRC.Types (Identity(..))
 
-import ProtoBuf.Types
 import ProtoBuf.Helper
 import ProtoBuf.Messages.Client
 import ProtoBuf.Messages.Identity

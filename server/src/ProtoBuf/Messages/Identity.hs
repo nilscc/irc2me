@@ -62,9 +62,6 @@ decodeIdentity pbident = Identity
 ------------------------------------------------------------------------------
 -- Folds
 
-identityID :: ReifiedFold PB_Identity ID_T
-identityID = Fold $ pb_ident_id . field . _Just
-
 identitiesWithID :: ReifiedFold PB_Identity PB_Identity
 identitiesWithID = Fold id <* Fold (pb_ident_id . field . _Just)
 
