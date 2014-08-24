@@ -4,13 +4,15 @@
 
 module ProtoBuf.Messages.Network where
 
+import Control.Applicative
+
 import Data.ProtocolBuffers
 import Data.Text (Text)
 import Data.Int (Int32)
 import Data.Monoid
 
-import Control.Lens.Operators
-import Control.Lens.TH
+import Control.Lens
+import Data.Text.Lens
 
 import GHC.Generics (Generic)
 
@@ -92,3 +94,24 @@ encodeNetwork netw = emptyNetwork (IRC.netw_id netw)
   & network_name      .~~ Just (IRC.netw_name netw)
   & network_reconnect .~~ Just (IRC.netw_reconnect netw)
   & network_identity  .~~ IRC.netw_identity netw
+
+
+------------------------------------------------------------------------------
+-- Folds
+
+networkID :: Fold PB_Network ID_T
+networkID = network_id . field . _Just
+
+networkName :: Fold PB_Network Text
+networkName = network_name . field . _Just
+
+networkReconnect :: Fold PB_Network Bool
+networkReconnect = network_reconnect . field . _Just
+
+networksToAdd :: ReifiedFold PB_Network (String, Bool)
+networksToAdd = (,) <$> Fold (networkName . from packed)
+                    <*> Fold (networkReconnect)
+
+                        -- make sure network_id is Nothing
+                    <*  Fold (network_id . field . _Nothing)
+
