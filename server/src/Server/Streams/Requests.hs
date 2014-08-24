@@ -111,8 +111,9 @@ networksStream = choice
   [ do guardMessageField network_get_all_names
        sendNetworks
 
-  , do guardMessageField network_get_new
-       throwS "networksStream" "network_get_new not implemented."
+  , do networks <- messageField network_set
+       guard $ not (null networks)
+       setNetworks networks
 
   , do networks <- messageField network_remove
        guard $ not (null networks)
@@ -128,3 +129,10 @@ sendNetworks = withAccount $ \acc -> do
     Right netws ->
       return $ responseOkMessage
                  & network_list .~~ map encodeNetwork netws
+
+setNetworks :: [PB_Network] -> ServerResponse
+setNetworks _networks = withAccount $ \_acc -> do
+
+  -- let (oldNetworks, newNetworks) = partition (hasField network_id) networks
+
+  throwS "setNetworks" "not implemented"

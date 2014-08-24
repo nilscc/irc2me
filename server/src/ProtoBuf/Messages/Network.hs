@@ -43,7 +43,7 @@ emptyServer hn p = PB_Server
   mempty
 
 data PB_Network = PB_Network
-  { _network_id        :: Required 1  (Value ID_T)
+  { _network_id        :: Optional 1  (Value ID_T)
 
     -- status
   , _network_online    :: Optional 5  (Value Bool)
@@ -73,7 +73,7 @@ emptyNetwork
   :: Integer        -- ^ Network ID
   -> PB_Network
 emptyNetwork n_id = PB_Network
-  (putField $ fromIntegral n_id)
+  (putField $ Just $ fromIntegral n_id)
   -- network status
   mempty
   -- network settings
