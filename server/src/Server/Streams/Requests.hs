@@ -3,11 +3,13 @@
 
 module Server.Streams.Requests where
 
-import Control.Lens.Operators
+-- lens imports
+import Control.Lens hiding (Identity)
+import Numeric.Lens
+
 import Control.Monad
 
 import Data.Maybe
-import Data.List
 
 import Database.Query
 import Database.Tables.Accounts
@@ -32,38 +34,17 @@ import Server.Response
 identityStream :: ServerResponse
 identityStream = choice
 
-  [ do guardMessageField ident_get_all
-       sendIdentities
-
-  , do idents <- messageField ident_set
-       guard $ not (null idents)
-       setIdentities idents
-
-  , do identids <- messageField ident_remove
-       guard $ not (null identids)
-       deleteIdentities identids
+  [ sendIdentities
+  , updateIdentities
+  , addIdentities
+  , deleteIdentities
   ]
-
-sendNewIdentity :: ServerResponse
-sendNewIdentity = withAccount $ \acc -> do
-  qres <- runUpdate $ addIdentity acc emptyIdent
-  case qres of
-    Left err       -> throwS "sendNewIdentity" $ "Unexpected SQL error: " ++ show err
-    Right Nothing  -> throwS "sendNewIdentity" $ "The impossible happened."
-    Right (Just i) -> do
-      return $ responseOkMessage
-             & ident_list .~~ [emptyIdentity i]
- where
-  emptyIdent = Identity
-    { ident_id = 0
-    , ident_nick = ""
-    , ident_nick_alt = []
-    , ident_name = ""
-    , ident_realname = ""
-    }
 
 sendIdentities :: ServerResponse
 sendIdentities = withAccount $ \acc -> do
+
+  guardMessageField ident_get_all
+
   qres <- runQuery $ selectIdentities acc
   case qres of
     Left err     -> throwS "sendIdentities" $ "Unexpected SQL error: " ++ show err
@@ -71,35 +52,38 @@ sendIdentities = withAccount $ \acc -> do
       return $ responseOkMessage
              & ident_list .~~ map encodeIdentity idents
 
-deleteIdentities :: [ID_T] -> ServerResponse
-deleteIdentities identids = withAccount $ \acc -> do
+deleteIdentities :: ServerResponse
+deleteIdentities = withAccount $ \acc -> do
 
-  qres <- mapM (runUpdate . deleteIdentity acc . fromIntegral) identids
+  ids  <- guardFoldOn ident_remove $ re (integral :: Prism' Integer ID_T)
+  qres <- mapM (runUpdate . deleteIdentity acc) ids
 
   if all (Right True ==) qres
     then return responseOkMessage
     else return $ responseErrorMessage $ Just "Invalid identity delete."
 
-setIdentities :: [PB_Identity] -> ServerResponse
-setIdentities idents = withAccount $ \acc -> do
+updateIdentities :: ServerResponse
+updateIdentities = withAccount $ \acc -> do
 
-  let (oldIdents, newIdents) = partition (hasField pb_ident_id) idents
+  idents <- guardFoldROn ident_set identitiesWithID
+  up_res <- mapM (runUpdate . setIdentity acc . decodeIdentity) idents
 
-  -- update "old" identities
-  up_res <- mapM (runUpdate . setIdentity acc . decodeIdentity) oldIdents
-  let updateSuccess = all (Right True ==) up_res
+  return $
+    if all (Right True ==) up_res
+      then responseOkMessage
+      else responseErrorMessage $ Just "Invalid IDENTIY SET"
 
-  -- insert "new" identities
-  in_res <- mapM (runUpdate . addIdentity acc . decodeIdentity) newIdents
-  let insertSuccess = all (either (const False) isJust) in_res
+addIdentities :: ServerResponse
+addIdentities = withAccount $ \acc -> do
 
-  -- return list of new IDs on success
-  if (updateSuccess && insertSuccess) then
-    return $ responseOkMessage
-           & ident_list .~~ [ emptyIdentity i | Right (Just i) <- in_res ]
-   else
-    return $ responseErrorMessage $ Just "Invalid IDENTIY SET"
+  idents <- guardFoldROn ident_set identitiesWithoutID
+  in_res <- mapM (runUpdate . addIdentity acc . decodeIdentity) idents
 
+  return $
+    if all (either (const False) isJust) in_res
+      then responseOkMessage &
+             ident_list .~~ [ emptyIdentity i | Right (Just i) <- in_res ]
+      else responseErrorMessage $ Just "Invalid IDENTIY SET"
 
 --
 -- Networks

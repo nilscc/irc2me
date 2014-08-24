@@ -86,18 +86,33 @@ requireMessageFieldValue lns val = do
     Just t | t == val -> return ()
     _                 -> mzero
 
-foldOn
+------------------------------------------------------------------------------
+-- Folds
+
+foldOn, guardFoldOn
   :: (Foldable f, HasField field, FieldType field ~ f a)
   => Getter PB_ClientMessage field
   -> Fold a b
   -> ServerResponseT [b]
+
 foldOn lns fld = do
   msg <- getClientMessage
   return $ (msg ^. lns.field) ^.. folded . fld
 
-rfoldOn
+guardFoldOn lns fld = do
+  lis <- foldOn lns fld
+  guard $ not $ null lis
+  return lis
+
+foldROn, guardFoldROn
   :: (Foldable f, HasField field, FieldType field ~ f a)
   => Getter PB_ClientMessage field
   -> ReifiedFold a b
   -> ServerResponseT [b]
-rfoldOn lns rfld = foldOn lns (runFold rfld)
+
+foldROn lns rfld = foldOn lns (runFold rfld)
+
+guardFoldROn lns rfld = do
+  lis <- foldROn lns rfld
+  guard $ not $ null lis
+  return lis
