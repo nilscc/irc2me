@@ -31,12 +31,6 @@ FormIdentities::FormIdentities(Irc2me &irc2me, QWidget *parent) :
     connect(&irc2me, &Irc2me::identities,
             this, &FormIdentities::addIdentities);
 
-    // load data
-    irc2me.requestIdentities([this](const ResponseCode_T &code, const IdentityList_T &idents) {
-        if (code == Server_T::ResponseOK)
-            addIdentities(idents);
-    });
-
     // disable editing group
     ui->groupBox->setEnabled(false);
 }
@@ -46,6 +40,14 @@ FormIdentities::~FormIdentities()
     delete ui;
 }
 
+void FormIdentities::loadIdentities()
+{
+    // load data
+    irc2me.requestIdentities([this](const ResponseCode_T &code, const IdentityList_T &idents) {
+        if (code == Server_T::ResponseOK)
+            addIdentities(idents);
+    });
+}
 /*
  * Identity
  *
@@ -74,6 +76,8 @@ void FormIdentities::addIdentityItem(Identity_T identity, QListWidgetItem *item)
     // update identity lookup maps
     identities   [identity.id()] = identity;
     identityItems[identity.id()] = item;
+
+    emit identitiesChanged(identities);
 }
 
 void FormIdentities::loadIdentityDetails(ID_T identid)
@@ -259,6 +263,7 @@ void FormIdentities::deleteFromUI(ID_T identid)
     row = max<int>(0, min<int>(ui->listWidget_identities->count()-1, row));
 
     // remove from map
+    identities.erase(identid);
     identityItems.erase(identid);
 
     // select first item or disable input
@@ -276,6 +281,8 @@ void FormIdentities::deleteFromUI(ID_T identid)
     {
         setInputEnabled(false);
     }
+
+    emit identitiesChanged(identities);
 }
 
 /*

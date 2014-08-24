@@ -20,7 +20,13 @@ public:
     explicit FormIdentities(Irc2me &irc2me, QWidget *parent = 0);
     ~FormIdentities();
 
+    void loadIdentities();
+
     void loadIdentityDetails(ID_T identid);
+
+signals:
+
+    void identitiesChanged(const std::map<ID_T, Identity_T> &identities);
 
 private:
 

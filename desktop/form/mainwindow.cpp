@@ -47,18 +47,18 @@ FormMainWindow::FormMainWindow(Irc2me &irc2me, FormConnect &form_connect, QWidge
 
 FormMainWindow::~FormMainWindow()
 {
-    if (form_networks != nullptr)
-    {
-        form_networks->close();
-        form_networks->deleteLater();
-        form_networks = nullptr;
-    }
-
     if (form_ident != nullptr)
     {
         form_ident->close();
         form_ident->deleteLater();
         form_ident = nullptr;
+    }
+
+    if (form_networks != nullptr)
+    {
+        form_networks->close();
+        form_networks->deleteLater();
+        form_networks = nullptr;
     }
 
     delete ui;
@@ -85,7 +85,13 @@ void FormMainWindow::showStatusWindow()
 void FormMainWindow::showNetworksWindow()
 {
     if (form_networks == nullptr)
-        form_networks = new FormNetworks(irc2me);
+    {
+        if (form_ident == nullptr)
+            form_ident = new FormIdentities(irc2me);
+        form_networks = new FormNetworks(irc2me, form_ident);
+
+        form_ident->loadIdentities();
+    }
 
     form_networks->show();
 }
@@ -95,5 +101,6 @@ void FormMainWindow::showIdentitiesWindow()
     if (form_ident == nullptr)
         form_ident = new FormIdentities(irc2me);
 
+    form_ident->loadIdentities();
     form_ident->show();
 }

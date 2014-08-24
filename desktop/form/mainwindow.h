@@ -10,6 +10,8 @@ namespace Ui {
 class FormMainWindow;
 }
 
+class FormConnect;
+
 class FormMainWindow : public QMainWindow
 {
     Q_OBJECT
