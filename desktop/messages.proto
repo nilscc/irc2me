@@ -3,7 +3,7 @@ package Protobuf.Messages;
 message Network
 {
     // ID
-    required int64  network_id           = 1;
+    optional int64  network_id           = 1;
 
     // status
     optional bool   network_online       = 5;
@@ -79,10 +79,9 @@ message Client
 
     // networks
     repeated Network   network_set             = 100;
-    optional bool      network_get_new         = 101;
-    repeated int64     network_remove          = 102;
-    optional bool      network_get_all_names   = 103;
-    repeated int64     network_get_details     = 104;
+    repeated int64     network_remove          = 101;
+    optional bool      network_get_all_names   = 102;
+    repeated int64     network_get_details     = 103;
 };
 
 message Server
