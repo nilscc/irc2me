@@ -41,11 +41,11 @@ executable irc2mobile-server
                        parsec,
                        lens
 
-executable backend-tests
-  main-is:             Test/Main.hs
-  hs-source-dirs:      src/
-  ghc-options:         -Wall -threaded
-  build-depends:       base == 4.*,
-                       bytestring,
-                       test-framework,
-                       test-framework-quickcheck2
+-- executable backend-tests
+--   main-is:             Test/Main.hs
+--   hs-source-dirs:      src/
+--   ghc-options:         -Wall -threaded
+--   build-depends:       base == 4.*,
+--                        bytestring,
+--                        test-framework,
+--                        test-framework-quickcheck2
