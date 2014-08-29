@@ -15,9 +15,8 @@ import Database.Query
 import Database.Tables.Accounts
 import Database.Tables.Networks
 
-import IRC.Types (Identity(..))
-
 import ProtoBuf.Helper
+import ProtoBuf.Types
 import ProtoBuf.Messages.Client
 import ProtoBuf.Messages.Identity
 import ProtoBuf.Messages.Network
