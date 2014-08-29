@@ -5,7 +5,7 @@
 #include <messages.pb.h>
 
 const quint16 Irc2me::DEFAULT_PORT = 6565;
-const QString Irc2me::DEFAULT_SERVER = "nils.cc";
+const QString Irc2me::DEFAULT_SERVER = "hackin.fritz.box";
 
 namespace Msg = Protobuf::Messages;
 
