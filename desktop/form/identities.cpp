@@ -142,6 +142,8 @@ void FormIdentities::on_pushButton_ident_add_clicked()
     }
 
     ui->listWidget_identities->setCurrentItem(newIdentityItem);
+
+    setInputEnabled(true);
 }
 
 void FormIdentities::removeNewIdentityItemFromList()
@@ -279,6 +281,10 @@ void FormIdentities::deleteFromUI(ID_T identid)
     }
     else
     {
+        ui->lineEdit_ident_nick->clear();
+        ui->lineEdit_ident_nick_alt->clear();
+        ui->lineEdit_ident_realname->clear();
+        ui->lineEdit_ident_username->clear();
         setInputEnabled(false);
     }
 
