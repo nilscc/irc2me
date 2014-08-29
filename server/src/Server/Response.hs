@@ -4,9 +4,10 @@
 
 module Server.Response where
 
-import Control.Lens.Getter
+import Control.Lens
 import Control.Monad.Reader
 
+import Data.Foldable
 import Data.Maybe
 import Data.Monoid
 import Data.ProtocolBuffers
@@ -43,34 +44,34 @@ messageField
   :: (HasField a)
   => Getter PB_ClientMessage a
   -> ServerResponseT (FieldType a)
-messageField lens = do
+messageField lns = do
   msg <- getClientMessage
-  return $ msg ^. lens . field
+  return $ msg ^. lns . field
 
 guardMessageField
   :: (HasField a, FieldType a ~ Maybe t)
   => Getter PB_ClientMessage a
   -> ServerResponseT ()
-guardMessageField lens = do
+guardMessageField lns = do
   msg <- getClientMessage
-  guard $ isJust $ msg ^. lens . field
+  guard $ isJust $ msg ^. lns . field
 
 guardMessageFieldValue
   :: (HasField a, Eq (FieldType a))
   => Getter PB_ClientMessage a
   -> FieldType a
   -> ServerResponseT ()
-guardMessageFieldValue lens val = do
+guardMessageFieldValue lns val = do
   msg <- getClientMessage
-  guard $ (msg ^. lens . field) == val
+  guard $ (msg ^. lns . field) == val
 
 requireMessageField
   :: (HasField a, FieldType a ~ Maybe t)
   => Getter PB_ClientMessage a
   -> ServerResponseT t
-requireMessageField lens = do
+requireMessageField lns = do
   msg <- getClientMessage
-  case msg ^. lens . field of
+  case msg ^. lns . field of
     Just t  -> return t
     Nothing -> mzero
 
@@ -79,8 +80,39 @@ requireMessageFieldValue
   => Getter PB_ClientMessage a
   -> t
   -> ServerResponseT ()
-requireMessageFieldValue lens val = do
+requireMessageFieldValue lns val = do
   msg <- getClientMessage
-  case msg ^. lens . field of
+  case msg ^. lns . field of
     Just t | t == val -> return ()
     _                 -> mzero
+
+------------------------------------------------------------------------------
+-- Folds
+
+foldOn, guardFoldOn
+  :: (Foldable f, HasField field, FieldType field ~ f a)
+  => Getter PB_ClientMessage field
+  -> Fold a b
+  -> ServerResponseT [b]
+
+foldOn lns fld = do
+  msg <- getClientMessage
+  return $ (msg ^. lns.field) ^.. folded . fld
+
+guardFoldOn lns fld = do
+  lis <- foldOn lns fld
+  guard $ not $ null lis
+  return lis
+
+foldROn, guardFoldROn
+  :: (Foldable f, HasField field, FieldType field ~ f a)
+  => Getter PB_ClientMessage field
+  -> ReifiedFold a b
+  -> ServerResponseT [b]
+
+foldROn lns rfld = foldOn lns (runFold rfld)
+
+guardFoldROn lns rfld = do
+  lis <- foldROn lns rfld
+  guard $ not $ null lis
+  return lis

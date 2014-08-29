@@ -5,8 +5,8 @@
 
 module ProtoBuf.Messages.Identity where
 
-import Control.Lens.Operators
-import Control.Lens.TH
+import Control.Lens hiding (Identity)
+import Control.Applicative
 
 import Data.Text (Text)
 import Data.ProtocolBuffers
@@ -58,3 +58,12 @@ decodeIdentity pbident = Identity
   , ident_name      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_name     . field
   , ident_realname  =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_realname . field
   }
+
+------------------------------------------------------------------------------
+-- Folds
+
+identitiesWithID :: ReifiedFold PB_Identity PB_Identity
+identitiesWithID = Fold id <* Fold (pb_ident_id . field . _Just)
+
+identitiesWithoutID :: ReifiedFold PB_Identity PB_Identity
+identitiesWithoutID = Fold id <* Fold (pb_ident_id . field . _Nothing)

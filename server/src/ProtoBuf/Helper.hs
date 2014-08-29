@@ -5,9 +5,7 @@
 
 module ProtoBuf.Helper where
 
-import Control.Lens.Operators
-import Control.Lens.Getter
-import Control.Lens.Setter
+import Control.Lens
 
 import           Data.Maybe
 import           Data.Int (Int32, Int64)

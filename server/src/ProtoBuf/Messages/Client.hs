@@ -40,10 +40,9 @@ data PB_ClientMessage = PB_ClientMessage
 
     -- networks
   , _network_set            :: Repeated 100 (Message PB_Network)
-  , _network_get_new        :: Optional 101 (Value Bool)
-  , _network_remove         :: Repeated 102 (Value ID_T)
-  , _network_get_all_names  :: Optional 103 (Value Bool)
-  , _network_get_details    :: Repeated 104 (Value ID_T)
+  , _network_remove         :: Repeated 101 (Value ID_T)
+  , _network_get_all_names  :: Optional 102 (Value Bool)
+  , _network_get_details    :: Repeated 103 (Value ID_T)
   }
   deriving (Eq, Show, Generic)
 
@@ -65,7 +64,6 @@ emptyClientMessage = PB_ClientMessage
   mempty
   mempty
   -- networks
-  mempty
   mempty
   mempty
   mempty
