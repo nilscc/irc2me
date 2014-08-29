@@ -32,6 +32,7 @@ module IRC.Connection
 import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
+import Control.Lens.Operators
 
 import qualified Data.Map as M
 import           Data.Map (Map)
@@ -79,9 +80,9 @@ reconnect con = do
     closeConnection con
 
   -- reuse server, user and debugging chan
-  let usr       = con_user con
-      srv       = con_server con
-      debug_out = con_debug_output con
+  let usr       = con ^. con_user
+      srv       = con ^. con_server
+      debug_out = con ^. con_debug_output
 
   chans <- getChannels con
 
@@ -100,12 +101,12 @@ connect'
 connect' srv usr channels debug_out = handleExceptions $ do
 
   -- acquire IRC connection
-  h <- connectTo (srv_host srv) (srv_port srv)
+  h <- connectTo (srv ^. srv_host) (srv ^. srv_port)
   hSetBuffering h LineBuffering
   hSetBinaryMode h True
 
   -- prepare connection state variables
-  nick_tvar     <- newTVarIO $ usr_nick usr
+  nick_tvar     <- newTVarIO $ usr ^. ident_nick
   chans_tvar    <- newTVarIO channels
   stat_tvar     <- newTVarIO ConnectionInitializing
   tls_tvar      <- newTVarIO Nothing
@@ -120,10 +121,10 @@ connect' srv usr channels debug_out = handleExceptions $ do
                        debug_out
 
   -- check TLS settings
-  resend <- initTLS con (srv_tls srv)
+  resend <- initTLS con (srv ^. srv_tls)
 
   -- send username to IRC server
-  msgs <- waitForOK con (usr_nick_alt usr) resend []
+  msgs <- waitForOK con (usr ^. ident_nick_alt) resend []
 
   sequence_ [ send con $ joinMsg chan mkey
             | (chan, mkey) <- M.toList channels
@@ -258,7 +259,7 @@ getIncoming con = handleRecvExceptions $
 
  where
 
-  runResult time (IncomingReqUsr f) = runResult time $ f (con_user con)
+  runResult time (IncomingReqUsr f) = runResult time $ f (con ^. con_user)
   runResult time (IncomingReqNck f) = getCurrentNick con >>= runResult time . f
   runResult time (IncomingResult to_send res quit) = do
     mapM_ (send con) to_send

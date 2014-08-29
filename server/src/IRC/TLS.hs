@@ -9,6 +9,7 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
 import Control.Exception
+import Control.Lens.Operators
 
 import Crypto.Random
 
@@ -56,7 +57,7 @@ logging = def { loggingPacketSent = \s     -> putStrLn $ "send > " ++ s
               }
 
 clientParams :: Server -> ClientParams
-clientParams srv = (defaultParamsClient (srv_host srv) "irc2mobile-backend")
+clientParams srv = (defaultParamsClient (srv ^. srv_host) "irc2mobile-backend")
   { clientSupported = def { supportedCiphers = ciphersuite_strong }
   , clientHooks     = def { onServerCertificate = validateButIgnore }
   }
@@ -71,8 +72,8 @@ establishTLS con = handleExceptions $ do
       gen <- cprgCreate `fmap` createEntropyPool :: IO SystemRNG
 
       -- create TLS context
-      ctxt <- contextNew (con_handle con)
-                         (clientParams (con_server con))
+      ctxt <- contextNew (con ^. con_handle)
+                         (clientParams (con ^. con_server))
                          gen
 
       -- setup logging (optional)
@@ -94,7 +95,7 @@ establishTLS con = handleExceptions $ do
               bs <- recvData ctxt
               atomically $ modifyTVar buff (`BS.append` bs)
 
-      atomically $ writeTVar (con_tls_context con) $ Just (ctxt, buff, tid)
+      atomically $ writeTVar (con ^. con_tls_context) $ Just (ctxt, buff, tid)
 
       return True
  where

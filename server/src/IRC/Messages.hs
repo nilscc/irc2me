@@ -8,6 +8,7 @@ module IRC.Messages where
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception
+import Control.Lens.Operators
 
 import qualified Data.ByteString as BS
 import           Data.ByteString (ByteString)
@@ -28,20 +29,20 @@ import IRC.Types
 -- Helper
 
 getTlsContext :: Connection -> IO (Maybe (Context, TLSBuffer, ThreadId))
-getTlsContext con = atomically $ readTVar (con_tls_context con)
+getTlsContext con = atomically $ readTVar (con ^. con_tls_context)
 
 getCurrentNick :: Connection -> IO ByteString
 getCurrentNick con = atomically $ getCurrentNick' con
 
 getCurrentNick' :: Connection -> STM ByteString
-getCurrentNick' con = readTVar (con_nick_cur con)
+getCurrentNick' con = readTVar (con ^. con_nick_cur)
 
 -- | Send \"QUIT\" to server and close connection
 closeConnection :: Connection -> IO ()
 closeConnection con = do
   handleException $ sendBye con
-  handleException $ hClose (con_handle con)
-  atomically $ writeTVar (con_status con) ConnectionClosed
+  handleException $ hClose (con ^. con_handle)
+  atomically $ writeTVar (con ^. con_status) ConnectionClosed
  where
   handleException = handle (\(_ :: IOException) -> return ())
 
@@ -77,7 +78,7 @@ send con msg = handleExceptions $ do
 
 sendRaw :: Connection -> ByteString -> IO ()
 sendRaw con bs = handleExceptions $ do
-  B8.hPutStr (con_handle con) bs
+  B8.hPutStr (con ^. con_handle) bs
  where
   handleExceptions =
     handle (\(_ :: IOException) -> logE con "sendRaw" "Is the connection open?")
@@ -89,7 +90,7 @@ tlsGetLine :: Connection -> IO ByteString
 tlsGetLine con = do
   tls_cont <- getTlsContext con
   case tls_cont of
-    Nothing -> BS.hGetLine (con_handle con)
+    Nothing -> BS.hGetLine (con ^. con_handle)
     Just (_, buff, _) -> do
       atomically $ do
         bs <- readTVar buff `orElse` retry
@@ -106,7 +107,7 @@ tlsSend con bs = do
   tls_cont <- getTlsContext con
   case tls_cont of
     Just (ctxt, _, _) -> sendData ctxt (BL.fromStrict bs)
-    Nothing           -> BS.hPutStr (con_handle con) bs
+    Nothing           -> BS.hPutStr (con ^. con_handle) bs
 
 sendSTARTTLS :: Connection -> IO ()
 sendSTARTTLS con = sendRaw con "STARTTLS\r\n"
@@ -134,9 +135,9 @@ nickMsg :: ByteString -> IRCMsg
 nickMsg nick = ircMsg "NICK" [ nick ] ""
 
 userMsg :: Identity -> IRCMsg
-userMsg usr = ircMsg "USER" [ usr_name usr
+userMsg usr = ircMsg "USER" [ usr ^. ident_name
                             , "*", "*"
-                            , usr_realname usr ] ""
+                            , usr ^. ident_realname ] ""
 
 pingMsg :: IRCMsg
 pingMsg = ircMsg "PING" [] ""
@@ -170,6 +171,6 @@ quitMsg mquitmsg = ircMsg "QUIT" (maybe [] return mquitmsg) ""
 -- | Send both user and nick name from current connection to server
 sendUserAuth :: Connection -> IO ()
 sendUserAuth con = do
-  send con $ userMsg (con_user con)
+  send con $ userMsg (con ^. con_user)
   nick <- getCurrentNick con
   send con $ nickMsg nick

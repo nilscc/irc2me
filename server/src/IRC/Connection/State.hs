@@ -6,6 +6,7 @@ module IRC.Connection.State where
 
 import Control.Concurrent.STM
 import Control.Monad
+import Control.Lens.Operators
 
 import           Data.Map (Map)
 import qualified Data.Map as M
@@ -28,7 +29,7 @@ getConnectionStatus :: Connection -> IO ConnectionStatus
 getConnectionStatus = atomically . getConnectionStatus'
 
 getConnectionStatus' :: Connection -> STM ConnectionStatus
-getConnectionStatus' con = readTVar (con_status con)
+getConnectionStatus' con = readTVar (con ^. con_status)
 
 -- | Check is connection is open. Blocks if connection is still initializing
 -- until init is done.
@@ -50,7 +51,7 @@ setConnectionStatus :: Connection -> ConnectionStatus -> IO ()
 setConnectionStatus con stat = atomically $ setConnectionStatus' con stat
 
 setConnectionStatus' :: Connection -> ConnectionStatus -> STM ()
-setConnectionStatus' con stat = writeTVar (con_status con) stat
+setConnectionStatus' con stat = writeTVar (con ^. con_status) stat
 
 --------------------------------------------------------------------------------
 -- Nick
@@ -59,7 +60,7 @@ setNick :: Connection -> ByteString -> IO ()
 setNick con nick = atomically $ setNick' con nick
 
 setNick' :: Connection -> ByteString -> STM ()
-setNick' con nick = writeTVar (con_nick_cur con) nick
+setNick' con nick = writeTVar (con ^. con_nick_cur) nick
 
 --------------------------------------------------------------------------------
 -- Channels
@@ -68,13 +69,13 @@ getChannels :: Connection -> IO (Map Channel (Maybe Key))
 getChannels con = atomically $ getChannels' con
 
 getChannels' :: Connection -> STM (Map Channel (Maybe Key))
-getChannels' con = readTVar (con_channels con)
+getChannels' con = readTVar (con ^. con_channels)
 
 setChannels :: Connection -> [(Channel, Maybe Key)] -> IO ()
 setChannels con chans = atomically $ setChannels' con chans
 
 setChannels' :: Connection -> [(Channel, Maybe Key)] -> STM ()
-setChannels' con chans = writeTVar (con_channels con) (M.fromList chans)
+setChannels' con chans = writeTVar (con ^. con_channels) (M.fromList chans)
 
 -- | Split "[@|+]<nick>"
 getUserflag :: ByteString -> (Nickname, Maybe Userflag)
@@ -84,17 +85,17 @@ getUserflag n = case B8.uncons n of
                   _                -> (n, Nothing)
 
 getCurrentNickname :: Connection -> STM Nickname
-getCurrentNickname con = readTVar $ con_nick_cur con
+getCurrentNickname con = readTVar $ con ^. con_nick_cur
 
 -- | Compare a IRC message prefix with current nickname & username
 isCurrentUser :: Identity -> UserInfo -> Bool
 isCurrentUser usr (UserInfo{ userNick, userName }) =
-  userNick == usr_nick usr &&
-  userName == Just (usr_name usr)
+  userNick == usr ^. ident_nick &&
+  userName == Just (usr ^. ident_name)
 
 -- | Compare nicknames only
 isCurrentNick :: Connection -> Nickname -> IO Bool
 isCurrentNick con nick = atomically $ isCurrentNick' con nick
 
 isCurrentNick' :: Connection -> Nickname -> STM Bool
-isCurrentNick' con nick = (nick ==) `fmap` readTVar (con_nick_cur con)
+isCurrentNick' con nick = (nick ==) `fmap` readTVar (con ^. con_nick_cur)
