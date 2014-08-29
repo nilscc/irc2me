@@ -4,6 +4,7 @@ module IRC.Debug where
 
 import Control.Concurrent.STM
 import Control.Exception
+import Control.Lens
 
 import IRC.Types
 
@@ -12,7 +13,7 @@ import IRC.Types
 
 logC :: Connection -> String -> IO ()
 logC con s = do
-  atomically $ writeTChan (con_debug_output con) s
+  atomically $ writeTChan (con ^. con_debug_output) s
 
 logE, logW, logI :: Connection -> String -> String -> IO ()
 
@@ -27,7 +28,7 @@ logI con where_ what =
 
 getDebugOutput :: Connection -> IO (Maybe String)
 getDebugOutput con = handleExceptions $ do
-  s <- atomically $ readTChan (con_debug_output con)
+  s <- atomically $ readTChan (con ^. con_debug_output)
   return $ Just s
  where
   handleExceptions = handle (\(_ :: BlockedIndefinitelyOnSTM) -> return Nothing)

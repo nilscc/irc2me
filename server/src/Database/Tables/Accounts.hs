@@ -5,6 +5,8 @@ module Database.Tables.Accounts where
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 
+import Control.Lens hiding (Identity)
+
 import Crypto.Scrypt
 import Database.HDBC
 
@@ -84,11 +86,11 @@ identitySELECT = "SELECT id, username, realname, nick, nick_alt FROM account_ide
 toIdentity :: Converter Identity
 toIdentity s = case s of
   [SqlInteger i, SqlByteString u, SqlByteString r, SqlByteString n, na] -> Just $
-    Identity { ident_id = i
-             , ident_name = u
-             , ident_realname = r
-             , ident_nick = n
-             , ident_nick_alt = maybe [] (map B8.pack) $ arrayUnpack na
+    Identity { _ident_id = i
+             , _ident_name = u
+             , _ident_realname = r
+             , _ident_nick = n
+             , _ident_nick_alt = maybe [] (map B8.pack) $ arrayUnpack na
              }
   _ -> Nothing
 
@@ -108,10 +110,10 @@ addIdentity (Account a) usr = UpdateReturning
   \     VALUES                    (?      , ?       , ?       , ?   , ?)        \
   \  RETURNING id"
   [ toSql a
-  , toSql $ ident_name usr
-  , toSql $ ident_realname usr
-  , toSql $ ident_nick usr
-  , arrayPack $ map B8.unpack $ ident_nick_alt usr
+  , toSql $ usr ^. ident_name
+  , toSql $ usr ^. ident_realname
+  , toSql $ usr ^. ident_nick
+  , arrayPack $ map B8.unpack $ usr ^. ident_nick_alt
   ]
   (convertOne toID)
 
@@ -128,11 +130,11 @@ setIdentity (Account a) ident = Update
   "UPDATE account_identities \
   \   SET username = ?, realname = ?, nick = ?, nick_alt = ?  \
   \ WHERE account = ? AND id = ?"
-  [ toSql $ ident_name     ident
-  , toSql $ ident_realname ident
-  , toSql $ ident_nick     ident
-  , arrayPack $ map B8.unpack $ ident_nick_alt ident
+  [ toSql $ ident ^. ident_name
+  , toSql $ ident ^. ident_realname
+  , toSql $ ident ^. ident_nick
+  , arrayPack $ map B8.unpack $ ident ^. ident_nick_alt
   , toSql $ a
-  , toSql $ ident_id       ident
+  , toSql $ ident ^. ident_id
   ]
   (== 1)

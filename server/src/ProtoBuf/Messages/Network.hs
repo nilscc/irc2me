@@ -90,10 +90,10 @@ emptyNetwork n_id = PB_Network
   --mempty
 
 encodeNetwork :: IRC.Network -> PB_Network
-encodeNetwork netw = emptyNetwork (IRC.netw_id netw)
-  & network_name      .~~ Just (IRC.netw_name netw)
-  & network_reconnect .~~ Just (IRC.netw_reconnect netw)
-  & network_identity  .~~ IRC.netw_identity netw
+encodeNetwork netw = emptyNetwork (netw ^. IRC.netw_id)
+  & network_name      .~~ Just (netw ^. IRC.netw_name)
+  & network_reconnect .~~ Just (netw ^. IRC.netw_reconnect)
+  & network_identity  .~~       netw ^. IRC.netw_identity
 
 
 ------------------------------------------------------------------------------

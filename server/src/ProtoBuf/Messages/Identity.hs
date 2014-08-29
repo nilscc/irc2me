@@ -15,7 +15,7 @@ import Data.Maybe
 
 import GHC.Generics (Generic)
 
-import IRC.Types (Identity(..))
+import IRC.Types
 
 import ProtoBuf.Types
 import ProtoBuf.Helper
@@ -44,19 +44,19 @@ emptyIdentity i = PB_Identity
   mempty
 
 encodeIdentity :: Identity -> PB_Identity
-encodeIdentity ident = emptyIdentity (ident_id ident)
-  & pb_ident_nick     .~~ Just (ident_nick     ident)
-  & pb_ident_nick_alt .~~       ident_nick_alt ident
-  & pb_ident_name     .~~ Just (ident_name     ident)
-  & pb_ident_realname .~~ Just (ident_realname ident)
+encodeIdentity ident = emptyIdentity (ident ^. ident_id)
+  & pb_ident_nick     .~~ Just (ident ^. ident_nick)
+  & pb_ident_nick_alt .~~       ident ^. ident_nick_alt
+  & pb_ident_name     .~~ Just (ident ^. ident_name)
+  & pb_ident_realname .~~ Just (ident ^. ident_realname)
 
 decodeIdentity :: PB_Identity -> Identity
 decodeIdentity pbident = Identity
-  { ident_id        =          maybe 0 fromIntegral $ pbident ^. pb_ident_id       . field
-  , ident_nick      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_nick     . field
-  , ident_nick_alt  = map encodeUtf8 $                pbident ^. pb_ident_nick_alt . field
-  , ident_name      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_name     . field
-  , ident_realname  =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_realname . field
+  { _ident_id        =          maybe 0 fromIntegral $ pbident ^. pb_ident_id       . field
+  , _ident_nick      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_nick     . field
+  , _ident_nick_alt  = map encodeUtf8 $                pbident ^. pb_ident_nick_alt . field
+  , _ident_name      =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_name     . field
+  , _ident_realname  =     encodeUtf8 $ fromMaybe "" $ pbident ^. pb_ident_realname . field
   }
 
 ------------------------------------------------------------------------------

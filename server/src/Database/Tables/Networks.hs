@@ -1,5 +1,7 @@
 module Database.Tables.Networks where
 
+import Control.Lens
+
 import Database.HDBC
 import Network
 import qualified Data.ByteString.Char8 as B8
@@ -19,10 +21,10 @@ networkSELECT = "SELECT id, name, reconnect, identity FROM networks"
 
 toNetwork :: Converter Network
 toNetwork [SqlInteger i, SqlByteString name, SqlBool reconnect, ident ] = Just $
-  Network { netw_id        = i
-          , netw_name      = B8.unpack name
-          , netw_reconnect = reconnect
-          , netw_identity  = case ident of
+  Network { _netw_id        = i
+          , _netw_name      = B8.unpack name
+          , _netw_reconnect = reconnect
+          , _netw_identity  = case ident of
                                SqlInteger i' -> Just i'
                                _             -> Nothing
           }
@@ -56,9 +58,9 @@ serverSELECT = "SELECT address, port, use_tls FROM network_servers"
 toServer :: Converter Server
 toServer s = case s of
   [SqlByteString a, SqlInteger p, SqlBool ssl] -> Just $
-    Server { srv_host       = B8.unpack a
-           , srv_port       = PortNumber $ fromIntegral p
-           , srv_tls        = if ssl then TLS else OptionalSTARTTLS
+    Server { _srv_host       = B8.unpack a
+           , _srv_port       = PortNumber $ fromIntegral p
+           , _srv_tls        = if ssl then TLS else OptionalSTARTTLS
            }
   _ -> Nothing
 
@@ -67,7 +69,7 @@ toServer s = case s of
 selectServers :: Network -> Query [Server]
 selectServers netw = Query
   (serverSELECT ++ " WHERE network = ?")
-  [toSql $ netw_id netw]
+  [toSql $ netw ^. netw_id]
   (convertList toServer)
 
 -- updates
@@ -76,10 +78,10 @@ addServer :: Network -> Server -> Update Bool
 addServer netw server = Update
   "INSERT INTO network_servers (network, address, port, use_tls) \
    \    VALUES (?, ?, ?, ?)"
-  [ toSql $ netw_id netw
-  , toSql $ srv_host server
-  , toSql $ fromPortID $ srv_port server
-  , toSql $ srv_tls server == TLS
+  [ toSql $ netw ^. netw_id
+  , toSql $ server ^. srv_host
+  , toSql $ fromPortID $ server ^. srv_port
+  , toSql $ (server ^. srv_tls) == TLS
   ]
   (== 1)
  where
@@ -104,7 +106,7 @@ toChannel s = case s of
 selectChannels :: Network -> Query [Channel]
 selectChannels netw = Query
   (channelSELECT ++ " WHERE network = ?")
-  [toSql (netw_id netw)]
+  [toSql (netw ^. netw_id)]
   (convertList toChannel)
 
 -- updates
@@ -112,5 +114,5 @@ selectChannels netw = Query
 addChannel :: Network -> Channel -> Update Bool
 addChannel netw chan = Update
   "INSERT INTO network_channels (network, name) VALUES (?, ?)"
-  [toSql (netw_id netw), toSql chan]
+  [toSql (netw ^. netw_id), toSql chan]
   (== 1)
