@@ -5,80 +5,78 @@
 
 module ProtoBuf.Messages.IRC where
 
-import Control.Lens.Operators
-import Control.Lens.TH
-import Control.Monad
-
+-- import Data.ByteString (ByteString)
 import Data.ProtocolBuffers
-import Data.Monoid
+import Data.ProtocolBuffers.TH
 import Data.Text          (Text)
 
 import GHC.Generics (Generic)
 
-import qualified Network.IRC.ByteString.Parser as I
-import qualified IRC.Types                     as IRC
-import           ProtoBuf.Instances ()
-import           ProtoBuf.Helper
+-- lens package
+import Control.Lens
 
 --------------------------------------------------------------------------------
 -- IRC messages
 
-data IrcMsgType
-  = Ty_PrivMsg
-  | Ty_NoticeMsg
-  | Ty_JoinMsg
-  | Ty_PartMsg
-  | Ty_KickMsg
-  | Ty_QuitMsg
-  | Ty_MOTDMsg
-  | Ty_TopicMsg
-  | Ty_NickMsg
-  | Ty_NamreplyMsg
-  | Ty_ErrorMsg
-  | Ty_RawMsg
-  deriving (Eq, Enum, Show)
-
-data PB_Namreply = PB_Namreply
-  { _namreply_name     :: Required 1 (Value Text)
-  , _namreply_userflag :: Optional 2 (Enumeration IRC.Userflag)
+data IrcMessage = IrcMessage
+  { _ircPrivateMessage  :: Optional 1 (Message PrivateMessage)
+  , _ircStatusMessage   :: Optional 2 (Message StatusMessage)
   }
-  deriving (Eq, Show, Generic)
 
-instance Encode PB_Namreply
-instance Decode PB_Namreply
-
-makeLenses ''PB_Namreply
-
-emptyNamreply :: PB_Namreply
-emptyNamreply = PB_Namreply mempty mempty
-
-data PB_IrcMessage = PB_IrcMessage
-  { -- message type
-    _irc_msg_type        :: Required 1  (Enumeration IrcMsgType)
-    -- raw messages
-  , _irc_msg_from        :: Optional 5 (Value Text) -- either...
-  , _irc_msg_servername  :: Optional 6 (Value Text) -- ...or
-  , _irc_msg_command     :: Optional 7 (Value Text)
-  , _irc_msg_params      :: Repeated 8 (Value Text)
-  , _irc_msg_content     :: Optional 9 (Value Text)
-    -- privmsg/notice
-  , _irc_msg_to          :: Optional 10 (Value Text)
-    -- nick change + namreply
-  , _irc_msg_new_nick    :: Optional 21 (Value Text)
-  , _irc_msg_namreply    :: Repeated 22 (Message PB_Namreply)
-    -- join/part/kick/quit
-  , _irc_msg_channels    :: Repeated 30 (Value Text)
-  , _irc_msg_who         :: Optional 31 (Value Text)
-    -- motd/topic
-  , _irc_msg_notopic     :: Optional 42 (Value Bool)
+data PrivateMessage = PrivateMessage
+  { _pmFromUser         :: Optional 1 (Message User)
+  , _pmFromServer       :: Optional 2 (Value Text)
+  , _pmTo               :: Repeated 3 (Value Text)
+  , _pmMessage          :: Optional 4 (Value Text)
   }
   deriving (Show, Generic)
 
-instance Encode PB_IrcMessage
-instance Decode PB_IrcMessage
+data Userflag = Operator | Voice
+  deriving (Show, Eq, Ord, Enum)
 
-makeLenses ''PB_IrcMessage
+data User = User
+  { _userNick           :: Required 1 (Value Text)
+  , _userName           :: Optional 2 (Value Text)
+  , _userHost           :: Optional 3 (Value Text)
+  , _userFlag           :: Optional 4 (Enumeration Userflag)
+  }
+  deriving (Show, Generic)
 
+data StatusType
+  = Notice
+  | Join
+  | Part
+  | Quit
+  | Kick
+  | Nick
+  | Topic
+  | MessageOfTheDay
+  deriving (Eq, Ord, Show, Enum)
+
+data StatusMessage = StatusMessage
+  { _smType         :: Required 1 (Enumeration StatusType)
+  , _smFromUser     :: Optional 2 (Message User)
+  , _smFromServer   :: Optional 3 (Value Text)
+  , _smTo           :: Repeated 3 (Value Text)
+  , _smMessage      :: Optional 4 (Value Text)
+  }
+  deriving (Show, Generic)
+
+--
+-- instances, TH etc
+--
+
+makeFieldLenses ''IrcMessage
+
+makeFieldLenses ''User
+makePrisms      ''Userflag
+
+makeFieldLenses ''PrivateMessage
+
+makeFieldLenses ''StatusMessage
+makePrisms      ''StatusType
+
+{-
 emptyIrcMessage :: IrcMsgType -> PB_IrcMessage
 emptyIrcMessage ty = PB_IrcMessage
   -- msg type
@@ -100,6 +98,37 @@ emptyIrcMessage ty = PB_IrcMessage
   -- motd/topic
   mempty
 
+ircMsgType :: Iso' ByteString IrcMsgType
+ircMsgType = iso to' from'
+ where
+  to' = undefined
+  from' = undefined
+
+ircMessage :: Iso' I.IRCMsg PB_IrcMessage
+ircMessage = iso to' from'
+ where
+
+  from' = undefined
+
+  to' :: I.IRCMsg -> PB_IrcMessage
+  to' msg = emptyIrcMessage ty &~ do
+    setPrefix $ I.msgPrefix msg
+    setParams $ I.msgParams msg
+    setTrail  $ I.msgTrail  msg
+   where
+    ty = I.msgCmd msg ^. ircMsgType
+    setPrefix Nothing     = return ()
+    setPrefix (Just prfx) = case prfx of
+      Left (I.UserInfo nick _ _) -> do
+        irc_msg_from . field .= _Just # (nick ^. encoded)
+      Right srv -> do
+        irc_msg_servername . field .= (_Just # (srv ^. encoded))
+
+    setCmd = undefined
+    setParams = undefined
+    setTrail = undefined
+
+{-
 encodeIrcMessage :: IRC.Message -> PB_IrcMessage
 encodeIrcMessage msg =
   case msg of
@@ -167,3 +196,5 @@ toNamreply :: [(IRC.Nickname, Maybe IRC.Userflag)]
 toNamreply n = map `flip` n $ \(name, uf) ->
   emptyNamreply & namreply_name     .~~ name
                 & namreply_userflag .~~ uf
+                -}
+                -}
