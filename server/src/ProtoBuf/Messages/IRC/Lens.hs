@@ -1,10 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ProtoBuf.Messages.IRC.Lens
-  ( ircMessage
-  , ircUser
-  , ircType
-  ) where
+module ProtoBuf.Messages.IRC.Lens where
 
 import Control.Applicative
 
