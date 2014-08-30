@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ProtoBuf.Messages.IRC.Lens where
+module ProtoBuf.Messages.IRC.Lens
+  ( ircMessage
+  , ircUser
+  , ircType
+  ) where
 
 import Control.Applicative
 
@@ -25,15 +29,17 @@ import IRC.Codes
 import ProtoBuf.Helper
 import ProtoBuf.Messages.IRC
 
--- User iso
+--
+-- IRC user iso
+--
 
-ircUser :: Iso' IRC.UserInfo User
+ircUser :: Iso' IRC.UserInfo IrcUser
 ircUser = iso toIrcUser fromIrcUser
 
-emptyIrcUser :: User
-emptyIrcUser = User (putField "") mempty mempty mempty
+emptyIrcUser :: IrcUser
+emptyIrcUser = IrcUser (putField "") mempty mempty mempty
 
-fromIrcUser :: User -> IRC.UserInfo
+fromIrcUser :: IrcUser -> IRC.UserInfo
 fromIrcUser usr = IRC.UserInfo
   (addFlag $ usr ^. userNick . from encoded)
   (          usr ^? userName . _Just . from encoded)
@@ -44,88 +50,38 @@ fromIrcUser usr = IRC.UserInfo
   flag Operator = '@'
   flag Voice    = '+'
 
-toIrcUser :: IRC.UserInfo -> User
+toIrcUser :: IRC.UserInfo -> IrcUser
 toIrcUser ui = emptyIrcUser &~ do
   userNick .= IRC.userNick ui ^. encoded
   userName .= IRC.userName ui ^? _Just . encoded
   userHost .= IRC.userHost ui ^? _Just . encoded
 
-
--- IrcMsgType prism
+--
+-- IRC message prism
+--
 
 ircMessage :: Prism' IRC.IRCMsg IrcMessage
 ircMessage = prism' fromIrcMsg toIrcMsg
 
 emptyIrcMessage :: IrcMessage
 emptyIrcMessage = IrcMessage
-  { _ircPrivateMessage = putField Nothing
-  , _ircStatusMessage  = putField Nothing
-  }
-
-emptyPrivateMessage :: PrivateMessage
-emptyPrivateMessage = PrivateMessage
-  { _pmFromUser = putField Nothing
-  , _pmFromServer = putField Nothing
-  , _pmTo = putField []
-  , _pmMessage = putField Nothing
-  }
-
-emptyStatusMessage :: StatusMessage
-emptyStatusMessage = StatusMessage
-  { _smType = putField Notice
-  , _smFromUser = putField Nothing
-  , _smFromServer = putField Nothing
-  , _smTo = putField []
-  , _smMessage = putField Nothing
+  { _ircMessageType = putField Nothing
+  , _ircFromUser    = putField Nothing
+  , _ircFromServer  = putField Nothing
+  , _ircTo          = putField []
+  , _ircContent     = putField Nothing
   }
 
 toIrcMsg :: IRC.IRCMsg -> Maybe IrcMessage
-toIrcMsg msg =
-  case IRC.msgCmd msg of
-    "PRIVMSG"           -> toPrivMsg msg
-    _ | is `any` status -> toStatMsg msg
-      | otherwise       -> Nothing
- where
-  is code = B8.pack code == IRC.msgCmd msg
-  status = [ "JOIN"
-           , "PART"
-           , "QUIT"
-           , "KICK"
-           , "NICK"
-           , rpl_TOPIC
-           , "MOTD"
-           ]
+toIrcMsg msg
 
-toPrivMsg :: IRC.IRCMsg -> Maybe IrcMessage
-toPrivMsg msg = Just $
-  emptyIrcMessage & ircPrivateMessage .~ Just privMsg
- where
-  -- user / server info
-  fromU = case IRC.msgPrefix msg of
-    Just (Left ui) -> Just (ui ^. ircUser)
-    _              -> Nothing
-  fromS = case IRC.msgPrefix msg of
-    Just (Right s) -> Just (s ^. encoded)
-    _              -> Nothing
-
-  -- to?
-  to' = map (^. encoded) (IRC.msgParams msg)
-
-  -- content
-  content = IRC.msgTrail msg ^. encoded
-
-  -- build the message
-  privMsg = emptyPrivateMessage &~ do
-    pmFromUser    .= fromU
-    pmFromServer  .= fromS
-    pmTo          .= to'
-    pmMessage     .= if T.null content then Nothing else Just content
-
-toStatMsg :: IRC.IRCMsg -> Maybe IrcMessage
-toStatMsg msg
-
-  | Just ty <- IRC.msgCmd msg ^? statusType
-  = Just $ emptyIrcMessage & ircStatusMessage .~ Just (statMsg ty)
+  | Just ty <- IRC.msgCmd msg ^? ircType
+  = Just $ emptyIrcMessage &~ do
+      ircMessageType  .= Just ty
+      ircFromUser     .= fromU
+      ircFromServer   .= fromS
+      ircTo           .= to'
+      ircContent      .= if T.null content then Nothing else Just content
 
   | otherwise
   = Nothing
@@ -146,57 +102,30 @@ toStatMsg msg
   -- content
   content = IRC.msgTrail msg ^. encoded
 
-  -- build message
-  statMsg cmd = emptyStatusMessage &~ do
-    smType .= cmd
-    smFromUser .= fromU
-    smFromServer .= fromS
-    smTo .= to'
-    smMessage .= if T.null content then Nothing else Just content
-
 fromIrcMsg :: IrcMessage -> IRC.IRCMsg
-fromIrcMsg msg
-
-  | Just priv <- msg ^. ircPrivateMessage
-  = fromPrivMsg priv
-
-  | Just stat <- msg ^. ircStatusMessage
-  = fromStatMsg stat
-
-  | otherwise = IRC.IRCMsg Nothing "" [] ""
-
-fromPrivMsg :: PrivateMessage -> IRC.IRCMsg
-fromPrivMsg pm = IRC.IRCMsg
+fromIrcMsg msg = IRC.IRCMsg
   { IRC.msgPrefix = prefix
-  , IRC.msgCmd    = "PRIVMSG"
+  , IRC.msgCmd    = fromMaybe "" cmd
   , IRC.msgParams = to'
   , IRC.msgTrail  = fromMaybe "" content
   }
  where
-  prefix  =  (Left  <$> pm ^? pmFromUser   . _Just . from ircUser)
-         <|> (Right <$> pm ^? pmFromServer . _Just . from encoded)
-  to'     = map (^. from encoded) (pm ^. pmTo)
-  content = pm ^? pmMessage . _Just . from encoded
+  prefix  =  (Left  <$> msg ^? ircFromUser   . _Just . from ircUser)
+         <|> (Right <$> msg ^? ircFromServer . _Just . from encoded)
+  cmd     = msg ^? ircMessageType . _Just . re ircType
+  to'     = map (^. from encoded) (msg ^. ircTo)
+  content = msg ^? ircContent . _Just . from encoded
 
-fromStatMsg :: StatusMessage -> IRC.IRCMsg
-fromStatMsg sm = IRC.IRCMsg
-  { IRC.msgPrefix = prefix
-  , IRC.msgCmd    = cmd
-  , IRC.msgParams = to'
-  , IRC.msgTrail  = fromMaybe "" content
-  }
- where
-  prefix  =  (Left  <$> sm ^? smFromUser   . _Just . from ircUser)
-         <|> (Right <$> sm ^? smFromServer . _Just . from encoded)
-  cmd     = sm ^. smType . re statusType
-  to'     = map (^. from encoded) (sm ^. smTo)
-  content = sm ^? smMessage . _Just . from encoded
+--
+-- IRC type prism
+--
 
-statusType :: Prism' ByteString StatusType
-statusType = prism' fromStatusType toStatusType
+ircType :: Prism' ByteString IrcType
+ircType = prism' fromIrcType toIrcType
 
-fromStatusType :: StatusType -> ByteString
-fromStatusType cmd = case cmd of
+fromIrcType :: IrcType -> ByteString
+fromIrcType cmd = case cmd of
+  PrivMsg         -> "PRIVMSG"
   Notice          -> "NOTICE"
   Join            -> "JOIN"
   Part            -> "PART"
@@ -206,8 +135,9 @@ fromStatusType cmd = case cmd of
   Topic           -> rpl_TOPIC ^. packedChars
   MessageOfTheDay -> "MOTD"
 
-toStatusType :: ByteString -> Maybe StatusType
-toStatusType bs = case bs of
+toIrcType :: ByteString -> Maybe IrcType
+toIrcType bs = case bs of
+  "PRIVMSG"         -> Just PrivMsg
   "NOTICE"          -> Just Notice
   "JOIN"            -> Just Join
   "PART"            -> Just Part
