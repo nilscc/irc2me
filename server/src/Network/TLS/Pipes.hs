@@ -27,7 +27,7 @@ withTLS
      )
   => backend
   -> params
-  -> Producer ByteString m (Maybe TLSException)
+  -> Producer ByteString m (Maybe (Either TLSException IOException))
 withTLS h params = fmap (either Just (const Nothing)) . runExceptT $ do
 
   ctxt <- mkSafe $ do
@@ -46,7 +46,8 @@ withTLS h params = fmap (either Just (const Nothing)) . runExceptT $ do
  where
 
   mkSafe io = do
-    r <- liftIO $ handle (\(e :: TLSException) -> return (Left e))
+    r <- liftIO $ handle (\(e :: TLSException) -> return (Left (Left e)))
+                . handle (\(e :: IOException ) -> return (Left (Right e)))
                 $ Right <$> io
     case r of
       Left  e -> throwError e
