@@ -21,14 +21,14 @@ import Network.TLS
 -- pipes
 import Pipes
 
-withTLS
+receiveTLS
   :: ( MonadIO m
      , HasBackend backend, TLSParams params
      )
   => backend
   -> params
   -> Producer ByteString m (Maybe (Either TLSException IOException))
-withTLS h params = fmap (either Just (const Nothing)) . runExceptT $ do
+receiveTLS h params = fmap (either Just (const Nothing)) . runExceptT $ do
 
   ctxt <- mkSafe $ do
     -- in IO monad
