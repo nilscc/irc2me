@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Database.Query where
+module Irc2me.Database.Query where
 
 import Control.Applicative
 import Control.Monad.Trans
@@ -17,7 +17,7 @@ import Text.Printf
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 
-import Database.Config
+import Irc2me.Database.Config
 
 data Query a = Query
   { queryStr  :: String
