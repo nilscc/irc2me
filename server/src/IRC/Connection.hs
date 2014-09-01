@@ -214,6 +214,13 @@ data ConnectException m
   | IOException'    IOException
   | ParsingError'   ParsingError  (HaltedProducer m)
 
+instance Show (ConnectException m) where
+  show TLSFailed           = "TLS failed"
+  show STARTTLSFailed      = "STARTTLS failed"
+  show (TLSException' e)   = "TLS exception: " ++ show e
+  show (IOException'  e)   = "IO exception: " ++ show e
+  show (ParsingError' e _) = "Parsing error: " ++ show e
+
 class IsConnectException m e where
 
   toConnectException :: e -> ConnectException m
