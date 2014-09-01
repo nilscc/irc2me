@@ -1,9 +1,5 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module IRC.Connection
