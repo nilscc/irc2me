@@ -2,6 +2,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GADTs #-}
+
 module Network.IRC.Connection
   ( -- * Connecting to IRC
     connect
@@ -10,14 +13,15 @@ module Network.IRC.Connection
   , ircMessages, IrcProducer
   , sendIrc
   , closeConnection
-    -- ** Utilities
-  , sendIrcT
-  , handleIrcMessages
-  , module Network.IRC.Message.Filter
     -- * Exceptions
   , ConnectionException(..)
     -- ** Haltes producers
   , HaltedProducer, continue
+    -- * Utilities
+  , sendIrcT
+  , handleIrcMessages
+  , module Network.IRC.Message.Filter
+  , dumpHaltedProducer
   ) where
 
 import Control.Applicative
@@ -218,12 +222,11 @@ starttlsLoop prod msgs = do
 ------------------------------------------------------------------------------
 -- Exceptions
 
-newtype HaltedProducer m = HaltedProducer
-  { runHaltedProducer :: IrcProducer m
-  }
+data HaltedProducer m where
+  HaltedProducer :: IsConnectionException m e => Producer ByteString m (Maybe e) -> HaltedProducer m
 
-continue :: Connection m -> HaltedProducer m -> Connection m
-continue con hp = con { ircMessages = runHaltedProducer hp }
+continue :: MonadIO m => Connection m -> HaltedProducer m -> Connection m
+continue con (HaltedProducer hp) = con { ircMessages = continueWith hp }
 
 data ConnectionException m
   = TLSFailed
@@ -268,7 +271,7 @@ parsedIrcMessage bsprod = do
     yield (now, msg)
 
 ircParser :: Attoparsec.Parser IRCMsg
-ircParser = ircLine <* optional (string "\r\n" <?> "end of line")
+ircParser = ircLine <* optional (string "\r\n")
 
 -- | Continue parsing IRC messages from a `Producer`, possibly returned
 -- from a `ParsingError'`
@@ -279,7 +282,7 @@ continueWith
 continueWith p = do
   r <- parsedIrcMessage p
   return $ case r of
-    Left (pe, pr)  -> Just $ ParsingError' pe (HaltedProducer $ continueWith pr)
+    Left (pe, pr)  -> Just $ ParsingError' pe (HaltedProducer pr)
     Right (Just e) -> Just $ toConnectionException e
     Right Nothing  -> Nothing
 
@@ -324,3 +327,7 @@ handleIrcMessages con f =
 -- | `send` lifted to the `IrcT` monad
 sendIrcT :: MonadIO m => Connection m -> IRCMsg -> IrcT m ()
 sendIrcT con msg = lift . lift $ sendIrc con msg
+
+dumpHaltedProducer :: Monad m => HaltedProducer m -> m ByteString
+dumpHaltedProducer (HaltedProducer p) = do
+  runEffect $ ("" <$ p) >-> await
