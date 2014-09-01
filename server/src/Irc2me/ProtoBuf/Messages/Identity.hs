@@ -32,8 +32,6 @@ data Identity = Identity
 instance Encode Identity
 instance Decode Identity
 
-makeFieldLenses ''Identity
-
 emptyIdentity :: Identity
 emptyIdentity = Identity
   { _identityId       = putField Nothing
@@ -42,6 +40,11 @@ emptyIdentity = Identity
   , _identityName     = putField Nothing
   , _identityRealname = putField Nothing
   }
+
+------------------------------------------------------------------------------
+-- Lenses
+
+makeFieldLenses ''Identity
 
 ------------------------------------------------------------------------------
 -- Folds
