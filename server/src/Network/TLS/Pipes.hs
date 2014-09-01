@@ -29,7 +29,7 @@ fromTLS
      )
   => backend
   -> params
-  -> m (Maybe (TLSProducer m, Context))
+  -> m (Either (Either TLSException IOException) (TLSProducer m, Context))
 fromTLS h params = do
 
   mctxt <- runExceptT $ mkSafe $ do
@@ -43,7 +43,7 @@ fromTLS h params = do
   case mctxt of
 
     -- directly return exception in producer
-    Left _exc -> return Nothing -- TODO: Report error
+    Left exc -> return $ Left exc
 
     -- run loop on context
     Right ctxt -> return $ toResult ctxt $ fix $ \loop -> do
@@ -55,8 +55,8 @@ fromTLS h params = do
 
  where
 
-  toResult ctxt p = Just ( either Just (const Nothing) <$> runExceptT p
-                         , ctxt)
+  toResult ctxt p = Right ( either Just (const Nothing) <$> runExceptT p
+                          , ctxt)
 
   mkSafe io = do
     r <- liftIO $ handle (\(e :: TLSException) -> return (Left (Left e)))

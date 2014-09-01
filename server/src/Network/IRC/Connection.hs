@@ -15,15 +15,14 @@ module Network.IRC.Connection
   , handleIrcMessages
   , module Network.IRC.Message.Filter
     -- * Exceptions
-  , ConnectException(..)
+  , ConnectionException(..)
     -- ** Haltes producers
   , HaltedProducer, continue
   ) where
 
 import Control.Applicative
 import Control.Exception
-
-import Control.Monad.State
+import Control.Monad.Except
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
@@ -60,7 +59,11 @@ import Network.IRC.Message.Filter
 ------------------------------------------------------------------------------
 -- Connection
 
-type IrcProducer m = Producer (UTCTime, IRCMsg) m (Maybe (ConnectException m))
+type IrcProducer m = Producer (UTCTime, IRCMsg) m (Maybe (ConnectionException m))
+
+--
+-- Connection data type
+--
 
 data Connection m
 
@@ -74,6 +77,16 @@ data Connection m
     , _context    :: Context
     }
 
+toConnection :: MonadIO m => Handle -> IrcProducer m -> Connection m
+toConnection h p = PlaintextConnection p h
+
+toTLSConnection :: MonadIO m => Context -> IrcProducer m -> Connection m
+toTLSConnection ctxt p = TLSConnection p ctxt
+
+--
+-- Starting a connection
+--
+
 data TLSSettings
   = TLS         -- ^ Use TLS
   | STARTTLS    -- ^ Use TLS via STARTTLS
@@ -81,57 +94,63 @@ data TLSSettings
                 --   supports TLS
   | Plaintext   -- ^ No TLS at all
 
-toConnection :: MonadIO m => Handle -> IrcProducer m -> Connection m
-toConnection h p = PlaintextConnection p h
-
-toTLSConnection :: MonadIO m => Context -> IrcProducer m -> Connection m
-toTLSConnection ctxt p = TLSConnection p ctxt
-
 connect
   :: (MonadIO m, Functor m)
   => TLSSettings
   -> HostName
   -> PortID
-  -> m (Maybe (Connection m))
-  -- -> Producer (UTCTime, IRCMsg) m (Maybe (ConnectException m))
-connect Plaintext hostname port = do
-  h <- liftIO $ connectTo hostname port
-  return $ Just $ toConnection h $ continueWith (fromHandle h)
+  -> m (Either (ConnectionException m) (Connection m))
+connect tls hostname port = runExceptT $ do
 
-connect TLS hostname port = do
-  h <- liftIO $ connectTo hostname port
-  mp <- fromTLS h (clientParams hostname)
-  return $ case mp of
-    Nothing        -> Nothing
-    Just (p, ctxt) -> Just $ toTLSConnection ctxt $ continueWith p
+  -- open connection to host
+  h <- lift . liftIO $ connectTo hostname port
 
-connect STARTTLS hostname port = do
-  h <- liftIO $ connectTo hostname port
-  runStarttls hostname h
+  -- setup TLS according to settings
+  case tls of
 
-connect OptionalTLS hostname port = do
-  h <- liftIO $ connectTo hostname port
+    Plaintext -> do
 
-  -- send CAP
-  liftIO $ B8.hPutStr h "CAP"
+      -- not much to do here:
+      return $ toConnection h $ continueWith (fromHandle h)
 
-  do
-    -- wait for reponse
-    (prod, r, msgs) <- capLoop (fromHandle h) []
-    case r of
+    TLS -> do
 
-      -- run STARTTLS
-      Just cap | "tls" `elem` B8.words cap ->
-        runStarttls hostname h
+      -- start TLS handshake
+      mp <- lift $ fromTLS h (clientParams hostname)
+      case mp of
+        Right (p, ctxt) -> return $ toTLSConnection ctxt $ continueWith p
+        Left (Left  e) -> throwError $ TLSException' e
+        Left (Right e) -> throwError $ IOException' e
 
-      -- continue plaintext/without TLS
-      _ -> return $ Just $ toConnection h $ mapM_ yield msgs >> continueWith prod
+    STARTTLS -> do
+
+      runStarttls hostname h
+
+    OptionalTLS -> do
+
+      -- send CAP and wait for reponse
+      liftIO $ B8.hPutStr h "CAP"
+      (prod, r, msgs) <- lift $ capLoop (fromHandle h) []
+
+      case r of
+
+        -- TLS supported
+        Just cap | "tls" `elem` B8.words cap ->
+          runStarttls hostname h
+
+        -- plaintext/without TLS
+        _ ->
+          return $ toConnection h $ mapM_ yield msgs >> continueWith prod
+
+
+------------------------------------------------------------------------------
+-- Response loops
 
 -- | Send \"STARTTLS\" to server and wait for \"670\" response.
 runStarttls
   :: MonadIO m
   => HostName -> Handle
-  -> m (Maybe (Connection m))
+  -> ExceptT (ConnectionException m) m (Connection m)
 runStarttls hostname h = do
 
   liftIO $ B8.hPutStrLn h "STARTTLS"
@@ -139,16 +158,14 @@ runStarttls hostname h = do
   (success,msgs) <- starttlsLoop (fromHandle h) []
 
   if success then do
-    mp <- fromTLS h (clientParams hostname)
+    mp <- lift $ fromTLS h (clientParams hostname)
     case mp of
-      Just (p, ctxt) ->
-        return $ Just $ toTLSConnection ctxt $ mapM_ yield msgs >> continueWith p
-      Nothing -> return Nothing
+      Right (p, ctxt) ->
+        return $ toTLSConnection ctxt $ mapM_ yield msgs >> continueWith p
+      Left (Left tls) -> throwError $ TLSException' tls
+      Left (Right io) -> throwError $ IOException' io
    else
-    return $ Nothing --return $ Just STARTTLSFailed
-
-------------------------------------------------------------------------------
--- Response loops
+    throwError STARTTLSFailed
 
 capLoop
   :: MonadIO m
@@ -176,7 +193,6 @@ capLoop prod msgs = do
         return (prod', Nothing, msgs ++ [(now,msg)])
 
     _ -> return (prod', Nothing, msgs)
-
 
 starttlsLoop
   :: MonadIO m
@@ -209,30 +225,30 @@ newtype HaltedProducer m = HaltedProducer
 continue :: Connection m -> HaltedProducer m -> Connection m
 continue con hp = con { ircMessages = runHaltedProducer hp }
 
-data ConnectException m
+data ConnectionException m
   = TLSFailed
   | STARTTLSFailed
   | TLSException'   TLSException
   | IOException'    IOException
   | ParsingError'   ParsingError  (HaltedProducer m)
 
-instance Show (ConnectException m) where
+instance Show (ConnectionException m) where
   show TLSFailed           = "TLS failed"
   show STARTTLSFailed      = "STARTTLS failed"
   show (TLSException' e)   = "TLS exception: " ++ show e
   show (IOException'  e)   = "IO exception: " ++ show e
   show (ParsingError' e _) = "Parsing error: " ++ show e
 
-class IsConnectException m e where
+class IsConnectionException m e where
 
-  toConnectException :: e -> ConnectException m
+  toConnectionException :: e -> ConnectionException m
 
-instance IsConnectException m IOException where
-  toConnectException = IOException'
+instance IsConnectionException m IOException where
+  toConnectionException = IOException'
 
-instance IsConnectException m (Either TLSException IOException) where
-  toConnectException (Left  e) = TLSException' e
-  toConnectException (Right e) = IOException'  e
+instance IsConnectionException m (Either TLSException IOException) where
+  toConnectionException (Left  e) = TLSException' e
+  toConnectionException (Right e) = IOException'  e
 
 
 ------------------------------------------------------------------------------
@@ -257,14 +273,14 @@ ircParser = ircLine <* optional (string "\r\n" <?> "end of line")
 -- | Continue parsing IRC messages from a `Producer`, possibly returned
 -- from a `ParsingError'`
 continueWith
-  :: (MonadIO m, IsConnectException m e)
+  :: (MonadIO m, IsConnectionException m e)
   => Producer ByteString m (Maybe e)
   -> IrcProducer m
 continueWith p = do
   r <- parsedIrcMessage p
   return $ case r of
     Left (pe, pr)  -> Just $ ParsingError' pe (HaltedProducer $ continueWith pr)
-    Right (Just e) -> Just $ toConnectException e
+    Right (Just e) -> Just $ toConnectionException e
     Right Nothing  -> Nothing
 
 
@@ -279,6 +295,7 @@ sendIrc con msg = liftIO $ mkSafe $ case con of
   mkSafe io = io `catch` (\(_ :: IOException) -> return ())
   bs = fromIRCMsg msg
 
+
 ------------------------------------------------------------------------------
 -- Close a connection
 
@@ -289,6 +306,7 @@ closeConnection con = liftIO $ case con of
     bye c
     backendClose $ ctxConnection c
 
+
 ------------------------------------------------------------------------------
 -- Utility
 
@@ -298,7 +316,7 @@ handleIrcMessages
   :: MonadIO m
   => Connection m
   -> ((UTCTime, IRCMsg) -> m ())
-  -> m (Maybe (ConnectException m))
+  -> m (Maybe (ConnectionException m))
 handleIrcMessages con f =
 
   runEffect $ for (ircMessages con) (lift . f)
