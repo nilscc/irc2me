@@ -1,19 +1,27 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Database.Tables.Accounts where
+module Irc2me.Database.Tables.Accounts where
 
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as B8
 
+-- lens
 import Control.Lens hiding (Identity)
+import Data.Text.Lens
 
+-- scrypt
 import Crypto.Scrypt
+
+-- hdbc
 import Database.HDBC
 
-import Database.Query
-import IRC.Types
+-- local
+import Irc2me.Database.Query
+import Irc2me.ProtoBuf.Helper
+import Irc2me.ProtoBuf.Messages.Identity
 
 -- ID type
+
+type ID = Integer
 
 toID :: Converter ID
 toID [SqlInteger i] = Just i
@@ -86,12 +94,12 @@ identitySELECT = "SELECT id, username, realname, nick, nick_alt FROM account_ide
 toIdentity :: Converter Identity
 toIdentity s = case s of
   [SqlInteger i, SqlByteString u, SqlByteString r, SqlByteString n, na] -> Just $
-    Identity { _ident_id = i
-             , _ident_name = u
-             , _ident_realname = r
-             , _ident_nick = n
-             , _ident_nick_alt = maybe [] (map B8.pack) $ arrayUnpack na
-             }
+    emptyIdentity &~ do
+      identityId       .= Just (fromIntegral i)
+      identityName     .= Just (u ^. encoded)
+      identityRealname .= Just (r ^. encoded)
+      identityNick     .= Just (n ^. encoded)
+      identityNickAlt  .= maybe [] (map (^. re _Text)) (arrayUnpack na)
   _ -> Nothing
 
 -- queries
@@ -105,15 +113,15 @@ selectIdentities (Account a) = Query
 -- updates
 
 addIdentity :: Account -> Identity -> Update (Maybe ID)
-addIdentity (Account a) usr = UpdateReturning
+addIdentity (Account a) ident = UpdateReturning
   "INSERT INTO account_identities (account, username, realname, nick, nick_alt) \
-  \     VALUES                    (?      , ?       , ?       , ?   , ?)        \
+  \     VALUES                    (?      , ?       , ?       , ?   , ?       ) \
   \  RETURNING id"
-  [ toSql a
-  , toSql $ usr ^. ident_name
-  , toSql $ usr ^. ident_realname
-  , toSql $ usr ^. ident_nick
-  , arrayPack $ map B8.unpack $ usr ^. ident_nick_alt
+  [ toSql     $ a
+  , toSql     $ ident ^. identityName
+  , toSql     $ ident ^. identityRealname
+  , toSql     $ ident ^. identityNick
+  , arrayPack $ ident ^. identityNickAlt ^.. folded . _Text
   ]
   (convertOne toID)
 
@@ -130,11 +138,11 @@ setIdentity (Account a) ident = Update
   "UPDATE account_identities \
   \   SET username = ?, realname = ?, nick = ?, nick_alt = ?  \
   \ WHERE account = ? AND id = ?"
-  [ toSql $ ident ^. ident_name
-  , toSql $ ident ^. ident_realname
-  , toSql $ ident ^. ident_nick
-  , arrayPack $ map B8.unpack $ ident ^. ident_nick_alt
-  , toSql $ a
-  , toSql $ ident ^. ident_id
+  [ toSql     $ ident ^. identityName
+  , toSql     $ ident ^. identityRealname
+  , toSql     $ ident ^. identityNick
+  , arrayPack $ ident ^. identityNickAlt ^.. folded . _Text
+  , toSql     $ a
+  , toSql     $ ident ^. identityId
   ]
   (== 1)
