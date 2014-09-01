@@ -4,66 +4,68 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Module for server to client messages
-module ProtoBuf.Messages.Server where
+module Irc2me.ProtoBuf.Messages.Server where
 
-import Control.Lens.TH
-import Control.Lens.Operators
+import Control.Lens hiding (Identity)
 import Data.Text (Text)
-import Data.ProtocolBuffers
-import Data.Monoid
 
 import GHC.Generics (Generic)
 
-import ProtoBuf.Types
-import ProtoBuf.Helper
-import ProtoBuf.Instances ()
-import ProtoBuf.Messages.Identity
-import ProtoBuf.Messages.Network
-import ProtoBuf.Messages.SystemMsg
+-- protobuf
+import Data.ProtocolBuffers
+import Data.ProtocolBuffers.TH
 
-data PB_ResponseCode
-  = PB_ResponseOK
-  | PB_ResponseError
+-- local
+import Irc2me.ProtoBuf.Messages.Identity
+import Irc2me.ProtoBuf.Messages.SystemMsg
+
+data ResponseCode
+  = ResponseOK
+  | ResponseError
   deriving (Eq, Enum, Show)
 
-data PB_ServerMessage = PB_ServerMessage
-  { _server_response_id :: Optional 3 (Value ID_T)
-  , _server_system_msg  :: Optional 5 (Enumeration PB_SystemMsg)
+data ServerMessage = ServerMessage
+  { _serverResponseID :: Optional 3 (Value ID_T)
+  , _serverSystemMsg  :: Optional 5 (Enumeration SystemMsg)
 
     -- response messages
-  , _response_code     :: Optional 10 (Enumeration PB_ResponseCode)
-  , _response_msg      :: Optional 15 (Value Text)
+  , _responseCode     :: Optional 10 (Enumeration ResponseCode)
+  , _responseMsg      :: Optional 15 (Value Text)
 
     -- identities
-  , _ident_list        :: Repeated 20 (Message PB_Identity)
+  -- , _ident_list        :: Repeated 20 (Message Identity)
 
     -- networks
-  , _network_list      :: Repeated 30 (Message PB_Network)
+  -- , _network_list      :: Repeated 30 (Message Network)
+
   }
   deriving (Show, Generic)
 
-instance Encode PB_ServerMessage
-instance Decode PB_ServerMessage
+instance Encode ServerMessage
+instance Decode ServerMessage
 
-makeLenses ''PB_ServerMessage
+------------------------------------------------------------------------------
+-- Lenses
 
---------------------------------------------------------------------------------
+makePrisms      ''ResponseCode
+makeFieldLenses ''ServerMessage
+
+------------------------------------------------------------------------------
 -- Standard messages
 
-emptyServerMessage :: PB_ServerMessage
-emptyServerMessage = PB_ServerMessage
-  mempty
-  mempty
-  mempty
-  mempty
-  mempty
-  mempty
+emptyServerMessage :: ServerMessage
+emptyServerMessage = ServerMessage
+  { _serverResponseID = putField Nothing
+  , _serverSystemMsg  = putField Nothing
+  , _responseCode     = putField Nothing
+  , _responseMsg      = putField Nothing
+  }
 
-responseOkMessage :: PB_ServerMessage
-responseOkMessage = emptyServerMessage
-  & response_code .~~ Just PB_ResponseOK
+responseOkMessage :: ServerMessage
+responseOkMessage = emptyServerMessage &~ do
+  responseCode .= Just ResponseOK
 
-responseErrorMessage :: Maybe Text -> PB_ServerMessage
-responseErrorMessage errormsg = emptyServerMessage
-  & response_code .~~ Just PB_ResponseError
-  & response_msg  .~~ errormsg
+responseErrorMessage :: Maybe Text -> ServerMessage
+responseErrorMessage errormsg = emptyServerMessage &~ do
+  responseCode .= Just ResponseError
+  responseMsg  .= errormsg
