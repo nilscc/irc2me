@@ -32,6 +32,11 @@ command c = do
   (_,msg) <- ask
   guard $ msg `hasCommand` c
 
+privMsg :: MonadIO m => (ByteString -> Bool) -> IrcT m ()
+privMsg t = do
+  (_,msg) <- ask
+  guard $ msg `hasCommand` "PRIVMSG" && t (msgTrail msg)
+
 serverMessage :: Monad m => IrcT m ServerName
 serverMessage = do
   (_,msg) <- ask
