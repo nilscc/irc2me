@@ -1,4 +1,4 @@
-module IRC.TLS where
+module Network.IRC.TLS where
 
 import Data.List
 import Data.Default.Class

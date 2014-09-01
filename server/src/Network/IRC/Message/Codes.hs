@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Error and reply codes defined by http://www.ietf.org/rfc/rfc1459.txt
-module IRC.Message.Codes where
+module Network.IRC.Message.Codes where
 
 import Data.ByteString
 

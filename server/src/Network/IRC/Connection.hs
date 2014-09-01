@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module IRC.Connection
+module Network.IRC.Connection
   ( -- * Connecting to IRC
     connect
   , TLSSettings(..)
@@ -13,7 +13,7 @@ module IRC.Connection
     -- ** Utilities
   , sendIrcT
   , handleIrcMessages
-  , module IRC.Message.Filter
+  , module Network.IRC.Message.Filter
     -- * Exceptions
   , ConnectException(..)
     -- ** Haltes producers
@@ -53,9 +53,8 @@ import Network.TLS.Pipes
 import System.IO.Pipes
 
 -- local
-import IRC.Types
-import IRC.TLS
-import IRC.Message.Filter
+import Network.IRC.TLS
+import Network.IRC.Message.Filter
 
 
 ------------------------------------------------------------------------------
@@ -74,6 +73,13 @@ data Connection m
     { ircMessages :: IrcProducer m
     , _context    :: Context
     }
+
+data TLSSettings
+  = TLS         -- ^ Use TLS
+  | STARTTLS    -- ^ Use TLS via STARTTLS
+  | OptionalTLS -- ^ Use CAP command to find out whether or not IRC server
+                --   supports TLS
+  | Plaintext   -- ^ No TLS at all
 
 toConnection :: MonadIO m => Handle -> IrcProducer m -> Connection m
 toConnection h p = PlaintextConnection p h

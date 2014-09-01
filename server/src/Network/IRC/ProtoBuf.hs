@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 
-module IRC.ProtoBuf
+module Network.IRC.ProtoBuf
   ( -- * Protocol buffer encoding/decoding
     encodeIrcMessage, PB_IrcMessage
     -- ** Serialization

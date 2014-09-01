@@ -1,4 +1,4 @@
-module IRC.Message.Filter where
+module Network.IRC.Message.Filter where
 
 import Control.Monad
 import Control.Monad.Reader
