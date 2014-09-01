@@ -6,7 +6,6 @@ module Irc2me.ProtoBuf.Messages.Network where
 
 import Data.Text (Text)
 import Data.Int
-import Data.Monoid
 
 import GHC.Generics (Generic)
 
@@ -30,29 +29,27 @@ data IrcServer = IrcServer
 instance Encode IrcServer
 instance Decode IrcServer
 
-emptyServer
-  :: Text     -- ^ Hostname
-  -> Int      -- ^ Port number
-  -> IrcServer
-emptyServer hn p = IrcServer
-  (putField $ Just hn)
-  (putField $ Just $ fromIntegral p)
-  mempty
+emptyIrcServer :: IrcServer
+emptyIrcServer = IrcServer
+  { _serverHost = putField Nothing
+  , _serverPort = putField Nothing
+  , _serverUseTLS = putField Nothing
+  }
 
 --
 -- IRC network message
 --
 
 data IrcNetwork = IrcNetwork
-  { _networkID        :: Optional 1  (Value ID_T)
+  { _networkId        :: Optional 1  (Value ID_T)
 
     -- status
-  -- , _networkOnline    :: Optional 5  (Value Bool)
+  , _networkOnline    :: Optional 5  (Value Bool)
 
     -- network settings
-  -- , _networkName      :: Optional 10 (Value Text)
-  -- , _networkReconnect :: Optional 11 (Value Bool)
-  -- , _networkIdentity  :: Optional 12 (Value ID_T)
+  , _networkName      :: Optional 10 (Value Text)
+  , _networkReconnect :: Optional 11 (Value Bool)
+  , _networkIdentity  :: Optional 12 (Value ID_T)
 
     -- network servers
   -- , _networkServers   :: Repeated 20 (Message IrcServer)
@@ -68,7 +65,11 @@ instance Decode IrcNetwork
 
 emptyIrcNetwork :: IrcNetwork
 emptyIrcNetwork = IrcNetwork
-  { _networkID = putField Nothing
+  { _networkId        = putField Nothing
+  , _networkName      = putField Nothing
+  , _networkOnline    = putField Nothing
+  , _networkReconnect = putField Nothing
+  , _networkIdentity  = putField Nothing
   }
 
 ------------------------------------------------------------------------------

@@ -1,15 +1,17 @@
-module Database.Tables.Networks where
+module Irc2me.Database.Tables.Networks where
 
+-- lens
 import Control.Lens
 
+-- hdbc
 import Database.HDBC
-import Network
-import qualified Data.ByteString.Char8 as B8
 
-import Database.Query
-import Database.Tables.Accounts
+import Irc2me.Database.Query
+import Irc2me.Database.Tables.Accounts
 
-import IRC.Types
+import Irc2me.ProtoBuf.Helper
+import Irc2me.ProtoBuf.Messages.Network
+
 
 --------------------------------------------------------------------------------
 -- "networks" table
@@ -19,33 +21,35 @@ import IRC.Types
 networkSELECT :: String
 networkSELECT = "SELECT id, name, reconnect, identity FROM networks"
 
-toNetwork :: Converter Network
-toNetwork [SqlInteger i, SqlByteString name, SqlBool reconnect, ident ] = Just $
-  Network { _netw_id        = i
-          , _netw_name      = B8.unpack name
-          , _netw_reconnect = reconnect
-          , _netw_identity  = case ident of
-                               SqlInteger i' -> Just i'
-                               _             -> Nothing
-          }
-toNetwork _ = Nothing
+toIrcNetwork :: Converter IrcNetwork
+toIrcNetwork [SqlInteger i, SqlByteString name, SqlBool reconnect, ident] = Just $
+
+  emptyIrcNetwork &~ do
+    networkId         .= Just (fromIntegral i)
+    networkName       .= Just (name ^. encoded)
+    networkReconnect  .= Just reconnect
+    networkIdentity   .= case ident of
+                           SqlInteger i' -> Just (fromIntegral i')
+                           _             -> Nothing
+
+toIrcNetwork _ = Nothing
 
 -- queries
 
-selectNetworks :: Account -> Query [Network]
+selectNetworks :: Account -> Query [IrcNetwork]
 selectNetworks (Account a) = Query
   (networkSELECT ++ " WHERE account = ? ORDER BY ord, id")
   [toSql a]
-  (convertList toNetwork)
+  (convertList toIrcNetwork)
 
 -- updates
 
-addNetwork :: Account -> String -> Bool -> Update (Maybe Network)
+addNetwork :: Account -> String -> Bool -> Update (Maybe IrcNetwork)
 addNetwork (Account a) name reconnect = UpdateReturning
   "INSERT INTO networks (account, name, reconnect) VALUES (?, ?, ?) \
   \  RETURNING id, name, reconnect, identity"
   [toSql a, toSql name, toSql reconnect]
-  (convertOne toNetwork)
+  (convertOne toIrcNetwork)
 
 --------------------------------------------------------------------------------
 -- "network_servers" table
@@ -55,39 +59,37 @@ addNetwork (Account a) name reconnect = UpdateReturning
 serverSELECT :: String
 serverSELECT = "SELECT address, port, use_tls FROM network_servers"
 
-toServer :: Converter Server
-toServer s = case s of
+toIrcServer :: Converter IrcServer
+toIrcServer s = case s of
   [SqlByteString a, SqlInteger p, SqlBool ssl] -> Just $
-    Server { _srv_host       = B8.unpack a
-           , _srv_port       = PortNumber $ fromIntegral p
-           , _srv_tls        = if ssl then TLS else OptionalSTARTTLS
-           }
+    emptyIrcServer &~ do
+      serverHost    .= Just (a ^. encoded)
+      serverPort    .= Just (fromIntegral p)
+      serverUseTLS  .= Just ssl
   _ -> Nothing
 
 -- queries
 
-selectServers :: Network -> Query [Server]
-selectServers netw = Query
+selectIrcServers :: IrcNetwork -> Query [IrcServer]
+selectIrcServers netw = Query
   (serverSELECT ++ " WHERE network = ?")
-  [toSql $ netw ^. netw_id]
-  (convertList toServer)
+  [toSql $ netw ^. networkId]
+  (convertList toIrcServer)
 
 -- updates
 
-addServer :: Network -> Server -> Update Bool
-addServer netw server = Update
+addIrcServer :: IrcNetwork -> IrcServer -> Update Bool
+addIrcServer netw server = Update
   "INSERT INTO network_servers (network, address, port, use_tls) \
    \    VALUES (?, ?, ?, ?)"
-  [ toSql $ netw ^. netw_id
-  , toSql $ server ^. srv_host
-  , toSql $ fromPortID $ server ^. srv_port
-  , toSql $ (server ^. srv_tls) == TLS
+  [ toSql $ netw ^. networkId
+  , toSql $ server ^. serverHost
+  , toSql $ server ^. serverPort
+  , toSql $ server ^. serverUseTLS
   ]
   (== 1)
- where
-  fromPortID (PortNumber pn) = fromIntegral pn :: Integer
-  fromPortID _               = 6667
 
+{-
 --------------------------------------------------------------------------------
 -- "network_channels" table
 
@@ -116,3 +118,4 @@ addChannel netw chan = Update
   "INSERT INTO network_channels (network, name) VALUES (?, ?)"
   [toSql (netw ^. netw_id), toSql chan]
   (== 1)
+-}
