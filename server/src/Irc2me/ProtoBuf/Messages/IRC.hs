@@ -23,7 +23,6 @@ import Data.ProtocolBuffers.TH
 import Control.Lens
 
 -- protobuf package
--- import Data.ProtocolBuffers
 import Data.ProtocolBuffers.Orphans ()
 
 -- irc-bytestring package
@@ -38,15 +37,16 @@ import Irc2me.ProtoBuf.Helper
 
 data IrcType
   = PrivateMessage
-  | Notice
   | Join
   | Part
+  | Invite
   | Quit
   | Kick
   | Nick
+  | Notice
   | Topic
   | MessageOfTheDay
-  deriving (Eq, Ord, Show, Enum)
+  deriving (Eq, Ord, Show, Read, Enum)
 
 data IrcMessage = IrcMessage
   { _ircMessageType       :: Optional 1  (Enumeration IrcType)
@@ -117,8 +117,8 @@ toIrcUser ui = emptyIrcUser &~ do
 -- IRC message isomorphism
 --
 
-ircMessage :: Iso' IrcMessage IRC.IRCMsg
-ircMessage = iso fromIrcMsg toIrcMsg
+ircMessage :: Iso' IRC.IRCMsg IrcMessage
+ircMessage = iso toIrcMsg fromIrcMsg
 
 emptyIrcMessage :: IrcMessage
 emptyIrcMessage = IrcMessage
@@ -190,6 +190,7 @@ fromIrcType cmd = case cmd of
   Notice          -> "NOTICE"
   Join            -> "JOIN"
   Part            -> "PART"
+  Invite          -> "INVITE"
   Quit            -> "QUIT"
   Kick            -> "KICK"
   Nick            -> "NICK"
@@ -202,6 +203,7 @@ toIrcType bs = case bs of
   "NOTICE"          -> Just Notice
   "JOIN"            -> Just Join
   "PART"            -> Just Part
+  "INVITE"          -> Just Invite
   "QUIT"            -> Just Quit
   "KICK"            -> Just Kick
   "NICK"            -> Just Nick
