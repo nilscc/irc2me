@@ -19,7 +19,7 @@ import Control.Lens
 -- IRC messages
 
 data IrcType
-  = PrivMsg
+  = PrivateMessage
   | Notice
   | Join
   | Part

@@ -13,7 +13,6 @@ import qualified Data.Text as T
 
 -- lens package
 import Control.Lens
-import Data.ByteString.Lens
 
 -- protobuf package
 import Data.ProtocolBuffers
@@ -21,7 +20,7 @@ import Data.ProtocolBuffers
 -- irc-bytestring package
 import qualified Network.IRC.ByteString.Parser as IRC
 
-import IRC.Codes
+import IRC.Message.Codes
 import ProtoBuf.Helper
 import ProtoBuf.Messages.IRC
 
@@ -41,8 +40,8 @@ fromIrcUser usr = IRC.UserInfo
   (          usr ^? userName . _Just . from encoded)
   (          usr ^? userHost . _Just . from encoded)
  where
-  addFlag bs = maybe bs (\f -> B8.cons f bs)
-                     (usr ^? userFlag . _Just . to flag)
+  addFlag bs = maybe bs (\f -> B8.cons (flag f) bs)
+                     (usr ^. userFlag)
   flag Operator = '@'
   flag Voice    = '+'
 
@@ -121,19 +120,19 @@ ircType = prism' fromIrcType toIrcType
 
 fromIrcType :: IrcType -> ByteString
 fromIrcType cmd = case cmd of
-  PrivMsg         -> "PRIVMSG"
+  PrivateMessage  -> "PRIVMSG"
   Notice          -> "NOTICE"
   Join            -> "JOIN"
   Part            -> "PART"
   Quit            -> "QUIT"
   Kick            -> "KICK"
   Nick            -> "NICK"
-  Topic           -> rpl_TOPIC ^. packedChars
+  Topic           -> rpl_TOPIC
   MessageOfTheDay -> "MOTD"
 
 toIrcType :: ByteString -> Maybe IrcType
 toIrcType bs = case bs of
-  "PRIVMSG"         -> Just PrivMsg
+  "PRIVMSG"         -> Just PrivateMessage
   "NOTICE"          -> Just Notice
   "JOIN"            -> Just Join
   "PART"            -> Just Part
@@ -143,4 +142,4 @@ toIrcType bs = case bs of
   _ | is rpl_TOPIC  -> Just Topic
     | otherwise     -> Nothing
  where
-  is cmd = cmd ^. packedChars == bs
+  is cmd = cmd == bs
