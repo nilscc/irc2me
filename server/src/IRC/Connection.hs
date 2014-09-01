@@ -246,7 +246,7 @@ parsedIrcMessage bsprod = do
     yield (now, msg)
 
 ircParser :: Attoparsec.Parser IRCMsg
-ircParser = skipMany space *> ircLine
+ircParser = ircLine <* optional (string "\r\n" <?> "end of line")
 
 -- | Continue parsing IRC messages from a `Producer`, possibly returned
 -- from a `ParsingError'`
