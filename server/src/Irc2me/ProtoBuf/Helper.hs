@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
-module ProtoBuf.Helper where
+module Irc2me.ProtoBuf.Helper where
 
 import Control.Lens
 
@@ -27,6 +27,9 @@ decodeUtf8 = E.decodeUtf8With EE.lenientDecode
 
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 = E.encodeUtf8
+
+encoded :: Iso' ByteString Text
+encoded = iso decodeUtf8 encodeUtf8
 
 maybeNick, maybeServer :: Either I.UserInfo ByteString -> Maybe ByteString
 maybeNick (Left ui)   = Just $ I.userNick ui

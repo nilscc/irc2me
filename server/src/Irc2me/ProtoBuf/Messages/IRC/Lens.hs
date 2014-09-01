@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ProtoBuf.Messages.IRC.Lens where
+module Irc2me.ProtoBuf.Messages.IRC.Lens where
 
 import Control.Applicative
 
@@ -20,9 +20,9 @@ import Data.ProtocolBuffers
 -- irc-bytestring package
 import qualified Network.IRC.ByteString.Parser as IRC
 
-import IRC.Message.Codes
-import ProtoBuf.Helper
-import ProtoBuf.Messages.IRC
+import Network.IRC.Message.Codes
+import Irc2me.ProtoBuf.Helper
+import Irc2me.ProtoBuf.Messages.IRC
 
 --
 -- IRC user iso

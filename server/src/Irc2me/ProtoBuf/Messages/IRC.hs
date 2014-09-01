@@ -3,7 +3,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module ProtoBuf.Messages.IRC where
+module Irc2me.ProtoBuf.Messages.IRC where
 
 -- import Data.ByteString (ByteString)
 import Data.ProtocolBuffers
