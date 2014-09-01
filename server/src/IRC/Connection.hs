@@ -10,10 +10,12 @@ module IRC.Connection
   ( -- * Connecting to IRC
     connect
   , TLSSettings(..)
-  , Connection(..)
-  , IrcProducer
+  , Connection
+  , ircMessages, IrcProducer
+  , sendIrc
+  , closeConnection
     -- ** Utilities
-  , send'
+  , sendIrcT
   , handleIrcMessages
   , module IRC.Message.Filter
     -- * Exceptions
@@ -65,21 +67,23 @@ import IRC.Message.Filter
 
 type IrcProducer m = Producer (UTCTime, IRCMsg) m (Maybe (ConnectException m))
 
-data Connection m = Connect
-  { ircMessages :: IrcProducer m
-  , send        :: IRCMsg -> m ()
-  }
+data Connection m
+
+  = PlaintextConnection
+    { ircMessages :: IrcProducer m
+    , _handle     :: Handle
+    }
+
+  | TLSConnection
+    { ircMessages :: IrcProducer m
+    , _context    :: Context
+    }
 
 toConnection :: MonadIO m => Handle -> IrcProducer m -> Connection m
-toConnection h p = Connect p (liftIO . mkSafe . B8.hPutStrLn h . fromIRCMsg)
- where
-  mkSafe io = io `catch` (\(_ :: SomeException) -> return ())
+toConnection h p = PlaintextConnection p h
 
 toTLSConnection :: MonadIO m => Context -> IrcProducer m -> Connection m
-toTLSConnection ctxt p = Connect p (liftIO . mkSafe . send_ . fromIRCMsg)
- where
-  send_ = sendData ctxt . BL.fromStrict
-  mkSafe io = io `catch` (\(_ :: SomeException) -> return ())
+toTLSConnection ctxt p = TLSConnection p ctxt
 
 connect
   :: (MonadIO m, Functor m)
@@ -254,6 +258,28 @@ continueWith p = do
     Right (Just e) -> Just $ toConnectException e
     Right Nothing  -> Nothing
 
+
+------------------------------------------------------------------------------
+-- Sending
+
+sendIrc :: MonadIO m => Connection m -> IRCMsg -> m ()
+sendIrc con msg = liftIO $ mkSafe $ case con of
+  PlaintextConnection _ h -> B8.hPutStrLn h bs
+  TLSConnection       _ c -> sendData     c $ BL.fromStrict bs
+ where
+  mkSafe io = io `catch` (\(_ :: IOException) -> return ())
+  bs = fromIRCMsg msg
+
+------------------------------------------------------------------------------
+-- Close a connection
+
+closeConnection :: MonadIO m => Connection m -> m ()
+closeConnection con = liftIO $ case con of
+  PlaintextConnection _ h -> hClose h
+  TLSConnection       _ c -> do
+    bye c
+    backendClose $ ctxConnection c
+
 ------------------------------------------------------------------------------
 -- Utility
 
@@ -269,5 +295,5 @@ handleIrcMessages con f =
   runEffect $ for (ircMessages con) (lift . f)
 
 -- | `send` lifted to the `IrcT` monad
-send' :: MonadIO m => Connection m -> IRCMsg -> IrcT m ()
-send' con msg = lift . lift $ send con msg
+sendIrcT :: MonadIO m => Connection m -> IRCMsg -> IrcT m ()
+sendIrcT con msg = lift . lift $ sendIrc con msg
