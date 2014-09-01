@@ -1,475 +1,273 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
--- | Handle IRC connections, send and respond to incoming messages
 module IRC.Connection
-  ( -- * Connection management
-    connect, reconnect
-  , closeConnection, isOpenConnection
-  , waitForInitialization
-    -- ** Queries
-  , getCurrentNick, getCurrentNick'
-    -- ** Debugging
-  , logE, logW, logI
-  , getDebugOutput
-    -- * Messages
-  , send, receive
-    -- ** Incoming messages
-  , getIncoming
-    -- ** Specific messages
-  , pingMsg, pongMsg
-  , privMsg
-  , joinMsg
-  , partMsg
-  , quitMsg
-  , nickMsg
+  ( -- * Connecting to IRC
+    connect
+  , TLSSettings(..)
+  , Connection(..)
+  , IrcProducer
+    -- ** Utilities
+  , send'
+  , handleIrcMessages
+  , module IRC.Message.Filter
+    -- * Exceptions
+  , ConnectException(..)
+    -- ** Haltes producers
+  , HaltedProducer, continue
   ) where
 
-import Control.Concurrent.STM
+import Control.Applicative
 import Control.Exception
-import Control.Monad
-import Control.Lens.Operators
 
-import qualified Data.Map as M
-import           Data.Map (Map)
-import           Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
+import Control.Monad.State
+
+import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
-import           Data.Time
+import qualified Data.ByteString.Lazy  as BL
+
+import Data.Time
 
 import Network
-import Network.IRC.ByteString.Parser
-
 import System.IO
 
-import IRC.Codes
-import IRC.Connection.State
-import IRC.Debug
-import IRC.Messages
+-- tls
+import Network.TLS
+
+-- attoparsec
+import Data.Attoparsec.ByteString.Char8 as Attoparsec
+
+-- irc-bytestring
+import Network.IRC.ByteString.Parser
+
+-- pipes
+import Pipes
+import Pipes.Parse      as Pipes
+import Pipes.Attoparsec as Pipes
+
+-- local pipe modules
+import Network.TLS.Pipes
+import System.IO.Pipes
+
+-- local
 import IRC.Types
 import IRC.TLS
+import IRC.Message.Filter
 
---------------------------------------------------------------------------------
--- Connection management
+
+------------------------------------------------------------------------------
+-- Connection
+
+type IrcProducer m = Producer (UTCTime, IRCMsg) m (Maybe (ConnectException m))
+
+data Connection m = Connect
+  { ircMessages :: IrcProducer m
+  , send        :: IRCMsg -> m ()
+  }
+
+toConnection :: MonadIO m => Handle -> IrcProducer m -> Connection m
+toConnection h p = Connect p (liftIO . mkSafe . B8.hPutStrLn h . fromIRCMsg)
+ where
+  mkSafe io = io `catch` (\(_ :: SomeException) -> return ())
+
+toTLSConnection :: MonadIO m => Context -> IrcProducer m -> Connection m
+toTLSConnection ctxt p = Connect p (liftIO . mkSafe . send_ . fromIRCMsg)
+ where
+  send_ = sendData ctxt . BL.fromStrict
+  mkSafe io = io `catch` (\(_ :: SomeException) -> return ())
 
 connect
-  :: Server
-  -> Identity
-  -> IO (Maybe (Connection, [(UTCTime, Message)]))
-connect srv usr = do
+  :: (MonadIO m, Functor m)
+  => TLSSettings
+  -> HostName
+  -> PortID
+  -> m (Maybe (Connection m))
+  -- -> Producer (UTCTime, IRCMsg) m (Maybe (ConnectException m))
+connect Plaintext hostname port = do
+  h <- liftIO $ connectTo hostname port
+  return $ Just $ toConnection h $ continueWith (fromHandle h)
 
-  -- create debugging output chan for connection
-  debug_out <- newTChanIO
+connect TLS hostname port = do
+  h <- liftIO $ connectTo hostname port
+  mp <- fromTLS h (clientParams hostname)
+  return $ case mp of
+    Nothing        -> Nothing
+    Just (p, ctxt) -> Just $ toTLSConnection ctxt $ continueWith p
 
-  -- see implementation of connect' below (-> Handling incoming messages)
-  connect' srv usr M.empty debug_out
+connect STARTTLS hostname port = do
+  h <- liftIO $ connectTo hostname port
+  runStarttls hostname h
 
--- | Try to reestablish an old (closed) connection
-reconnect :: Connection -> IO (Maybe (Connection, [(UTCTime, Message)]))
-reconnect con = do
+connect OptionalTLS hostname port = do
+  h <- liftIO $ connectTo hostname port
 
-  -- just to make sure..
-  is_open <- isOpenConnection con
-  when is_open $ do
-    logW con "reconnect" "Connection still open (connection closed)"
-    send con $ quitMsg Nothing
-    closeConnection con
+  -- send CAP
+  liftIO $ B8.hPutStr h "CAP"
 
-  -- reuse server, user and debugging chan
-  let usr       = con ^. con_user
-      srv       = con ^. con_server
-      debug_out = con ^. con_debug_output
+  do
+    -- wait for reponse
+    (prod, r, msgs) <- capLoop (fromHandle h) []
+    case r of
 
-  chans <- getChannels con
+      -- run STARTTLS
+      Just cap | "tls" `elem` B8.words cap ->
+        runStarttls hostname h
 
-  -- see implementation of connect' below (-> Handling incoming messages)
-  connect' srv usr chans debug_out
+      -- continue plaintext/without TLS
+      _ -> return $ Just $ toConnection h $ mapM_ yield msgs >> continueWith prod
 
---------------------------------------------------------------------------------
--- Handeling incoming messages
+-- | Send \"STARTTLS\" to server and wait for \"670\" response.
+runStarttls
+  :: MonadIO m
+  => HostName -> Handle
+  -> m (Maybe (Connection m))
+runStarttls hostname h = do
 
-connect'
-  :: Server
-  -> Identity
-  -> Map Channel (Maybe Key)
-  -> TChan String
-  -> IO (Maybe (Connection, [(UTCTime, Message)]))
-connect' srv usr channels debug_out = handleExceptions $ do
+  liftIO $ B8.hPutStrLn h "STARTTLS"
 
-  -- acquire IRC connection
-  h <- connectTo (srv ^. srv_host) (srv ^. srv_port)
-  hSetBuffering h LineBuffering
-  hSetBinaryMode h True
+  (success,msgs) <- starttlsLoop (fromHandle h) []
 
-  -- prepare connection state variables
-  nick_tvar     <- newTVarIO $ usr ^. ident_nick
-  chans_tvar    <- newTVarIO channels
-  stat_tvar     <- newTVarIO ConnectionInitializing
-  tls_tvar      <- newTVarIO Nothing
+  if success then do
+    mp <- fromTLS h (clientParams hostname)
+    case mp of
+      Just (p, ctxt) ->
+        return $ Just $ toTLSConnection ctxt $ mapM_ yield msgs >> continueWith p
+      Nothing -> return Nothing
+   else
+    return $ Nothing --return $ Just STARTTLSFailed
 
-  -- connection is established at this point
-  let con = Connection usr srv
-                       nick_tvar
-                       chans_tvar
-                       h
-                       stat_tvar
-                       tls_tvar
-                       debug_out
+------------------------------------------------------------------------------
+-- Response loops
 
-  -- check TLS settings
-  resend <- initTLS con (srv ^. srv_tls)
+capLoop
+  :: MonadIO m
+  => Producer ByteString m e
+  -> [(UTCTime, IRCMsg)]
+  -> m (Producer ByteString m e, Maybe ByteString, [(UTCTime, IRCMsg)])
+capLoop prod msgs = do
+  (r, prod') <- Pipes.runStateT (Pipes.parse ircParser) prod
+  case r of
+    Just (Right msg)
 
-  -- send username to IRC server
-  msgs <- waitForOK con (usr ^. ident_nick_alt) resend []
+      -- successful response
+      | msg `hasCommand` "CAP" -> return $ (prod', Just (msgTrail msg), msgs)
 
-  sequence_ [ send con $ joinMsg chan mkey
-            | (chan, mkey) <- M.toList channels
-            ]
+      -- ignore/re-yield NOTICE and 020 messages and loop
+      | msg `hasCommand` "020" || msg `hasCommand` "NOTICE" -> do
 
-  atomically $ do
-    is_init <- isInitConnection' con
-    when is_init $ setConnectionStatus' con ConnectionEstablished
+        now <- liftIO $ getCurrentTime
+        capLoop prod' (msgs ++ [(now,msg)])
 
-  return $ Just (con, msgs)
+      -- yield everything else and quit, returning the rest of the producer
+      | otherwise -> do
 
+        now <- liftIO $ getCurrentTime
+        return (prod', Nothing, msgs ++ [(now,msg)])
+
+    _ -> return (prod', Nothing, msgs)
+
+
+starttlsLoop
+  :: MonadIO m
+  => Producer ByteString m e
+  -> [(UTCTime, IRCMsg)]
+  -> m (Bool, [(UTCTime, IRCMsg)])
+starttlsLoop prod msgs = do
+  (r, prod') <- Pipes.runStateT (Pipes.parse ircParser) prod
+  case r of
+    Just (Right msg)
+
+      -- STARTTLS accepted
+      | msg `hasCommand` "670" -> return (True, msgs)
+
+      -- forward NOTICE messages
+      | msg `hasCommand` "NOTICE" -> do
+        now <- liftIO $ getCurrentTime
+        starttlsLoop prod' (msgs ++[(now, msg)])
+
+    _ -> return (False, msgs)
+
+
+------------------------------------------------------------------------------
+-- Exceptions
+
+newtype HaltedProducer m = HaltedProducer
+  { runHaltedProducer :: IrcProducer m
+  }
+
+continue :: Connection m -> HaltedProducer m -> Connection m
+continue con hp = con { ircMessages = runHaltedProducer hp }
+
+data ConnectException m
+  = TLSFailed
+  | STARTTLSFailed
+  | TLSException'   TLSException
+  | IOException'    IOException
+  | ParsingError'   ParsingError  (HaltedProducer m)
+
+class IsConnectException m e where
+
+  toConnectException :: e -> ConnectException m
+
+instance IsConnectException m IOException where
+  toConnectException = IOException'
+
+instance IsConnectException m (Either TLSException IOException) where
+  toConnectException (Left  e) = TLSException' e
+  toConnectException (Right e) = IOException'  e
+
+
+------------------------------------------------------------------------------
+-- Parsers & parsing producers
+
+parsedIrcMessage
+  :: MonadIO m
+  => Producer ByteString m a
+  -> Producer (UTCTime, IRCMsg)
+              m
+              (Either (ParsingError, Producer ByteString m a) a)
+parsedIrcMessage bsprod = do
+  for (parsed ircParser bsprod) addTimeStamp
  where
-  handleExceptions = handle $ \(e :: IOException) -> do
-    hPutStrLn stderr $ "IOException on connect: " ++ show e
-    return Nothing
-
-  waitForOK con alt_nicks resend msgs = requireInitConnection $ do
-
-    -- resend unhandled messages from failed TLS initialization:
-    let resend_rest | Just (_:r) <- resend = Just r
-                    | otherwise            = Nothing
-        receive' | Just (m:_) <- resend = return $ Right m
-                 | otherwise            = receive con
-    mmsg <- receive'
-
-    case mmsg of
-
-      -- check for authentication errors
-      Right (time, msg) -> do
-        stat <- initWaitForOK con msg alt_nicks []
-        case stat of
-          InitOK     -> return msgs
-          InitCancel -> return msgs
-          InitWaitForOK alt_nicks' msgs' ->
-            waitForOK con alt_nicks' resend_rest (msgs ++ map (time,) msgs')
-
-      -- something went wrong
-      Left err -> do
-        logE con "connect" (B8.unpack err)
-        is_open <- isOpenConnection con
-        if is_open
-          then waitForOK con alt_nicks resend_rest msgs
-          else return msgs
-   where
-    requireInitConnection run = do
-      is_init <- isInitConnection con
-      if is_init
-        then run
-        else do logE con "connect" "Connection closed."
-                return msgs
-
-data InitStatus
-  = InitWaitForOK { _alt_nicks :: [ByteString]
-                  , _init_msgs :: [Message]
-                  }
-  | InitOK
-  | InitCancel
-
-initWaitForOK
-  :: Connection
-  -> IRCMsg
-  -> [ByteString]
-  -> [Message]
-  -> IO InitStatus
-initWaitForOK con msg@(msgCmd -> cmd) alt_nicks msgs
-
-  -- everything OK, we're done:
-  | cmd == "001" = return InitOK
-
-  -- pick different nickname:
-  | cmd `isError` err_NICKCOLLISION ||
-    cmd `isError` err_NICKNAMEINUSE =
-
-    case alt_nicks of
-      (alt:rst) -> do
-
-        -- use alternative nick names:
-        logI con "connect" $ "Nickname changed to \""
-                             ++ B8.unpack alt ++ "\"."
-        setNick con alt
-        send con $ nickMsg alt
-        return $ InitWaitForOK rst msgs
-
-      [] -> do
-
-        -- no alternative nicks!
-        logE con "connect"
-                 "Nickname collision: \
-                 \Try to supply a list of alternative nicknames. \
-                 \(connection closed)"
-        send con $ quitMsg Nothing
-        closeConnection con
-
-        return InitCancel
-
-  | cmd == "NOTICE" = do
-
-    let (to:_)    = msgParams msg
-        Just from = msgPrefix msg
-        txt       = msgTrail msg
-
-    return $ InitWaitForOK alt_nicks (msgs ++ [NoticeMsg from to txt])
-
-  -- unknown message (e.g. NOTICE) TODO: handle MOTD & other
-  | otherwise = do
-
-    let other = OtherMsg (msgPrefix msg)
-                         (msgCmd msg)
-                         (msgParams msg)
-                         (msgTrail msg)
-
-    return $ InitWaitForOK alt_nicks (msgs ++ [other])
- where
-  isError bs err = bs == (B8.pack err)
-
--- | Handle incoming messages, change connection details if necessary
-getIncoming :: Connection -> IO (Maybe (UTCTime, Message))
-getIncoming con = handleRecvExceptions $
-
-  requireOpenConnection $ do
-
-  mmsg <- receive con
-
-  handleMsgExceptions mmsg $ case mmsg of
-
-    Right (time, msg) -> runResult time $ handleIncoming msg
-
-    -- parsing error
-    Left err -> do
-      logE con "getIncoming" $ B8.unpack err
-      return Nothing
-
- where
-
-  runResult time (IncomingReqUsr f) = runResult time $ f (con ^. con_user)
-  runResult time (IncomingReqNck f) = getCurrentNick con >>= runResult time . f
-  runResult time (IncomingResult to_send res quit) = do
-    mapM_ (send con) to_send
-    onJust quit $ \reason -> do
-      logI con "handleIncoming" $ reason ++ " (connection closed)"
-      closeConnection con
-    return $ (time,) `fmap` res
-
-  onJust what = maybe (return ()) `flip` what
-
-  requireOpenConnection run = do
-    is_open <- isOpenConnection con
-    if is_open
-      then run
-      else do logE con "getIncoming" "Connection closed."
-              return Nothing
-
-  handleRecvExceptions =
-    handle (\(e :: IOException) -> do
-             logE con "handleIncoming" $
-                      "IO exception: " ++ show e ++ " (connection closed)"
-             closeConnection con
-             return Nothing)
-  handleMsgExceptions mmsg =
-    handle (\(_ :: PatternMatchFail) -> do
-             logE con "handleIncoming" $
-                      "Pattern match failure: " ++ show mmsg
-             return Nothing)
-
-type Reason = String
-
-data IncomingResult
-  = IncomingResult { send_msgs    :: [IRCMsg]
-                   , add_msg      :: Maybe Message
-                   , quit         :: Maybe Reason
-                   }
-  | IncomingReqUsr { _withUser     :: Identity -> IncomingResult }
-  | IncomingReqNck { _withNick     :: Nickname -> IncomingResult }
-
--- | Testable interface
-handleIncoming :: IRCMsg -> IncomingResult
-handleIncoming msg@(msgCmd -> cmd)
-
-  --
-  -- Commands
-  --
-
-  -- ping/pong game
-  | cmd == "PING" = do
-
-    let trail = msgTrail msg
-    sendMsg $ pongMsg trail
-
-  -- join channels
-  | cmd == "JOIN" = do
-
-    let channels = case B8.words $ msgTrail msg of
-                     (trail:_) -> B8.split ',' trail
-                     []        -> msgParams msg
-        Just (Left who) = msgPrefix msg
-
-    withUsr who $ \usr ->
-      addMsg $ JoinMsg channels usr
-
-  | cmd == "PART" = do
-
-    let Just (Left who) = msgPrefix msg
-        (chan:_) = msgParams msg
-
-    -- send part message
-    withUsr who $ \usr ->
-      addMsg $ PartMsg chan usr
-
-  | cmd == "QUIT" = do
-
-    let Just (Left who) = msgPrefix msg
-        comment = msgTrail msg
-
-    withUsr who $ \usr ->
-      addMsg $ QuitMsg usr (if BS.null comment then Nothing else Just comment)
-
-  | cmd == "KICK" = do
-
-    let (chan:who:_) = msgParams msg
-        comment      = msgTrail msg
-
-    withNick who $ \nick ->
-      addMsg $ KickMsg chan nick
-                       (if BS.null comment then Nothing else Just comment)
-
-  | cmd == "KILL" = do
-
-    quitCmd "KILL received (closing connection)"
-
-  -- private messages
-  | cmd == "PRIVMSG" = do
-
-    let (to:_)    = msgParams msg
-        Just from = msgPrefix msg
-        txt       = msgTrail msg
-
-    addMsg $ PrivMsg from to txt
-
-  -- notice messages
-  | cmd == "NOTICE" = do
-
-    let (to:_)    = msgParams msg
-        Just from = msgPrefix msg
-        txt       = msgTrail msg
-
-    addMsg $ NoticeMsg from to txt
-
-  -- nick changes
-  | cmd == "NICK" = do
-
-    let (new:_)         = msgParams msg
-        Just (Left who) = msgPrefix msg
-
-    withUsr who $ \usr -> addMsg $ NickMsg usr new
-
-  | cmd == "ERROR" = do
-
-    let err = msgTrail msg
-    quitCmd $ "ERROR: " ++ B8.unpack err
-
-  --
-  -- REPLIES
-  --
-
-  -- message of the day (MOTD)
-  | cmd `isCode` rpl_MOTDSTART ||
-    cmd `isCode` rpl_MOTD      = do
-
-    addMsg $ MOTDMsg (msgTrail msg)
-
-  -- end of MOTD
-  | cmd `isCode` rpl_ENDOFMOTD = do
-
-    doNothing
-
-  -- topic reply
-  | cmd `isCode` rpl_TOPIC = do
-
-    let chan  = head $ msgParams msg
-        topic = msgTrail msg
-
-    addMsg $ TopicMsg chan (Just topic)
-
-  -- remove old topic (if any)
-  | cmd `isCode` rpl_NOTOPIC = do
-
-    let chan = head $ msgParams msg
-
-    addMsg $ TopicMsg chan Nothing
-
-  -- channel names
-  | cmd `isCode` rpl_NAMREPLY = do
-
-    let (_:_:chan:_)   = msgParams msg
-        namesWithFlags = map getUserflag $ B8.words $ msgTrail msg
-
-    addMsg $ NamreplyMsg chan namesWithFlags
-
-  -- end of channel names
-  | cmd `isCode` rpl_ENDOFNAMES = do
-
-    doNothing
-
-  --
-  -- ERROR codes
-  --
-
-  -- nick name change failure
-  | cmd `isCode` err_NICKCOLLISION ||
-    cmd `isCode` err_NICKNAMEINUSE = do
-
-    addMsg $ ErrorMsg cmd
-
-  --
-  -- Other
-  --
-
-  | otherwise = do
-
-    addMsg $ OtherMsg (msgPrefix msg)
-                      (msgCmd msg)
-                      (msgParams msg)
-                      (msgTrail msg)
-
- where
-
-  isCode bs code = bs == (B8.pack code)
-
-  emptyRes, doNothing :: IncomingResult
-  emptyRes  = IncomingResult [] Nothing Nothing
-  doNothing = emptyRes
-
-  quitCmd :: String -> IncomingResult
-  quitCmd reason = emptyRes { quit = Just reason }
-
-  addMsg :: Message -> IncomingResult
-  addMsg msg' = emptyRes { add_msg = Just msg' }
-
-  sendMsg :: IRCMsg -> IncomingResult
-  sendMsg irc = emptyRes { send_msgs = [irc] }
-
-  withUsr :: UserInfo -> (Maybe UserInfo -> IncomingResult) -> IncomingResult
-  withUsr who f = IncomingReqUsr $ \usr ->
-    if isCurrentUser usr who then f Nothing else f (Just who)
-
-  withNick :: Nickname -> (Maybe Nickname -> IncomingResult) -> IncomingResult
-  withNick who f = IncomingReqNck $ \cur_nick ->
-    if who == cur_nick then f Nothing else f (Just who)
+  addTimeStamp msg = do
+    now <- lift . liftIO $ getCurrentTime
+    yield (now, msg)
+
+ircParser :: Attoparsec.Parser IRCMsg
+ircParser = skipMany space *> ircLine
+
+-- | Continue parsing IRC messages from a `Producer`, possibly returned
+-- from a `ParsingError'`
+continueWith
+  :: (MonadIO m, IsConnectException m e)
+  => Producer ByteString m (Maybe e)
+  -> IrcProducer m
+continueWith p = do
+  r <- parsedIrcMessage p
+  return $ case r of
+    Left (pe, pr)  -> Just $ ParsingError' pe (HaltedProducer $ continueWith pr)
+    Right (Just e) -> Just $ toConnectException e
+    Right Nothing  -> Nothing
+
+------------------------------------------------------------------------------
+-- Utility
+
+-- | Handle incoming IRC messages. This consumes all incoming messages of the
+-- current connection.
+handleIrcMessages
+  :: MonadIO m
+  => Connection m
+  -> ((UTCTime, IRCMsg) -> m ())
+  -> m (Maybe (ConnectException m))
+handleIrcMessages con f =
+
+  runEffect $ for (ircMessages con) (lift . f)
+
+-- | `send` lifted to the `IrcT` monad
+send' :: MonadIO m => Connection m -> IRCMsg -> IrcT m ()
+send' con msg = lift . lift $ send con msg

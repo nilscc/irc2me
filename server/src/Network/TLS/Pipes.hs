@@ -2,6 +2,8 @@
 
 module Network.TLS.Pipes where
 
+import qualified Data.ByteString.Char8 as B8
+
 import Control.Applicative
 import Control.Exception
 import Control.Monad.Except
@@ -19,29 +21,42 @@ import Network.TLS
 -- pipes
 import Pipes
 
-receiveTLS
+type TLSProducer m = Producer ByteString m (Maybe (Either TLSException IOException))
+
+fromTLS
   :: ( MonadIO m
      , HasBackend backend, TLSParams params
      )
   => backend
   -> params
-  -> Producer ByteString m (Maybe (Either TLSException IOException))
-receiveTLS h params = fmap (either Just (const Nothing)) . runExceptT $ do
+  -> m (Maybe (TLSProducer m, Context))
+fromTLS h params = do
 
-  ctxt <- mkSafe $ do
+  mctxt <- runExceptT $ mkSafe $ do
+
     -- in IO monad
     rng  <- cprgCreate <$> createEntropyPool :: IO SystemRNG
     ctxt <- contextNew h params rng
     handshake ctxt
     return ctxt
 
-  fix $ \loop -> do
-    mbs <- mkSafe $ handleEOF $ recvData ctxt
-    withJust mbs $ \bs -> do
-      lift $ yield bs
-      loop
+  case mctxt of
+
+    -- directly return exception in producer
+    Left _exc -> return Nothing -- TODO: Report error
+
+    -- run loop on context
+    Right ctxt -> return $ toResult ctxt $ fix $ \loop -> do
+      mbs <- mkSafe $ handleEOF $ recvData ctxt
+      withJust mbs $ \bs -> do
+        unless (B8.null bs) $
+          lift $ yield bs
+        loop
 
  where
+
+  toResult ctxt p = Just ( either Just (const Nothing) <$> runExceptT p
+                         , ctxt)
 
   mkSafe io = do
     r <- liftIO $ handle (\(e :: TLSException) -> return (Left (Left e)))
