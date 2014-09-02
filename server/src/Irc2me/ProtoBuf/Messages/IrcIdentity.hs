@@ -5,12 +5,11 @@
 
 module Irc2me.ProtoBuf.Messages.IrcIdentity where
 
-import Control.Lens hiding (Identity)
+import Control.Lens
 import Control.Applicative
 
 import Data.Text (Text)
 import Data.ProtocolBuffers
-import Data.Int
 
 import GHC.Generics (Generic)
 
@@ -18,7 +17,8 @@ import GHC.Generics (Generic)
 import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
-type ID_T = Int64
+-- local
+import Irc2me.ProtoBuf.Helper
 
 data IrcIdentity = IrcIdentity
   { _identityId          :: Optional 1  (Value ID_T)

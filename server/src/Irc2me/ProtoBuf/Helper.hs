@@ -5,6 +5,8 @@
 
 module Irc2me.ProtoBuf.Helper where
 
+import Data.Int
+
 -- lens
 import Control.Lens
 
@@ -16,6 +18,7 @@ import           Data.Text          (Text)
 import qualified Data.Text.Encoding as E
 import qualified Data.Text.Encoding.Error as EE
 
+type ID_T = Int64
 
 decodeUtf8 :: ByteString -> Text
 decodeUtf8 = E.decodeUtf8With EE.lenientDecode

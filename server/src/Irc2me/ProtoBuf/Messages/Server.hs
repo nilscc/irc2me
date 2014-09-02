@@ -13,10 +13,11 @@ import GHC.Generics (Generic)
 
 -- protobuf
 import Data.ProtocolBuffers
+import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
 -- local
-import Irc2me.ProtoBuf.Messages.IrcIdentity
+import Irc2me.ProtoBuf.Helper
 import Irc2me.ProtoBuf.Messages.System
 
 data ResponseCode
