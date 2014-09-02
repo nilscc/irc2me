@@ -100,7 +100,7 @@ data TLSSettings
   | Plaintext   -- ^ No TLS at all
 
 connect
-  :: (MonadIO m, Functor m)
+  :: MonadIO m
   => TLSSettings
   -> HostName
   -> PortID
