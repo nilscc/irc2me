@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.IRC
+module Irc2me.IRC.Broadcast
   ( startBroadcasting, stopBroadcasting
   , IrcBroadcast
   , subscribe
