@@ -291,8 +291,8 @@ continueWith p = do
 ------------------------------------------------------------------------------
 -- Sending
 
-sendIrc :: MonadIO m => Connection m -> IRCMsg -> m ()
-sendIrc con msg = liftIO $ mkSafe $ case con of
+sendIrc :: Connection m -> IRCMsg -> IO ()
+sendIrc con msg = mkSafe $ case con of
   PlaintextConnection _ h -> B8.hPutStrLn h bs
   TLSConnection       _ c -> sendData     c $ BL.fromStrict bs
  where
@@ -303,8 +303,8 @@ sendIrc con msg = liftIO $ mkSafe $ case con of
 ------------------------------------------------------------------------------
 -- Close a connection
 
-closeConnection :: MonadIO m => Connection m -> m ()
-closeConnection con = liftIO $ case con of
+closeConnection :: Connection m -> IO ()
+closeConnection con = case con of
   PlaintextConnection _ h -> hClose h
   TLSConnection       _ c -> do
     bye c
@@ -327,7 +327,7 @@ handleIrcMessages con f =
 
 -- | `send` lifted to the `IrcT` monad
 sendIrcT :: MonadIO m => Connection m -> IRCMsg -> IrcT m ()
-sendIrcT con msg = lift . lift $ sendIrc con msg
+sendIrcT con msg = lift . lift . liftIO $ sendIrc con msg
 
 dumpHaltedProducer :: Monad m => HaltedProducer m -> m ByteString
 dumpHaltedProducer (HaltedProducer p) = do
