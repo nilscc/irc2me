@@ -2,8 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Irc2me.IRC
-  ( connectToIrc
-  , IrcBroadcast, subscribe
+  ( startBroadcasting, stopBroadcasting
+  , IrcBroadcast
+  , subscribe
   ) where
 
 import Control.Applicative
@@ -106,34 +107,6 @@ newIrcBroadcast con = do
     , _broadcastThread        = Nothing
     }
 
-stopBroadcasting
-  :: IrcBroadcast
-  -> Maybe (ConnectionException IO)
-  -> IO ()
-stopBroadcasting bc ce = do
-
-  case bc ^. broadcastThread of
-    Just tid ->
-
-      -- outside of broadcasting thread
-      killThread tid
-
-    Nothing  -> do
-
-      -- within current broadcasting thread
-      sendIrc con (ircMsg "QUIT" [] "Goodbye.")
-
-      closeConnection con
-
-      atomically $ do
-        status <- readTVar statusTVar
-        writeTVar statusTVar $ status
-          & currentIrcConnectionStatus .~ IrcDisconnected ce
-
- where
-  con        = bc ^. broadcastIrcConnection
-  statusTVar = bc ^. broadcastIrcStatus
-
 --
 -- Subscription
 --
@@ -207,10 +180,10 @@ connecting bc = do
   guard $ isConnecting status
 
 ------------------------------------------------------------------------------
--- IRC main loop
+-- IRC broadcasting
 
-connectToIrc :: IrcIdentity -> IrcServer -> IO (Maybe IrcBroadcast)
-connectToIrc ident server
+startBroadcasting :: IrcIdentity -> IrcServer -> IO (Maybe IrcBroadcast)
+startBroadcasting ident server
 
     -- server
   | Just hostname <- server ^? serverHost . _Just . _Text
@@ -250,6 +223,38 @@ connectToIrc ident server
         return $ Just (bc & broadcastThread .~ Just t)
 
   | otherwise = return Nothing
+
+stopBroadcasting
+  :: IrcBroadcast
+  -> Maybe (ConnectionException IO)
+  -> IO ()
+stopBroadcasting bc ce = do
+
+  case bc ^. broadcastThread of
+    Just tid ->
+
+      -- outside of broadcasting thread
+      killThread tid
+
+    Nothing  -> do
+
+      -- within current broadcasting thread
+      sendIrc con (ircMsg "QUIT" [] "Goodbye.")
+
+      closeConnection con
+
+      atomically $ do
+        status <- readTVar statusTVar
+        writeTVar statusTVar $ status
+          & currentIrcConnectionStatus .~ IrcDisconnected ce
+
+ where
+  con        = bc ^. broadcastIrcConnection
+  statusTVar = bc ^. broadcastIrcStatus
+
+--
+-- IRC event handler
+--
 
 ircMainBroadcast
   :: IrcBroadcast
