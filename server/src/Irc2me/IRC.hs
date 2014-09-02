@@ -1,7 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.IRC where
+module Irc2me.IRC
+  ( connectToIrc
+  , IrcBroadcast, subscribe
+  ) where
 
 import Control.Applicative
 import Control.Concurrent
@@ -11,7 +14,6 @@ import Control.Monad
 import Control.Monad.Trans
 
 import Data.Function
-import Data.List
 
 import Network
 
@@ -21,7 +23,6 @@ import qualified Data.ByteString.Char8 as B8
 
 -- time
 import Data.Time
-import System.Locale
 
 -- irc-bytestring
 import Network.IRC.ByteString.Parser (IRCMsg, ircMsg)
@@ -70,17 +71,9 @@ emptyIrcStatus = IrcStatus
   , _currentIrcNickname         = ""
   }
 
-isConnected :: IrcConnectionStatus -> Bool
-isConnected IrcConnected = True
-isConnected _            = False
-
 isConnecting :: IrcConnectionStatus -> Bool
 isConnecting IrcConnecting = True
 isConnecting _             = False
-
-isDisconnected :: IrcConnectionStatus -> Bool
-isDisconnected (IrcDisconnected _) = True
-isDisconnected _                   = False
 
 ------------------------------------------------------------------------------
 -- IRC broadcast data type
@@ -165,7 +158,7 @@ subscribe bc go = do
           IrcDisconnected _ -> return Nothing
 
     case m of
-      Nothing  -> putStrLn "subscribe done"
+      Nothing  -> return ()
       Just msg -> do
         go msg
         loop
@@ -181,9 +174,6 @@ modifyIrcStatus bc f = do
   writeTVar (bc ^. broadcastIrcStatus) st'
   return st'
 
-modifyIrcStatusIO :: MonadIO m => IrcBroadcast -> (IrcStatus -> IrcStatus) -> m IrcStatus
-modifyIrcStatusIO bc f = liftIO . atomically $ modifyIrcStatus bc f
-
 modifyIrcStatus_ :: IrcBroadcast -> (IrcStatus -> IrcStatus) -> STM ()
 modifyIrcStatus_ bc f = () <$ modifyIrcStatus bc f
 
@@ -191,16 +181,16 @@ modifyIrcStatusIO_ :: MonadIO m => IrcBroadcast -> (IrcStatus -> IrcStatus) -> m
 modifyIrcStatusIO_ bc f = liftIO . atomically $ modifyIrcStatus_ bc f
 
 setNickname :: IrcBroadcast -> ByteString -> IO ()
-setNickname bc nick = modifyNickname bc (const nick)
+setNickname bc nick = modifyNickname_ bc (const nick)
 
-modifyNickname :: MonadIO m => IrcBroadcast -> (ByteString -> ByteString) -> m ()
-modifyNickname bc f = liftIO $ do
+modifyNickname_ :: MonadIO m => IrcBroadcast -> (ByteString -> ByteString) -> m ()
+modifyNickname_ bc f = liftIO $ do
+  atomically $ modifyIrcStatus_ bc $ currentIrcNickname %~ f
 
-  st <- atomically $ do
-    modifyIrcStatus bc $ currentIrcNickname %~ f
-
+sendCurrentNickname :: MonadIO m => IrcBroadcast -> m ()
+sendCurrentNickname bc = liftIO $ do
+  st <- atomically $ readTVar (bc ^. broadcastIrcStatus)
   sendIrc con $ ircMsg "NICK" [ st ^. currentIrcNickname ] ""
-
  where
   con   = bc ^. broadcastIrcConnection
 
@@ -270,9 +260,11 @@ ircMainBroadcast bc username nickname = do
 
   let con = bc ^. broadcastIrcConnection
 
+  setNickname bc nickname
+
   -- register user
   sendIrc con $ ircMsg "USER" [ nickname, "*", "*", username ] ""
-  setNickname bc nickname
+  sendCurrentNickname bc
 
   ec <- handleIrcMessages con (ircMainResponse bc)
 
@@ -304,12 +296,15 @@ ircMainResponse bc tmsg = withMsg_ tmsg
 
             , do -- change nickname if necessary
                  command err_NICKNAMEINUSE
-                 modifyNickname bc (`B8.append` "_")
+                 modifyNickname_ bc (`B8.append` "_")
+                 sendCurrentNickname bc
             ]
 
   , do -- respond to PING with PONG
        command "PING"
        sendIrcT con $ ircMsg "PONG" [] ""
+
+  -- FIXME: handle nickname changes
 
   , do -- broadcast everything else
        broadcast bc tmsg
@@ -317,50 +312,3 @@ ircMainResponse bc tmsg = withMsg_ tmsg
 
  where
   con = bc ^. broadcastIrcConnection
-
-------------------------------------------------------------------------------
--- Testing
-
-testIdent :: IrcIdentity
-testIdent = emptyIrcIdentity &~ do
-  identityName .= Just "irc2me"
-  identityNick .= Just "irc2me"
-
-testServer :: IrcServer
-testServer = emptyIrcServer &~ do
-  -- serverHost   .= Just "irc.freenode.net"
-  -- serverPort   .= Just 7070
-  serverHost   .= Just "irc.xinutec.org"
-  serverPort   .= Just 7776
-  serverUseTLS .= Just True
-
-main :: IO ()
-main = do
-  mbc <- connectToIrc testIdent testServer
-  case mbc of
-    Nothing -> putStrLn "Couldn't connect to server."
-    Just bc -> onException `flip` stopBroadcasting bc Nothing $ do
-      subscribe bc $ putStrLn . testFormat
-
-testFormat :: (UTCTime, IrcMessage) -> String
-testFormat (t, msg) =
-
-  let time = formatTime defaultTimeLocale "%T" t
-
-      cmd = (    msg ^? ircMessageType    . _Just . re _Show
-             <|> msg ^? ircMessageTypeRaw . _Just . _Text
-            ) ^. non "?"
-
-      who = (    msg ^? ircFromUser   . _Just . userNick . _Text
-             <|> msg ^? ircFromServer . _Just . _Text
-            ) ^. non "-"
-
-      par = msg ^. ircTo ^.. traversed . _Text & intercalate ", "
-
-      cnt = (msg ^? ircContent . _Just . _Text) ^. non ""
-
-  in "["  ++ time ++ "]"
-  ++ " "  ++ cmd
-  ++ " <" ++ who ++ ">"
-  ++ " [" ++ par ++ "]"
-  ++ " "  ++ cnt
