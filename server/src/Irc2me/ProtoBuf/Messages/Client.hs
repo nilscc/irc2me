@@ -15,7 +15,7 @@ import Data.ProtocolBuffers.TH
 
 -- local
 import Irc2me.ProtoBuf.Messages.Identity
-import Irc2me.ProtoBuf.Messages.SystemMsg
+import Irc2me.ProtoBuf.Messages.System
 
 data ClientMessage = ClientMessage
 

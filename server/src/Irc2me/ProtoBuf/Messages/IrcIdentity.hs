@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.ProtoBuf.Messages.Identity where
+module Irc2me.ProtoBuf.Messages.IrcIdentity where
 
 import Control.Lens hiding (Identity)
 import Control.Applicative
@@ -20,7 +20,7 @@ import Data.ProtocolBuffers.TH
 
 type ID_T = Int64
 
-data Identity = Identity
+data IrcIdentity = IrcIdentity
   { _identityId          :: Optional 1  (Value ID_T)
   , _identityNick        :: Optional 10 (Value Text)
   , _identityNickAlt     :: Repeated 11 (Value Text)
@@ -29,11 +29,11 @@ data Identity = Identity
   }
   deriving (Eq, Show, Generic)
 
-instance Encode Identity
-instance Decode Identity
+instance Encode IrcIdentity
+instance Decode IrcIdentity
 
-emptyIdentity :: Identity
-emptyIdentity = Identity
+emptyIrcIdentity :: IrcIdentity
+emptyIrcIdentity = IrcIdentity
   { _identityId       = putField Nothing
   , _identityNick     = putField Nothing
   , _identityNickAlt  = putField []
@@ -44,13 +44,13 @@ emptyIdentity = Identity
 ------------------------------------------------------------------------------
 -- Lenses
 
-makeFieldLenses ''Identity
+makeFieldLenses ''IrcIdentity
 
 ------------------------------------------------------------------------------
 -- Folds
 
-identitiesWithID :: ReifiedFold Identity Identity
+identitiesWithID :: ReifiedFold IrcIdentity IrcIdentity
 identitiesWithID = Fold id <* Fold (identityId . _Just)
 
-identitiesWithoutID :: ReifiedFold Identity Identity
+identitiesWithoutID :: ReifiedFold IrcIdentity IrcIdentity
 identitiesWithoutID = Fold id <* Fold (identityId . _Nothing)

@@ -2,7 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Irc2me.ProtoBuf.Messages.IRC where
+module Irc2me.ProtoBuf.Messages.IrcMessage where
 
 import Control.Applicative
 

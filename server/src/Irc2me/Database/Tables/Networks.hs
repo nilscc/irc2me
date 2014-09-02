@@ -10,7 +10,7 @@ import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 
 import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages.Network
+import Irc2me.ProtoBuf.Messages.IrcNetwork
 
 
 --------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Irc2me.ProtoBuf.Messages.SystemMsg where
+module Irc2me.ProtoBuf.Messages.System where
 
 import Control.Lens
 

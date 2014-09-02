@@ -6,7 +6,7 @@
 -- | Module for server to client messages
 module Irc2me.ProtoBuf.Messages.Server where
 
-import Control.Lens hiding (Identity)
+import Control.Lens
 import Data.Text (Text)
 
 import GHC.Generics (Generic)
@@ -16,8 +16,8 @@ import Data.ProtocolBuffers
 import Data.ProtocolBuffers.TH
 
 -- local
-import Irc2me.ProtoBuf.Messages.Identity
-import Irc2me.ProtoBuf.Messages.SystemMsg
+import Irc2me.ProtoBuf.Messages.IrcIdentity
+import Irc2me.ProtoBuf.Messages.System
 
 data ResponseCode
   = ResponseOK
@@ -33,7 +33,7 @@ data ServerMessage = ServerMessage
   , _responseMsg      :: Optional 15 (Value Text)
 
     -- identities
-  -- , _ident_list        :: Repeated 20 (Message Identity)
+  -- , _ident_list        :: Repeated 20 (Message IrcIdentity)
 
     -- networks
   -- , _network_list      :: Repeated 30 (Message Network)
