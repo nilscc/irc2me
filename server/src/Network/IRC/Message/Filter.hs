@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Network.IRC.Message.Filter where
 
 import Control.Monad
