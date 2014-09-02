@@ -304,11 +304,13 @@ sendIrc con msg = mkSafe $ case con of
 -- Close a connection
 
 closeConnection :: Connection m -> IO ()
-closeConnection con = case con of
+closeConnection con = mkSafe $ case con of
   PlaintextConnection _ h -> hClose h
   TLSConnection       _ c -> do
     bye c
     backendClose $ ctxConnection c
+ where
+  mkSafe io = io `catch` (\(_ :: IOException) -> return ())
 
 
 ------------------------------------------------------------------------------
