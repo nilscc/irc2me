@@ -28,7 +28,7 @@ executable irc2mobile-server
                        time,
                        stm,
                        attoparsec,
-                       irc-bytestring,
+                       irc-bytestring >= 0.1.1,
                        protobuf,
                        cereal,
                        text,
