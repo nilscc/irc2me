@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.IRC
+module Irc2me.IRC.Broadcast
   ( startBroadcasting, stopBroadcasting
   , IrcBroadcast
   , subscribe
@@ -256,23 +256,24 @@ ircMainResponse bc tmsg = withMsg_ tmsg
        -- broadcast all messages while still connecting
        broadcast bc tmsg
 
-       msum [ do -- everything's ok, switch to 'Connected'
-                 command "001"
-                 liftIO . atomically $
-                   writeTVar (bc ^. broadcastIrcStatus) IrcConnected
+       void . optional $ msum
+         [ do -- everything's ok, switch to 'Connected'
+              command "001"
+              liftIO . atomically $
+                writeTVar (bc ^. broadcastIrcStatus) IrcConnected
 
-            , do -- change nickname if necessary
-                 command err_NICKNAMEINUSE
+         , do -- change nickname if necessary
+              command err_NICKNAMEINUSE
 
-                 let nick' = nick `B8.append` "_"
+              let nick' = nick `B8.append` "_"
 
-                 -- store new nick
-                 liftIO . atomically $
-                   writeTVar (bc ^. broadcastIrcStatus) (IrcConnecting nick')
+              -- store new nick
+              liftIO . atomically $
+                writeTVar (bc ^. broadcastIrcStatus) (IrcConnecting nick')
 
-                 -- send new nick to server
-                 sendIrcT con $ ircMsg "NICK" [ nick' ] ""
-            ]
+              -- send new nick to server
+              sendIrcT con $ ircMsg "NICK" [ nick' ] ""
+         ]
 
   , do -- respond to PING with PONG
        command "PING"
