@@ -1,10 +1,11 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Irc2me.Database.Query where
 
 import Control.Applicative
-import Control.Monad.Trans
+import Control.Monad.Except
 import Data.Maybe
 import Data.List
 import Data.Word
@@ -18,6 +19,9 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 
 import Irc2me.Database.Config
+
+------------------------------------------------------------------------------
+-- Query & Update types
 
 data Query a = Query
   { queryStr  :: String
@@ -37,21 +41,26 @@ data Update a
       , urConvert  :: [[SqlValue]] -> a
       }
 
-runQuery :: MonadIO m => Query a -> m (Either SqlError a)
-runQuery (Query s v conv) = liftIO $ runSQL $ \c ->
+runQuery
+  :: (MonadIO m, MonadError SqlError m)
+  => Query a -> m a
+runQuery (Query s v conv) = runSQL $ \c ->
   conv <$> quickQuery' c s v
 
-runUpdate :: MonadIO m => Update a -> m (Either SqlError a)
-runUpdate (Update s v conv) = liftIO $ runSQL $ \c -> do
+runUpdate
+  :: (MonadIO m, MonadError SqlError m) => Update a -> m a
+runUpdate (Update s v conv) = runSQL $ \c -> do
   i <- run c s v
   commit c
   return $ conv i
-runUpdate (UpdateReturning s v conv) = liftIO $ runSQL $ \c -> do
+runUpdate (UpdateReturning s v conv) = runSQL $ \c -> do
   res <- conv <$> quickQuery' c s v
   commit c
   return res
 
-runUpdate_ :: Update a -> IO ()
+runUpdate_
+  :: (MonadIO m, MonadError SqlError m, Functor m)
+  => Update a -> m ()
 runUpdate_ u = () <$ runUpdate u
 
 -- conversion helpers

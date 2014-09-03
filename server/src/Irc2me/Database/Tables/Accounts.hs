@@ -3,6 +3,7 @@
 module Irc2me.Database.Tables.Accounts where
 
 import Data.ByteString (ByteString)
+import Data.List
 
 -- lens
 import Control.Lens
@@ -31,7 +32,7 @@ toID _              = Nothing
 -- Accounts
 --
 
-newtype Account = Account { accountId :: Integer }
+newtype AccountID = AccountID { _accountId :: Integer }
   deriving (Eq, Show, Ord)
 
 -- converters
@@ -39,27 +40,27 @@ newtype Account = Account { accountId :: Integer }
 accountSELECT :: String
 accountSELECT = "SELECT id FROM accounts"
 
-toAccount :: Converter Account
-toAccount = \case
-  [SqlInteger i] -> Just $ Account i
+toAccountID :: Converter AccountID
+toAccountID = \case
+  [SqlInteger i] -> Just $ AccountID i
   _              -> Nothing
 
 -- queries
 
-selectAccounts :: Query [Account]
+selectAccounts :: Query [AccountID]
 selectAccounts = Query
   accountSELECT
   []
-  (convertList toAccount)
+  (convertList toAccountID)
 
-selectAccountByLogin :: String -> Query (Maybe Account)
+selectAccountByLogin :: String -> Query (Maybe AccountID)
 selectAccountByLogin login = Query
   (accountSELECT ++ " WHERE login = ?")
   [toSql login]
-  (convertOne toAccount)
+  (convertOne toAccountID)
 
-checkPassword :: Account -> ByteString -> Query Bool
-checkPassword (Account acc) pw = Query
+checkPassword :: AccountID -> ByteString -> Query Bool
+checkPassword (AccountID acc) pw = Query
   "SELECT password FROM accounts WHERE id = ?"
   [toSql acc]
   (verify . convertOne fromBytea)
@@ -76,20 +77,27 @@ mkEncrypted pw = encryptPassIO defaultParams (Pass pw)
 addAccount
   :: String           -- ^ Login name
   -> EncryptedPass    -- ^ Password
-  -> Update (Maybe Account)
+  -> Update (Maybe AccountID)
 addAccount login encrypted = UpdateReturning
   "INSERT INTO accounts (login, password) VALUES (?, ?) \
   \  RETURNING id"
   [toSql login, byteaPack (getEncryptedPass encrypted)]
-  (convertOne toAccount)
+  (convertOne toAccountID)
 
 --------------------------------------------------------------------------------
 -- "account_identities" table
 
 -- converters
 
+identityFields :: [String]
+identityFields = ["id", "username", "realname", "nick", "nick_alt"]
+
+
+identityTable :: String
+identityTable = "account_identities"
+
 identitySELECT :: String
-identitySELECT = "SELECT id, username, realname, nick, nick_alt FROM account_identities"
+identitySELECT = "SELECT " ++ intercalate ", " identityFields ++ " FROM " ++ identityTable
 
 toIrcIdentity :: Converter IrcIdentity
 toIrcIdentity s = case s of
@@ -104,16 +112,16 @@ toIrcIdentity s = case s of
 
 -- queries
 
-selectIdentities :: Account -> Query [IrcIdentity]
-selectIdentities (Account a) = Query
+selectIdentities :: AccountID -> Query [IrcIdentity]
+selectIdentities (AccountID a) = Query
   (identitySELECT ++ " WHERE account = ? ORDER BY nick")
   [toSql a]
   (convertList toIrcIdentity)
 
 -- updates
 
-addIrcIdentity :: Account -> IrcIdentity -> Update (Maybe ID)
-addIrcIdentity (Account a) ident = UpdateReturning
+addIrcIdentity :: AccountID -> IrcIdentity -> Update (Maybe ID)
+addIrcIdentity (AccountID a) ident = UpdateReturning
   "INSERT INTO account_identities (account, username, realname, nick, nick_alt) \
   \     VALUES                    (?      , ?       , ?       , ?   , ?       ) \
   \  RETURNING id"
@@ -125,16 +133,16 @@ addIrcIdentity (Account a) ident = UpdateReturning
   ]
   (convertOne toID)
 
-deleteIrcIdentity :: Account -> ID -> Update Bool
-deleteIrcIdentity (Account a) i = Update
+deleteIrcIdentity :: AccountID -> ID -> Update Bool
+deleteIrcIdentity (AccountID a) i = Update
   "DELETE FROM account_identities WHERE account = ? AND id = ?"
   [ toSql a
   , toSql i
   ]
   (== 1)
 
-setIrcIdentity :: Account -> IrcIdentity -> Update Bool
-setIrcIdentity (Account a) ident = Update
+setIrcIdentity :: AccountID -> IrcIdentity -> Update Bool
+setIrcIdentity (AccountID a) ident = Update
   "UPDATE account_identities \
   \   SET username = ?, realname = ?, nick = ?, nick_alt = ?  \
   \ WHERE account = ? AND id = ?"

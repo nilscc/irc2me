@@ -10,3 +10,7 @@ CREATE OR REPLACE VIEW servers_to_reconnect AS
 
 
 
+CREATE OR REPLACE VIEW network_identities AS
+  SELECT i.*
+    FROM account_identities as i, networks as n
+   WHERE n.identity = i.id;
