@@ -1,10 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.IRC.Broadcast
+module Irc2me.IRC
   ( startBroadcasting, stopBroadcasting
   , IrcBroadcast
   , subscribe
+    -- * Connection status
+  , IrcConnectionStatus (..)
+  , getBroadcastConnectionStatus
+  , isConnected
   ) where
 
 import Control.Applicative
@@ -46,35 +50,16 @@ import Irc2me.ProtoBuf.Messages
 -- IRC context
 
 data IrcConnectionStatus
-  = IrcConnecting
+  = IrcConnecting ByteString      -- ^ Current nick being used for
+                                  -- authentication
   | IrcConnected
   | IrcDisconnected (Maybe (ConnectionException IO))
-
-data IrcStatus = IrcStatus
-  { _currentIrcConnectionStatus :: IrcConnectionStatus
-  , _currentIrcNickname         :: ByteString
-  }
 
 --
 -- Lenses
 --
 
-makeLenses ''IrcStatus
 makePrisms ''IrcConnectionStatus
-
---
--- Utilities
---
-
-emptyIrcStatus :: IrcStatus
-emptyIrcStatus = IrcStatus
-  { _currentIrcConnectionStatus = IrcDisconnected Nothing
-  , _currentIrcNickname         = ""
-  }
-
-isConnecting :: IrcConnectionStatus -> Bool
-isConnecting IrcConnecting = True
-isConnecting _             = False
 
 ------------------------------------------------------------------------------
 -- IRC broadcast data type
@@ -82,7 +67,7 @@ isConnecting _             = False
 data IrcBroadcast = IrcBroadcast
   { _broadcastIrcConnection   :: Connection IO
   , _broadcastMessages        :: TChan (UTCTime, IrcMessage)
-  , _broadcastIrcStatus       :: TVar  IrcStatus
+  , _broadcastIrcStatus       :: TVar  IrcConnectionStatus
   , _broadcastThread          :: Maybe ThreadId
   }
 
@@ -99,13 +84,27 @@ makeLenses ''IrcBroadcast
 newIrcBroadcast :: (Connection IO) -> IO IrcBroadcast
 newIrcBroadcast con = do
   broadcastTChan <- newBroadcastTChanIO
-  statusTVar     <- newTVarIO emptyIrcStatus
+  statusTVar     <- newTVarIO (IrcDisconnected Nothing)
   return $ IrcBroadcast
     { _broadcastIrcConnection = con
     , _broadcastMessages      = broadcastTChan
     , _broadcastIrcStatus     = statusTVar
     , _broadcastThread        = Nothing
     }
+
+getBroadcastConnectionStatus
+  :: MonadIO m => IrcBroadcast -> m IrcConnectionStatus
+getBroadcastConnectionStatus bc =
+
+  liftIO $ atomically $ readTVar (bc ^. broadcastIrcStatus)
+
+isConnected :: MonadIO m => IrcBroadcast -> m Bool
+isConnected bc = do
+
+  status <- getBroadcastConnectionStatus bc
+  case status of
+    IrcConnected -> return True
+    _            -> return False
 
 --
 -- Subscription
@@ -125,8 +124,8 @@ subscribe bc go = do
     m <- atomically $ do
       (Just <$> readTChan incoming) <|> do
         status <- readTVar (bc ^. broadcastIrcStatus)
-        case status ^. currentIrcConnectionStatus of
-          IrcConnecting     -> retry
+        case status of
+          IrcConnecting _   -> retry
           IrcConnected      -> retry
           IrcDisconnected _ -> return Nothing
 
@@ -137,47 +136,16 @@ subscribe bc go = do
         loop
 
 --
--- IRC status changes
---
-
-modifyIrcStatus :: IrcBroadcast -> (IrcStatus -> IrcStatus) -> STM IrcStatus
-modifyIrcStatus bc f = do
-  st <- readTVar (bc ^. broadcastIrcStatus)
-  let st' = f st
-  writeTVar (bc ^. broadcastIrcStatus) st'
-  return st'
-
-modifyIrcStatus_ :: IrcBroadcast -> (IrcStatus -> IrcStatus) -> STM ()
-modifyIrcStatus_ bc f = () <$ modifyIrcStatus bc f
-
-modifyIrcStatusIO_ :: MonadIO m => IrcBroadcast -> (IrcStatus -> IrcStatus) -> m ()
-modifyIrcStatusIO_ bc f = liftIO . atomically $ modifyIrcStatus_ bc f
-
-setNickname :: IrcBroadcast -> ByteString -> IO ()
-setNickname bc nick = modifyNickname_ bc (const nick)
-
-modifyNickname_ :: MonadIO m => IrcBroadcast -> (ByteString -> ByteString) -> m ()
-modifyNickname_ bc f = liftIO $ do
-  atomically $ modifyIrcStatus_ bc $ currentIrcNickname %~ f
-
-sendCurrentNickname :: MonadIO m => IrcBroadcast -> m ()
-sendCurrentNickname bc = liftIO $ do
-  st <- atomically $ readTVar (bc ^. broadcastIrcStatus)
-  sendIrc con $ ircMsg "NICK" [ st ^. currentIrcNickname ] ""
- where
-  con   = bc ^. broadcastIrcConnection
-
---
 -- Guards
 --
 
-connecting :: (MonadIO m, MonadPlus m) => IrcBroadcast -> m ()
+connecting :: (MonadIO m, MonadPlus m) => IrcBroadcast -> m ByteString
 connecting bc = do
 
-  status <- liftIO $ atomically $ do
-    view currentIrcConnectionStatus <$> readTVar (bc ^. broadcastIrcStatus)
-
-  guard $ isConnecting status
+  status <- liftIO $ atomically $ readTVar (bc ^. broadcastIrcStatus)
+  case status of
+    IrcConnecting n -> return n
+    _               -> mzero
 
 ------------------------------------------------------------------------------
 -- IRC broadcasting
@@ -209,8 +177,8 @@ startBroadcasting ident server
         bc <- newIrcBroadcast con
 
         -- set status to 'connecting'
-        atomically $ modifyIrcStatus_ bc $
-          currentIrcConnectionStatus .~ IrcConnecting
+        atomically $ writeTVar (bc ^. broadcastIrcStatus)
+                               (IrcConnecting nick)
 
         -- start broadcasting in new thread
         t <- forkIO $ do
@@ -243,10 +211,7 @@ stopBroadcasting bc ce = do
 
       closeConnection con
 
-      atomically $ do
-        status <- readTVar statusTVar
-        writeTVar statusTVar $ status
-          & currentIrcConnectionStatus .~ IrcDisconnected ce
+      atomically $ writeTVar statusTVar $ IrcDisconnected ce
 
  where
   con        = bc ^. broadcastIrcConnection
@@ -265,11 +230,9 @@ ircMainBroadcast bc username nickname = do
 
   let con = bc ^. broadcastIrcConnection
 
-  setNickname bc nickname
-
   -- register user
   sendIrc con $ ircMsg "USER" [ nickname, "*", "*", username ] ""
-  sendCurrentNickname bc
+  sendIrc con $ ircMsg "NICK" [ nickname ] ""
 
   ec <- handleIrcMessages con (ircMainResponse bc)
 
@@ -288,21 +251,27 @@ ircMainResponse
 ircMainResponse bc tmsg = withMsg_ tmsg
 
   [ do -- only fire while still connecting
-       connecting bc
+       nick <- connecting bc
 
        -- broadcast all messages while still connecting
        broadcast bc tmsg
 
        msum [ do -- everything's ok, switch to 'Connected'
                  command "001"
-                 modifyIrcStatusIO_ bc $
-                   currentIrcConnectionStatus .~ IrcConnected
-                 sendIrcT con $ ircMsg "JOIN" [ "#test" ] ""
+                 liftIO . atomically $
+                   writeTVar (bc ^. broadcastIrcStatus) IrcConnected
 
             , do -- change nickname if necessary
                  command err_NICKNAMEINUSE
-                 modifyNickname_ bc (`B8.append` "_")
-                 sendCurrentNickname bc
+
+                 let nick' = nick `B8.append` "_"
+
+                 -- store new nick
+                 liftIO . atomically $
+                   writeTVar (bc ^. broadcastIrcStatus) (IrcConnecting nick')
+
+                 -- send new nick to server
+                 sendIrcT con $ ircMsg "NICK" [ nick' ] ""
             ]
 
   , do -- respond to PING with PONG
