@@ -1,8 +1,19 @@
-module Irc2me.Events where
+{-# LANGUAGE DataKinds #-}
 
-import Control.Concurrent
+module Irc2me.Events
+  ( -- * The `EventT` type
+    EventT
+  , runEventT, runEventTWO, runEventTRW
+  , EventQueue, newEventQueue
+    -- ** Interacting with events
+  , raiseEvent, raiseEvent'
+  , withEvents, withEvents'
+    -- ** STM functions
+  , getEvent, getEventIO
+  , putEvent
+  ) where
+
 import Control.Concurrent.STM
-
 import Control.Monad.Reader
 
 import Irc2me.Events.Types
@@ -10,55 +21,55 @@ import Irc2me.Events.Types
 --------------------------------------------------------------------------------
 -- EventT
 
-newEventQueue :: MonadIO m => m EventQueue
+-- | `runEventT` with fixed `WO` type
+runEventTWO :: MonadIO m => EventQueue WO -> EventT WO m a -> m a
+runEventTWO = runEventT
+
+-- | `runEventT` with fixed `RW` type
+runEventTRW :: MonadIO m => EventQueue WO -> EventT RW m a -> m a
+runEventTRW = runEventT
+
+newEventQueue :: MonadIO m => m (EventQueue WO)
 newEventQueue = do
   bc <- liftIO $ newBroadcastTChanIO
   return $ EventQueue bc
 
-runEventT :: MonadIO m => EventQueue -> EventT m a -> m a
-runEventT = flip runReaderT
+--------------------------------------------------------------------------------
+-- Interacting
 
-raiseEvent :: MonadIO m => AccountEvent -> EventT m ()
+raiseEvent :: MonadIO m => AccountEvent -> EventT mode m ()
 raiseEvent ae = do
   eq <- ask
   raiseEvent' eq ae
 
-raiseEvent' :: MonadIO m => EventQueue -> AccountEvent -> m ()
-raiseEvent' (EventQueue c) ae = liftIO . atomically $ writeTChan c ae
+raiseEvent' :: MonadIO m => (EventQueue mode) -> AccountEvent -> m ()
+raiseEvent' eq ae = liftIO . atomically $ putEvent eq ae
 
 withEvents
   :: MonadIO m
-  => (AccountEvent -> EventT m ())
-  -> EventT m ()
+  => (AccountEvent -> EventT RW m ())
+  -> EventT RW m ()
 withEvents go = withEvents' $ \ae -> go ae >> return True
 
 withEvents'
   :: MonadIO m
-  => (AccountEvent -> EventT m Bool)  -- ^ True = continue to loop
-  -> EventT m ()
+  => (AccountEvent -> EventT RW m Bool)  -- ^ True = continue to loop
+  -> EventT RW m ()
 withEvents' go = do
-  EventQueue bc <- ask
-  -- dup chan to be able to read from broadcast chan
-  c  <- liftIO . atomically $ dupTChan bc
+  eq <- ask
   fix $ \loop -> do
-    ae <- liftIO . atomically $ readTChan c
+    ae <- liftIO $ getEventIO eq
     continue <- go ae
     when continue loop
 
 --------------------------------------------------------------------------------
--- testing
+-- STM functions on AccountEvent
 
-test :: IO ()
-test = do
-  eq <- newEventQueue
+putEvent :: EventQueue mode -> AccountEvent -> STM ()
+putEvent (EventQueue eq) = writeTChan eq
 
-  tid <- forkIO $ runEventT eq $ withEvents $ \ae -> do
-    liftIO $ print ae
+getEvent :: EventQueue RW -> STM AccountEvent
+getEvent (EventQueue rw) = readTChan rw
 
-  fix $ \loop -> do
-    l <- getLine
-    if (null l) then do
-      raiseEvent' eq (AccountEvent 0 Stuff)
-      loop
-     else
-      killThread tid
+getEventIO :: EventQueue RW -> IO AccountEvent
+getEventIO = liftIO . atomically . getEvent
