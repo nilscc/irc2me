@@ -15,8 +15,9 @@ import Data.ByteString (ByteString)
 import Pipes
 import Data.Serialize.Pipes
 
-decodeMsg :: (Monad m, MonadError (String, Maybe ByteString) m, Decode msg)
-          => Pipe ByteString msg m ()
+decodeMsg
+  :: (Monad m, MonadError (String, Maybe ByteString) m, Decode msg)
+  => Pipe ByteString msg m ()
 decodeMsg = prefixedbs >-> decodemsg
  where
   prefixedbs = do
@@ -33,3 +34,11 @@ decodeMsg = prefixedbs >-> decodemsg
     case ea of
       Left err -> throwError (err, Nothing)
       Right a  -> yield a
+
+encodeMsg
+  :: (Monad m, Encode msg)
+  => Pipe msg ByteString m ()
+encodeMsg = encodemsg >-> prefixedbs
+ where
+  encodemsg  = putPipe encodeMessage
+  prefixedbs = putPipe putVarintPrefixedBS
