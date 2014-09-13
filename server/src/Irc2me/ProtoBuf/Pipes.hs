@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Irc2me.Clients where
+module Irc2me.ProtoBuf.Pipes where
 
 import Control.Monad
 import Control.Monad.Except
