@@ -11,11 +11,11 @@ module Irc2me.Events
 
     -- * Interacting with events
   , raiseEvent, raiseEvent'
-  , withEvents, withEvents'
+  , getEvent, withEvents, withEvents'
 
     -- ** STM functions
-  , getEvent, getEventIO
-  , putEvent
+  , readEvent, readEventIO
+  , writeEvent
   ) where
 
 import Control.Concurrent.STM
@@ -57,7 +57,12 @@ raiseEvent ae = EventT $ do
   raiseEvent' eq ae
 
 raiseEvent' :: MonadIO m => (EventQueue mode) -> AccountEvent -> m ()
-raiseEvent' eq ae = liftIO . atomically $ putEvent eq ae
+raiseEvent' eq ae = liftIO . atomically $ writeEvent eq ae
+
+getEvent :: MonadIO m => EventT RW m AccountEvent
+getEvent = EventT $ do
+  eq <- ask
+  liftIO $ readEventIO eq
 
 withEvents
   :: MonadIO m
@@ -71,21 +76,19 @@ withEvents'
   :: MonadIO m
   => (AccountEvent -> EventT RW m Bool)  -- ^ True = continue to loop
   -> EventT RW m ()
-withEvents' go = EventT $ do
-  eq <- ask
-  fix $ \loop -> do
-    ae <- liftIO $ getEventIO eq
-    continue <- unEventT $ go ae
-    when continue loop
+withEvents' go = fix $ \loop -> do
+  ae <- getEvent
+  continue <- go ae
+  when continue loop
 
 --------------------------------------------------------------------------------
 -- STM functions on AccountEvent
 
-putEvent :: EventQueue mode -> AccountEvent -> STM ()
-putEvent (EventQueue eq) = writeTChan eq
+writeEvent :: EventQueue mode -> AccountEvent -> STM ()
+writeEvent (EventQueue eq) = writeTChan eq
 
-getEvent :: EventQueue RW -> STM AccountEvent
-getEvent (EventQueue rw) = readTChan rw
+readEvent :: EventQueue RW -> STM AccountEvent
+readEvent (EventQueue rw) = readTChan rw
 
-getEventIO :: EventQueue RW -> IO AccountEvent
-getEventIO = liftIO . atomically . getEvent
+readEventIO :: EventQueue RW -> IO AccountEvent
+readEventIO = liftIO . atomically . readEvent
