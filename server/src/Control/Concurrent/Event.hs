@@ -12,7 +12,7 @@ module Control.Concurrent.Event
   , runEventT
   , runEventTWO, runEventTRW, liftWO
 
-    -- * The `EventQueue` type
+    -- ** The `EventQueue` type
   , EventQueue, newEventQueue
 
     -- * Interacting with events
