@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Irc2me.Database.Tables.Accounts where
 
@@ -33,7 +34,7 @@ toID _              = Nothing
 --
 
 newtype AccountID = AccountID { _accountId :: Integer }
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Num)
 
 -- converters
 

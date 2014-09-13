@@ -9,7 +9,6 @@ import Control.Exception
 import Data.Time
 import Data.List
 import Data.Text.Lens
-import System.Locale
 import Irc2me.ProtoBuf.Messages hiding (_networkId)
 
 import Control.Monad
@@ -45,7 +44,7 @@ reconnectAll con = withCon con $ do
   accs <- runQuery selectAccounts
   for accs $ \accid -> do
 
-    let log s = liftIO . putStrLn $ "[" ++ show (_accountId accid) ++ "] " ++ s
+    let log' s = liftIO . putStrLn $ "[" ++ show (_accountId accid) ++ "] " ++ s
 
     servers <- runQuery $ selectServersToReconnect accid
     for servers $ \(netid, server) -> do
@@ -60,17 +59,17 @@ reconnectAll con = withCon con $ do
         -- reconnect network
         Nothing -> do
 
-          log $ "Connecting to " ++ show (server ^. serverHost)
+          log' $ "Connecting to " ++ show (server ^. serverHost)
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
-          mbc   <- liftIO $ startBroadcasting ident server
-          case mbc of
+          mbc'  <- liftIO $ startBroadcasting ident server
+          case mbc' of
             Just bc -> do
 
               -- store new broadcast
               at accid . non' _Empty . at netid ?= bc
 
             Nothing -> do
-              log $ "Failed to connect to Network " ++ show (_networkId netid)
+              log' $ "Failed to connect to Network " ++ show (_networkId netid)
 
  where
   for :: Monad m => [a] -> (a -> MaybeT m ()) -> m ()
@@ -90,13 +89,13 @@ test = (print =<<) $ runExceptT $ do
 
   forM_ (Map.toList connections) $ \(acc, networks) -> do
 
-    let log s = putStrLn $ "[" ++ show (_accountId acc) ++ "] " ++ s
+    let log' s = putStrLn $ "[" ++ show (_accountId acc) ++ "] " ++ s
 
-    forM_ (Map.toList networks) $ \(netid, bc) -> do
-      liftIO $ forkIO $ subscribe bc $ log . testFormat
+    forM_ (Map.toList networks) $ \(_netid, bc) -> do
+      liftIO $ forkIO $ subscribe bc $ log' . testFormat
 
   liftIO $ do
-    void getLine `finally` forM_ (Map.toList connections) (\(acc, networks) -> do
+    void getLine `finally` forM_ (Map.toList connections) (\(_acc, networks) -> do
       forM_ (Map.toList networks) $ \(_, bc) -> do
         stopBroadcasting bc Nothing
       )
