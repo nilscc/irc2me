@@ -2,7 +2,7 @@
 
 module Irc2me.Events
   ( -- * The `EventT` type
-    EventT
+    EventT, ReadMode (..)
   , runEventT
   , runEventTWO, runEventTRW, liftWO
 
@@ -21,8 +21,6 @@ module Irc2me.Events
 import Control.Concurrent.STM
 import Control.Monad.Reader
 
-import Data.Coerce
-
 import Irc2me.Events.Types
 
 --------------------------------------------------------------------------------
@@ -37,8 +35,10 @@ runEventTRW :: MonadIO m => EventQueue WO -> EventT RW m a -> m a
 runEventTRW = runEventT
 
 -- | Lift a \"write only\" action to a \"read/write\" `EventT`
-liftWO :: EventT WO m a -> EventT RW m a
-liftWO = coerce
+liftWO :: Monad m => EventT WO m a -> EventT RW m a
+liftWO (EventT et) = EventT $ do
+  EventQueue rw <- ask
+  lift $ runReaderT et (EventQueue rw)
 
 --------------------------------------------------------------------------------
 -- Event queue
@@ -52,7 +52,7 @@ newEventQueue = do
 -- Interacting
 
 raiseEvent :: MonadIO m => AccountEvent -> EventT mode m ()
-raiseEvent ae = do
+raiseEvent ae = EventT $ do
   eq <- ask
   raiseEvent' eq ae
 
@@ -63,17 +63,19 @@ withEvents
   :: MonadIO m
   => (AccountEvent -> EventT RW m ())
   -> EventT RW m ()
-withEvents go = withEvents' $ \ae -> go ae >> return True
+withEvents go = withEvents' $ \ae -> EventT $ do
+  unEventT (go ae)
+  return True
 
 withEvents'
   :: MonadIO m
   => (AccountEvent -> EventT RW m Bool)  -- ^ True = continue to loop
   -> EventT RW m ()
-withEvents' go = do
+withEvents' go = EventT $ do
   eq <- ask
   fix $ \loop -> do
     ae <- liftIO $ getEventIO eq
-    continue <- go ae
+    continue <- unEventT $ go ae
     when continue loop
 
 --------------------------------------------------------------------------------
