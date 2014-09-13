@@ -27,15 +27,15 @@ import Irc2me.Events.Types
 -- EventT
 
 -- | `runEventT` with fixed `WO` type
-runEventTWO :: MonadIO m => EventQueue WO -> EventT WO m a -> m a
+runEventTWO :: MonadIO m => EventQueue WO event -> EventT WO event m a -> m a
 runEventTWO = runEventT
 
 -- | `runEventT` with fixed `RW` type
-runEventTRW :: MonadIO m => EventQueue WO -> EventT RW m a -> m a
+runEventTRW :: MonadIO m => EventQueue WO event -> EventT RW event m a -> m a
 runEventTRW = runEventT
 
 -- | Lift a \"write only\" action to a \"read/write\" `EventT`
-liftWO :: Monad m => EventT WO m a -> EventT RW m a
+liftWO :: Monad m => EventT WO event m a -> EventT RW event m a
 liftWO (EventT et) = EventT $ do
   EventQueue rw <- ask
   lift $ runReaderT et (EventQueue rw)
@@ -43,7 +43,7 @@ liftWO (EventT et) = EventT $ do
 --------------------------------------------------------------------------------
 -- Event queue
 
-newEventQueue :: MonadIO m => m (EventQueue WO)
+newEventQueue :: MonadIO m => m (EventQueue WO event)
 newEventQueue = do
   bc <- liftIO $ newBroadcastTChanIO
   return $ EventQueue bc
@@ -51,31 +51,31 @@ newEventQueue = do
 --------------------------------------------------------------------------------
 -- Interacting
 
-raiseEvent :: MonadIO m => AccountEvent -> EventT mode m ()
+raiseEvent :: MonadIO m => event -> EventT mode event m ()
 raiseEvent ae = EventT $ do
   eq <- ask
   raiseEvent' eq ae
 
-raiseEvent' :: MonadIO m => (EventQueue mode) -> AccountEvent -> m ()
+raiseEvent' :: MonadIO m => (EventQueue mode event) -> event -> m ()
 raiseEvent' eq ae = liftIO . atomically $ writeEvent eq ae
 
-getEvent :: MonadIO m => EventT RW m AccountEvent
+getEvent :: MonadIO m => EventT RW event m event
 getEvent = EventT $ do
   eq <- ask
   liftIO $ readEventIO eq
 
 withEvents
   :: MonadIO m
-  => (AccountEvent -> EventT RW m ())
-  -> EventT RW m ()
+  => (event -> EventT RW event m ())
+  -> EventT RW event m ()
 withEvents go = withEvents' $ \ae -> EventT $ do
   unEventT (go ae)
   return True
 
 withEvents'
   :: MonadIO m
-  => (AccountEvent -> EventT RW m Bool)  -- ^ True = continue to loop
-  -> EventT RW m ()
+  => (event -> EventT RW event m Bool)  -- ^ True = continue to loop
+  -> EventT RW event m ()
 withEvents' go = fix $ \loop -> do
   ae <- getEvent
   continue <- go ae
@@ -84,11 +84,11 @@ withEvents' go = fix $ \loop -> do
 --------------------------------------------------------------------------------
 -- STM functions on AccountEvent
 
-writeEvent :: EventQueue mode -> AccountEvent -> STM ()
+writeEvent :: EventQueue mode event -> event -> STM ()
 writeEvent (EventQueue eq) = writeTChan eq
 
-readEvent :: EventQueue RW -> STM AccountEvent
+readEvent :: EventQueue RW event -> STM event
 readEvent (EventQueue rw) = readTChan rw
 
-readEventIO :: EventQueue RW -> IO AccountEvent
+readEventIO :: EventQueue RW event -> IO event
 readEventIO = liftIO . atomically . readEvent

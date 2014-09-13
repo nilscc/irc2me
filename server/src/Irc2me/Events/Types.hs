@@ -43,12 +43,12 @@ data ReadMode
   = RW  -- ^ Read/write access
   | WO  -- ^ Write only
 
-newtype EventQueue (mode :: ReadMode) = EventQueue (TChan AccountEvent)
+newtype EventQueue (mode :: ReadMode) e = EventQueue (TChan e)
 
-type role EventQueue representational
+type role EventQueue representational nominal
 
-newtype EventT (mode :: ReadMode) m a = EventT
-  { unEventT :: ReaderT (EventQueue mode) m a }
+newtype EventT (mode :: ReadMode) e m a = EventT
+  { unEventT :: ReaderT (EventQueue mode e) m a }
  deriving
   ( Applicative
   , Functor
@@ -64,17 +64,17 @@ newtype EventT (mode :: ReadMode) m a = EventT
   , MonadWriter w
   )
 
-instance MonadReader r m => MonadReader r (EventT mode m) where
+instance MonadReader r m => MonadReader r (EventT mode e m) where
   ask = EventT $ lift ask
   local f (EventT a) = EventT $ do
     eq <- ask
     lift $ local f (runReaderT a eq)
 
 
-type role EventT representational nominal nominal
+type role EventT representational nominal nominal nominal
 
 class RunEventT (mode :: ReadMode) where
-  runEventT :: MonadIO m => EventQueue WO -> EventT mode m a -> m a
+  runEventT :: MonadIO m => EventQueue WO e -> EventT mode e m a -> m a
 
 instance RunEventT WO where
   runEventT eq (EventT et) = runReaderT et eq
