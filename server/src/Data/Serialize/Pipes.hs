@@ -1,6 +1,6 @@
 module Data.Serialize.Pipes where
 
-import Data.Function
+import Control.Monad
 
 -- bytestring
 import Data.ByteString (ByteString)
@@ -8,6 +8,7 @@ import qualified Data.ByteString as BS
 
 -- cereal
 import Data.Serialize.Get
+import Data.Serialize.Put
 
 -- pipes
 import Pipes
@@ -33,7 +34,11 @@ getPartialPipe g = go (runGetPartial g) Nothing
         go (runGetPartial g) (Just res)
 
 getPipe :: Monad m => Get a -> Pipe ByteString (Either String a) m ()
-getPipe g = fix $ \loop -> do
+getPipe g = forever $ do
   bs <- await
   yield $ runGet g bs
-  loop
+
+putPipe :: Monad m => (a -> Put) -> Pipe a ByteString m ()
+putPipe p = forever $ do
+  a <- await
+  yield $ runPut (p a)
