@@ -6,7 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Irc2me.Events.Types
+module Control.Concurrent.Event
   ( -- * The `EventT` type
     EventT, ReadMode (..)
   , runEventT
