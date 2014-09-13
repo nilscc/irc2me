@@ -2,12 +2,19 @@
 
 module Main where
 
-import Server.Connections
+-- import Server.Connections
 
+import Irc2me.Events
+import Irc2me.IRC
+
+main :: IO ()
+main = do
+  return ()
+
+{-
 main :: IO ()
 main = serverStart defaultServerConf
 
-{-
 user :: Identity
 user = Identity { usr_nick     = "McManiaC"
                 , usr_nick_alt = ["irc2mob"]
