@@ -3,11 +3,16 @@
 module Irc2me.Events
   ( -- * The `EventT` type
     EventT
-  , runEventT, runEventTWO, runEventTRW
+  , runEventT
+  , runEventTWO, runEventTRW, liftWO
+
+    -- * The `EventQueue` type
   , EventQueue, newEventQueue
-    -- ** Interacting with events
+
+    -- * Interacting with events
   , raiseEvent, raiseEvent'
   , withEvents, withEvents'
+
     -- ** STM functions
   , getEvent, getEventIO
   , putEvent
@@ -15,6 +20,8 @@ module Irc2me.Events
 
 import Control.Concurrent.STM
 import Control.Monad.Reader
+
+import Data.Coerce
 
 import Irc2me.Events.Types
 
@@ -28,6 +35,13 @@ runEventTWO = runEventT
 -- | `runEventT` with fixed `RW` type
 runEventTRW :: MonadIO m => EventQueue WO -> EventT RW m a -> m a
 runEventTRW = runEventT
+
+-- | Lift a \"write only\" action to a \"read/write\" `EventT`
+liftWO :: EventT WO m a -> EventT RW m a
+liftWO = coerce
+
+--------------------------------------------------------------------------------
+-- Event queue
 
 newEventQueue :: MonadIO m => m (EventQueue WO)
 newEventQueue = do
