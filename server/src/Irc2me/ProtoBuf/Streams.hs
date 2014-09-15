@@ -3,18 +3,22 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
-module Server.Streams
+module Irc2me.ProtoBuf.Streams
   ( -- * Streams
     Stream, StreamT
-  , disconnect
   , throwS
   , choice
+
+    -- ** Connections
+  , disconnect
   , runStreamOnHandle
   , runStreamTOnHandle
   , liftMonadTransformer
 
-    -- ** Messages
+    -- ** Protobuf Messages
   , getMessage
   , sendMessage
   ) where
@@ -22,8 +26,7 @@ module Server.Streams
 import Control.Applicative
 import Control.Arrow
 import Control.Monad
-import Control.Monad.Trans
-import Control.Monad.Trans.Except
+import Control.Monad.Except
 
 import Data.List
 import Data.Monoid
@@ -77,6 +80,11 @@ instance MonadTrans (StreamT e) where
     a <- lift f
     return (c,a)
 
+instance MonadError e m => MonadError e (StreamT e m) where
+  throwError e   = StreamT $ \_ -> throwError e
+  catchError s c = StreamT $ \a ->
+    runStreamT s a `catchError` (\e -> runStreamT (c e) a)
+
 --------------------------------------------------------------------------------
 
 disconnect
@@ -84,14 +92,14 @@ disconnect
   => Maybe String       -- ^ optional reason
   -> StreamT (First String) m a
 disconnect reason = StreamT $ \_ ->
-  throwE $ First $ Just $ maybe "Disconnected." ("Disconnected: " ++) reason
+  throwError $ First $ Just $ maybe "Disconnected." ("Disconnected: " ++) reason
 
 throwS
   :: Monad m
   => String -- ^ origin of error
   -> String -- ^ error message
   -> StreamT (First String) m a
-throwS f e = StreamT $ \_ -> throwE (First $ Just $ "[" ++ f ++ "] " ++ e)
+throwS f e = StreamT $ \_ -> throwError (First $ Just $ "[" ++ f ++ "] " ++ e)
 
 chunksFromHandle :: Handle -> IO Chunks
 chunksFromHandle h = BL.toChunks <$> BL.hGetContents h
@@ -131,7 +139,7 @@ liftMonadTransformer
 liftMonadTransformer transf streamt = StreamT $ \s -> do
   res <- lift $ transf $ runExceptT $ runStreamT streamt s
   case res of
-    Left e -> throwE e
+    Left e -> throwError e
     Right a -> return a
 
 --------------------------------------------------------------------------------
