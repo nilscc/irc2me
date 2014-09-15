@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
 
-module Irc2me.IRC.Broadcast
+module Irc2me.Backends.IRC.Broadcast
   ( startBroadcasting, stopBroadcasting
   , IrcBroadcast
   , subscribe

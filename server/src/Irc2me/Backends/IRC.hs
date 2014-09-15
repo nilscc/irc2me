@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
 
-module Irc2me.IRC where
+module Irc2me.Backends.IRC where
 
 import Control.Applicative
 import Control.Concurrent
@@ -31,7 +32,8 @@ import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 
-import Irc2me.IRC.Broadcast
+import Irc2me.Events
+import Irc2me.Backends.IRC.Broadcast
 
 type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
 
@@ -79,6 +81,13 @@ reconnectAll con = withCon con $ do
 
   require m = maybe mzero return =<< m
   withCon c = execStateT `flip` c
+
+--------------------------------------------------------------------------------
+-- Managing IRC connections
+
+manageIrcConnections :: MonadIO m => IrcConnections -> EventRW m ()
+manageIrcConnections = fix $ \_loop _irc -> do
+  undefined
 
 ------------------------------------------------------------------------------
 -- Testing
