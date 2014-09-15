@@ -9,14 +9,14 @@
 module Irc2me.ProtoBuf.Streams
   ( -- * Streams
     Stream, StreamT
-  , throwS
+  , throwS, showS
   , choice
+  , liftMonadTransformer
 
     -- ** Connections
-  , disconnect
   , runStreamOnHandle
   , runStreamTOnHandle
-  , liftMonadTransformer
+  , disconnect
 
     -- ** Protobuf Messages
   , getMessage
@@ -100,6 +100,16 @@ throwS
   -> String -- ^ error message
   -> StreamT (First String) m a
 throwS f e = StreamT $ \_ -> throwError (First $ Just $ "[" ++ f ++ "] " ++ e)
+
+-- | Run an `ExceptT` monad in `StreamT` and rethrow the exception as `String`
+showS
+  :: (Show e, Functor m, Monad m)
+  => String -> ExceptT e m a -> StreamT (First String) m a
+showS w et = do
+  r <- lift $ runExceptT et
+  case r of
+    Left  e -> throwS w (show e)
+    Right a -> return a
 
 chunksFromHandle :: Handle -> IO Chunks
 chunksFromHandle h = BL.toChunks <$> BL.hGetContents h
