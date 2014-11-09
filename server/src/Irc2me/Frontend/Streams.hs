@@ -7,11 +7,12 @@ module Irc2me.Frontend.Streams
   ) where
 
 import Control.Applicative
+import Control.Concurrent.Event
 import Control.Lens.Operators
 import Control.Monad
 
+import Irc2me.Events
 import Irc2me.Frontend.Messages
-
 import Irc2me.Frontend.Streams.StreamT
 import Irc2me.Frontend.Streams.Helper
 
@@ -25,6 +26,9 @@ serverStream = do
   account <- authenticate <|> throwUnauthorized
 
   sendMessage responseOkMessage
+
+  withClientConnection $ \con ->
+    raiseEvent $ clientConnected account con
 
   forever $ do
 
