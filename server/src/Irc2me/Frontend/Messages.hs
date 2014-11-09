@@ -13,4 +13,3 @@ import Irc2me.ProtoBuf.Messages.IrcNetwork
 import Irc2me.ProtoBuf.Messages.IrcMessage
 import Irc2me.ProtoBuf.Messages.Server
 import Irc2me.ProtoBuf.Messages.System
-
