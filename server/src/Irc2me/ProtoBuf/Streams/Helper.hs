@@ -60,10 +60,9 @@ getMessage = withChunks $ \chunks ->
       _ -> throwS "getMessage" "Unexpected end of input."
 
 sendMessage :: Encode a => a -> Stream ()
-sendMessage msg = withHandle $ \h -> do
-
+sendMessage msg = do
   let encoded = runPut $ encodeMessage msg
-  liftIO $ B.hPut h $ runPut $ putVarintPrefixedBS encoded
+  sendChunk $ runPut $ putVarintPrefixedBS encoded
 
 --------------------------------------------------------------------------------
 -- Server response state
@@ -100,21 +99,20 @@ messageField lns = do
   return $ msg ^. lns . field
 
 guardMessageField
-  :: (HasField a, FieldType a ~ Maybe t)
-  => Getter ClientMessage a
+  :: Getter ClientMessage (Maybe a)
   -> ServerResponseT ()
 guardMessageField lns = do
   msg <- getClientMessage
-  guard $ isJust $ msg ^. lns . field
+  guard $ isJust $ msg ^. lns
 
 guardMessageFieldValue
-  :: (HasField a, Eq (FieldType a))
+  :: Eq a
   => Getter ClientMessage a
-  -> FieldType a
+  -> a
   -> ServerResponseT ()
 guardMessageFieldValue lns val = do
   msg <- getClientMessage
-  guard $ (msg ^. lns . field) == val
+  guard $ (msg ^. lns) == val
 
 requireMessageField
   :: (HasField a, FieldType a ~ Maybe t)
