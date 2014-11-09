@@ -22,7 +22,7 @@ data ClientMessage = ClientMessage
 
     -- system
   { _clientResponseID       :: Optional 3  (Value ID_T)
-  , _clientSystemMessage    :: Optional 5  (Enumeration SystemMsg)
+  , _clientSystemMsg        :: Optional 5  (Enumeration SystemMsg)
 
     -- acount
   , _authLogin              :: Optional 10 (Value Text)
@@ -48,7 +48,7 @@ instance Decode ClientMessage
 emptyClientMessage :: ClientMessage
 emptyClientMessage = ClientMessage
   { _clientResponseID     = putField Nothing
-  , _clientSystemMessage  = putField Nothing
+  , _clientSystemMsg      = putField Nothing
   , _authLogin            = putField Nothing
   , _authPassword         = putField Nothing
   }

@@ -8,7 +8,10 @@ import Irc2me.ProtoBuf.Messages
 
 import Irc2me.ProtoBuf.Streams.StreamT
 import Irc2me.ProtoBuf.Streams.Helper
+
+-- specific streams
 import Irc2me.ProtoBuf.Streams.Authenticate
+import Irc2me.ProtoBuf.Streams.System
 
 serverStream :: Stream ()
 serverStream = do
@@ -25,7 +28,8 @@ serverStream = do
                                   , clientMessage     = msg }
 
     response <- getServerResponse state $ do
-                  choice [ ]
+                  choice [ systemStream
+                         ]
 
     sendMessage $ addResponseId msg response
 
