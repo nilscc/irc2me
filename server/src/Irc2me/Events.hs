@@ -2,10 +2,16 @@
 
 module Irc2me.Events where
 
+import Data.ByteString ( ByteString )
+import Data.ByteString.Lazy ( fromStrict )
+import Control.Lens
+import Pipes
 import Control.Concurrent.Event
 import Data.Time
-import Irc2me.ProtoBuf.Messages
+import Network.TLS as TLS
 
+import Irc2me.ProtoBuf.Pipes
+import Irc2me.ProtoBuf.Messages
 import Irc2me.Database.Tables.Accounts
 
 data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }
@@ -27,3 +33,20 @@ type EventWO m a = EventT WO AccountEvent m a
 --------------------------------------------------------------------------------
 -- IRC events
 
+class ClientConnection c where
+  sendToClient :: c -> ByteString -> IO ()
+
+instance ClientConnection TLS.Context where
+  sendToClient tls = sendData tls . fromStrict
+
+clientConnected
+  :: ClientConnection c
+  => AccountID
+  -> c
+  -> AccountEvent
+clientConnected aid c = AccountEvent aid $ ClientConnected $
+  IrcHandler $ \(_t,msg) -> do
+    let msg' = emptyServerMessage & serverIrcMessage .~ [msg]
+    runEffect $ yield msg' >-> encodeMsg >-> send
+ where
+  send = await >>= lift . sendToClient c
