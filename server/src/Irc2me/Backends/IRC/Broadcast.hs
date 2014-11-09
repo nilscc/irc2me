@@ -44,8 +44,8 @@ import Control.Concurrent.STM
 import Network.IRC.Message.Codes
 import Network.IRC.Connection
 
-import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages
+import Irc2me.Frontend.Helper
+import Irc2me.Frontend.Messages
 
 ------------------------------------------------------------------------------
 -- IRC context

@@ -18,8 +18,8 @@ import Database.HDBC
 
 -- local
 import Irc2me.Database.Query
-import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages.IrcIdentity
+import Irc2me.Frontend.Helper
+import Irc2me.Frontend.Messages.IrcIdentity
 
 -- ID type
 

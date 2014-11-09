@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 
-module Irc2me.ProtoBuf.Messages.IrcNetwork where
+module Irc2me.Frontend.Messages.IrcNetwork where
 
 import Data.Text (Text)
 import Data.Int

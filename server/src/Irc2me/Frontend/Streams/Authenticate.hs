@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
 
-module Irc2me.ProtoBuf.Streams.Authenticate where
+module Irc2me.Frontend.Streams.Authenticate where
 
 import Control.Lens.Operators
 
@@ -11,11 +11,11 @@ import qualified Data.Text.Encoding as TE
 import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 
-import Irc2me.ProtoBuf.Messages.Client
-import Irc2me.ProtoBuf.Messages.Server
+import Irc2me.Frontend.Messages.Client
+import Irc2me.Frontend.Messages.Server
 
-import Irc2me.ProtoBuf.Streams.StreamT
-import Irc2me.ProtoBuf.Streams.Helper
+import Irc2me.Frontend.Streams.StreamT
+import Irc2me.Frontend.Streams.Helper
 
 authenticate :: Stream AccountID
 authenticate = do

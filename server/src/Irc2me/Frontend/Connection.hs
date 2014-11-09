@@ -1,4 +1,4 @@
-module Irc2me.ProtoBuf.Connection where
+module Irc2me.Frontend.Connection where
 
 import Control.Applicative
 

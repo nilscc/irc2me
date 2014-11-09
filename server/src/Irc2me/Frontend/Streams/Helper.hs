@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Irc2me.ProtoBuf.Streams.Helper where
+module Irc2me.Frontend.Streams.Helper where
 
 import Control.Lens
 import Control.Monad.Reader
@@ -18,9 +18,9 @@ import Data.ProtocolBuffers.Internal
 import qualified Data.ByteString as B
 
 import Irc2me.Database.Tables.Accounts
-import Irc2me.ProtoBuf.Messages.Client
-import Irc2me.ProtoBuf.Messages.Server
-import Irc2me.ProtoBuf.Streams.StreamT
+import Irc2me.Frontend.Messages.Client
+import Irc2me.Frontend.Messages.Server
+import Irc2me.Frontend.Streams.StreamT
 
 --------------------------------------------------------------------------------
 -- messages

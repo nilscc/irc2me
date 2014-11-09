@@ -12,7 +12,7 @@ import qualified Data.Foldable as F
 import Data.Time
 import Data.List
 import Data.Text.Lens
-import Irc2me.ProtoBuf.Messages hiding (_networkId)
+import Irc2me.Frontend.Messages hiding (_networkId)
 
 import Control.Monad
 import Control.Monad.Except

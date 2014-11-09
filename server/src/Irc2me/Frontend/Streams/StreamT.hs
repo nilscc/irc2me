@@ -6,7 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Irc2me.ProtoBuf.Streams.StreamT
+module Irc2me.Frontend.Streams.StreamT
   ( -- * Streams
     Stream, StreamT
   , Chunks
@@ -30,7 +30,7 @@ import Data.ByteString (ByteString)
 import Data.List
 import Data.Monoid
 
-import Irc2me.ProtoBuf.Connection
+import Irc2me.Frontend.Connection
 
 --------------------------------------------------------------------------------
 -- newtype on chunks

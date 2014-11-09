@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.ProtoBuf.Messages.IrcIdentity where
+module Irc2me.Frontend.Messages.IrcIdentity where
 
 import Control.Lens
 import Control.Applicative
@@ -18,7 +18,7 @@ import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
 -- local
-import Irc2me.ProtoBuf.Helper
+import Irc2me.Frontend.Helper
 
 data IrcIdentity = IrcIdentity
   { _identityId          :: Optional 1  (Value ID_T)

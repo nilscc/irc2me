@@ -1,4 +1,4 @@
-module Irc2me.ProtoBuf.Streams
+module Irc2me.Frontend.Streams
   ( -- * StreamT
     Stream, StreamT
   , runStream, runStreamT
@@ -10,14 +10,14 @@ import Control.Applicative
 import Control.Lens.Operators
 import Control.Monad
 
-import Irc2me.ProtoBuf.Messages
+import Irc2me.Frontend.Messages
 
-import Irc2me.ProtoBuf.Streams.StreamT
-import Irc2me.ProtoBuf.Streams.Helper
+import Irc2me.Frontend.Streams.StreamT
+import Irc2me.Frontend.Streams.Helper
 
 -- specific streams
-import Irc2me.ProtoBuf.Streams.Authenticate
-import Irc2me.ProtoBuf.Streams.System
+import Irc2me.Frontend.Streams.Authenticate
+import Irc2me.Frontend.Streams.System
 
 serverStream :: Stream ()
 serverStream = do

@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Module for client to server messages
-module Irc2me.ProtoBuf.Messages.Client where
+module Irc2me.Frontend.Messages.Client where
 
 import Data.Text
 
@@ -15,8 +15,8 @@ import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
 -- local
-import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages.System
+import Irc2me.Frontend.Helper
+import Irc2me.Frontend.Messages.System
 
 data ClientMessage = ClientMessage
 

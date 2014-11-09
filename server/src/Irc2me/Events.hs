@@ -7,8 +7,9 @@ import Pipes
 import Control.Concurrent.Event
 import Data.Time
 
-import Irc2me.ProtoBuf.Pipes
-import Irc2me.ProtoBuf.Messages
+import Irc2me.Frontend.Pipes
+import Irc2me.Frontend.Messages
+import Irc2me.Frontend.Connection
 import Irc2me.Database.Tables.Accounts
 
 data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }

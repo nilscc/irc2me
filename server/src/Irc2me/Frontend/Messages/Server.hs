@@ -4,7 +4,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Module for server to client messages
-module Irc2me.ProtoBuf.Messages.Server where
+module Irc2me.Frontend.Messages.Server where
 
 import Control.Lens
 import Data.Text (Text)
@@ -17,9 +17,9 @@ import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
 -- local
-import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages.IrcMessage
-import Irc2me.ProtoBuf.Messages.System
+import Irc2me.Frontend.Helper
+import Irc2me.Frontend.Messages.IrcMessage
+import Irc2me.Frontend.Messages.System
 
 data ResponseCode
   = ResponseOK
