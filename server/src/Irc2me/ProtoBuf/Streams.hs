@@ -1,4 +1,10 @@
-module Irc2me.ProtoBuf.Streams where
+module Irc2me.ProtoBuf.Streams
+  ( -- * StreamT
+    Stream, StreamT
+  , runStream, runStreamT
+    -- * Streams
+  , serverStream
+  ) where
 
 import Control.Applicative
 import Control.Lens.Operators
