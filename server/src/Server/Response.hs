@@ -12,37 +12,37 @@ import Data.Maybe
 import Data.Monoid
 import Data.ProtocolBuffers
 
-import Database.Tables.Accounts
-import ProtoBuf.Messages.Client
-import ProtoBuf.Messages.Server
+import Irc2me.Database.Tables.Accounts
+import Irc2me.ProtoBuf.Messages.Client
+import Irc2me.ProtoBuf.Messages.Server
 import Server.Streams
 
 data ServerReaderState = ServerReaderState
-  { connectionAccount :: Maybe Account
-  , clientMessage     :: PB_ClientMessage
+  { connectionAccount :: Maybe AccountID
+  , clientMessage     :: ClientMessage
   }
 
 type ServerResponseT = StreamT (First String) (ReaderT ServerReaderState IO)
-type ServerResponse  = ServerResponseT PB_ServerMessage
+type ServerResponse  = ServerResponseT ServerMessage
 
 getServerResponse
-  :: ServerReaderState -> ServerResponse -> Stream PB_ServerMessage
+  :: ServerReaderState -> ServerResponse -> Stream ServerMessage
 getServerResponse state resp =
   liftMonadTransformer (runReaderT `flip` state) resp
 
-withAccount :: (Account -> ServerResponse) -> ServerResponse
+withAccount :: (AccountID -> ServerResponse) -> ServerResponse
 withAccount f = do
   macc <- lift $ asks connectionAccount
   case macc of
     Nothing -> throwS "withAccount" "Login required"
     Just acc -> f acc
 
-getClientMessage :: ServerResponseT PB_ClientMessage
+getClientMessage :: ServerResponseT ClientMessage
 getClientMessage = lift $ asks clientMessage
 
 messageField
   :: (HasField a)
-  => Getter PB_ClientMessage a
+  => Getter ClientMessage a
   -> ServerResponseT (FieldType a)
 messageField lns = do
   msg <- getClientMessage
@@ -50,7 +50,7 @@ messageField lns = do
 
 guardMessageField
   :: (HasField a, FieldType a ~ Maybe t)
-  => Getter PB_ClientMessage a
+  => Getter ClientMessage a
   -> ServerResponseT ()
 guardMessageField lns = do
   msg <- getClientMessage
@@ -58,7 +58,7 @@ guardMessageField lns = do
 
 guardMessageFieldValue
   :: (HasField a, Eq (FieldType a))
-  => Getter PB_ClientMessage a
+  => Getter ClientMessage a
   -> FieldType a
   -> ServerResponseT ()
 guardMessageFieldValue lns val = do
@@ -67,7 +67,7 @@ guardMessageFieldValue lns val = do
 
 requireMessageField
   :: (HasField a, FieldType a ~ Maybe t)
-  => Getter PB_ClientMessage a
+  => Getter ClientMessage a
   -> ServerResponseT t
 requireMessageField lns = do
   msg <- getClientMessage
@@ -77,7 +77,7 @@ requireMessageField lns = do
 
 requireMessageFieldValue
   :: (HasField a, FieldType a ~ Maybe t, Eq t)
-  => Getter PB_ClientMessage a
+  => Getter ClientMessage a
   -> t
   -> ServerResponseT ()
 requireMessageFieldValue lns val = do
@@ -91,7 +91,7 @@ requireMessageFieldValue lns val = do
 
 foldOn, guardFoldOn
   :: (Foldable f, HasField field, FieldType field ~ f a)
-  => Getter PB_ClientMessage field
+  => Getter ClientMessage field
   -> Fold a b
   -> ServerResponseT [b]
 
@@ -106,7 +106,7 @@ guardFoldOn lns fld = do
 
 foldROn, guardFoldROn
   :: (Foldable f, HasField field, FieldType field ~ f a)
-  => Getter PB_ClientMessage field
+  => Getter ClientMessage field
   -> ReifiedFold a b
   -> ServerResponseT [b]
 

@@ -11,16 +11,15 @@ import Control.Monad
 
 import Data.Maybe
 
-import Database.Query
-import Database.Tables.Accounts
-import Database.Tables.Networks
+import Irc2me.Database.Query
+import Irc2me.Database.Tables.Accounts
+import Irc2me.Database.Tables.Networks
 
-import ProtoBuf.Helper
-import ProtoBuf.Types
-import ProtoBuf.Messages.Client
-import ProtoBuf.Messages.Identity
-import ProtoBuf.Messages.Network
-import ProtoBuf.Messages.Server
+import Irc2me.ProtoBuf.Helper
+import Irc2me.ProtoBuf.Messages.Client
+import Irc2me.ProtoBuf.Messages.IrcIdentity
+import Irc2me.ProtoBuf.Messages.IrcNetwork
+import Irc2me.ProtoBuf.Messages.Server
 
 import Server.Streams
 import Server.Response

@@ -9,8 +9,10 @@ import Control.Monad
 import           Network
 import qualified Network.Socket as Socket
 
-import Server.Streams
-import Server.Streams.Server
+import Irc2me.ProtoBuf.Streams
+
+-- import Server.Streams
+-- import Server.Streams.Server
 
 data ServerConf = ServerConf
   { serverPort    :: PortNumber
