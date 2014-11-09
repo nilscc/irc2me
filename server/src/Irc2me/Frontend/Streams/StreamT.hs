@@ -142,7 +142,7 @@ runStream con q st = liftIO $ do
   case res of
     Right x                     -> return $ Right x
     Left (getFirst -> Just err) -> return $ Left err
-    _                           -> return $ Left "Unexpected error in 'runStreamOnHandle'"
+    Left e                      -> return $ Left $ "Unexpected error in 'runStream' (" ++ show e ++")"
 
 -- | Generalized `runStreamOnHandle`
 runStreamT
