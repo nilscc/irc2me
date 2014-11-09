@@ -18,7 +18,7 @@ import Data.Serialize.Pipes
 decodeMsg
   :: (Monad m, MonadError (String, Maybe ByteString) m, Decode msg)
   => Pipe ByteString msg m ()
-decodeMsg = prefixedbs >-> decodemsg
+decodeMsg = prefixedbs >-> decodedmsg
  where
   prefixedbs = do
     r <- getPartialPipe getVarintPrefixedBS
@@ -27,7 +27,7 @@ decodeMsg = prefixedbs >-> decodemsg
       Just (err, res) -> do
         throwError (err, Just res)
 
-  decodemsg = getPipe decodeMessage >-> eitherThrowOrYield
+  decodedmsg = getPipe decodeMessage >-> eitherThrowOrYield
 
   eitherThrowOrYield = forever $ do
     ea <- await
