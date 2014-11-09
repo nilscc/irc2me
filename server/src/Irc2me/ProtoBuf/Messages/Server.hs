@@ -18,6 +18,7 @@ import Data.ProtocolBuffers.TH
 
 -- local
 import Irc2me.ProtoBuf.Helper
+import Irc2me.ProtoBuf.Messages.IrcMessage
 import Irc2me.ProtoBuf.Messages.System
 
 data ResponseCode
@@ -38,6 +39,9 @@ data ServerMessage = ServerMessage
 
     -- networks
   -- , _network_list      :: Repeated 30 (Message Network)
+
+    -- backends
+  , _serverIrcMessage :: Repeated 101 (Message IrcMessage)
 
   }
   deriving (Show, Generic)
@@ -60,6 +64,7 @@ emptyServerMessage = ServerMessage
   , _serverSystemMsg  = putField Nothing
   , _responseCode     = putField Nothing
   , _responseMsg      = putField Nothing
+  , _serverIrcMessage = putField []
   }
 
 responseOkMessage :: ServerMessage
