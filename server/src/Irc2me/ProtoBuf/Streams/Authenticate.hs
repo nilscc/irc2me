@@ -14,7 +14,8 @@ import Irc2me.Database.Tables.Accounts
 import Irc2me.ProtoBuf.Messages.Client
 import Irc2me.ProtoBuf.Messages.Server
 
-import Irc2me.ProtoBuf.Streams
+import Irc2me.ProtoBuf.Streams.StreamT
+import Irc2me.ProtoBuf.Streams.Helper
 
 authenticate :: Stream AccountID
 authenticate = do
