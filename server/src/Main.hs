@@ -4,8 +4,8 @@ module Main where
 
 -- import Server.Connections
 
-import Irc2me.Events
-import Irc2me.IRC
+import Irc2me.Events ()
+import Irc2me.Backends.IRC ()
 
 main :: IO ()
 main = do
