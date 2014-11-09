@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
 
-module Server.Streams.Authenticate where
+module Irc2me.ProtoBuf.Streams.Authenticate where
 
 import Control.Lens.Operators
 
