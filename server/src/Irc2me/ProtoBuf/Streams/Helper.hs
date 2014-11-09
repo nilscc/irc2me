@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Server.Response where
+module Irc2me.ProtoBuf.Streams.Helper where
 
 import Control.Lens
 import Control.Monad.Reader
