@@ -1,9 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
 
 module Irc2me.Frontend.Streams.Helper where
 
+import Control.Concurrent.Event
 import Control.Lens
 import Control.Monad.Reader
 
@@ -18,6 +20,7 @@ import Data.ProtocolBuffers.Internal
 import qualified Data.ByteString as B
 
 import Irc2me.Database.Tables.Accounts
+import Irc2me.Events
 import Irc2me.Frontend.Messages.Client
 import Irc2me.Frontend.Messages.Server
 import Irc2me.Frontend.Streams.StreamT
@@ -72,7 +75,10 @@ data ServerReaderState = ServerReaderState
   , clientMessage     :: ClientMessage
   }
 
-type ServerResponseT = StreamT (First String) (ReaderT ServerReaderState IO)
+type ServerResponseT
+  = StreamT (First String)
+            (ReaderT ServerReaderState
+                     (EventT WO AccountEvent IO))
 type ServerResponse  = ServerResponseT ServerMessage
 
 getServerResponse

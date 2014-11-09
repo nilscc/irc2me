@@ -25,8 +25,8 @@ newtype IrcHandler
 instance Show IrcHandler where
   show _ = "IrcHandler{ (UTCTime, IrcMessage) -> IO () }"
 
-type EventRW m a = EventT RW AccountEvent m a
-type EventWO m a = EventT WO AccountEvent m a
+type EventRW m = EventT RW AccountEvent m
+type EventWO m = EventT WO AccountEvent m
 
 --------------------------------------------------------------------------------
 -- IRC events

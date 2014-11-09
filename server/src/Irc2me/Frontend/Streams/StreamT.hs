@@ -5,6 +5,7 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DataKinds #-}
 
 module Irc2me.Frontend.Streams.StreamT
   ( -- * Streams
@@ -23,6 +24,7 @@ module Irc2me.Frontend.Streams.StreamT
 
 import Control.Applicative
 import Control.Arrow
+import Control.Concurrent.Event
 import Control.Monad
 import Control.Monad.Except
 
@@ -30,6 +32,7 @@ import Data.ByteString (ByteString)
 import Data.List
 import Data.Monoid
 
+import Irc2me.Events
 import Irc2me.Frontend.Connection
 
 --------------------------------------------------------------------------------
@@ -39,7 +42,7 @@ newtype StreamT e m a = StreamT
   { unStreamT :: ((ByteString -> IO ()), Chunks) -> ExceptT e m (Chunks, a)
   }
 
-type Stream = StreamT (First String) IO
+type Stream = StreamT (First String) (EventWO IO)
 
 -- Instance definitions
 
@@ -118,9 +121,12 @@ withChunks f = StreamT $ \s@(_,c) -> do
 -- | Run a `Stream` monad with on a handle. Returns the first error message (if any)
 runStream
   :: (MonadIO m, ClientConnection c)
-  => c -> Stream a -> m (Either String a)
-runStream con st = liftIO $ do
-  res <- runStreamT con st
+  => c
+  -> EventQueue WO AccountEvent
+  -> Stream a
+  -> m (Either String a)
+runStream con q st = liftIO $ do
+  res <- runEventTWO q $ runStreamT con st
   case res of
     Right x                     -> return $ Right x
     Left (getFirst -> Just err) -> return $ Left err
