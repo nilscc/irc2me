@@ -8,39 +8,37 @@ import Control.Lens.Operators
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
 
-import Data.ProtocolBuffers
+import Irc2me.Database.Query
+import Irc2me.Database.Tables.Accounts
 
-import Database.Query
-import Database.Tables.Accounts
+import Irc2me.ProtoBuf.Messages.Client
+import Irc2me.ProtoBuf.Messages.Server
 
-import ProtoBuf.Messages.Client
-import ProtoBuf.Messages.Server
+import Irc2me.ProtoBuf.Streams
 
-import Server.Streams
-
-authenticate :: Stream Account
+authenticate :: Stream AccountID
 authenticate = do
 
   msg <- getMessage
 
   case msg of
 
-    _ | Just login <- msg ^. auth_login . field
-      , Just pw    <- msg ^. auth_password . field -> do
+    _ | Just login <- msg ^. authLogin
+      , Just pw    <- msg ^. authPassword -> do
 
         -- run database query
-        maccount <- runQuery $ selectAccountByLogin (Text.unpack login)
+        maccount <- showS "authenticate" $ runQuery $ selectAccountByLogin (Text.unpack login)
         case maccount of
 
-          Right (Just account) -> do
+          Just account -> do
 
-            res <- runQuery $ checkPassword account (TE.encodeUtf8 pw)
-            case res of
-              Right True -> return account
-              _          -> throwS "authenticate" $ "Invalid password for user: " ++ Text.unpack login
+            ok <- showS "authenticate" $ runQuery $ checkPassword account (TE.encodeUtf8 pw)
+            if ok then
+              return account
+             else
+              throwS "authenticate" $ "Invalid password for user: " ++ Text.unpack login
 
-          Right Nothing -> throwS "authenticate" $ "Invalid login: " ++ Text.unpack login
-          Left  sqlerr  -> throwS "authenticate" $ "SqlError: " ++ show sqlerr
+          Nothing -> throwS "authenticate" $ "Invalid login: " ++ Text.unpack login
 
       | otherwise ->
         throwS "authenticate" $ "Unexpected message: " ++ show msg
