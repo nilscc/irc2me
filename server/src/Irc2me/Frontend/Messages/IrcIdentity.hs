@@ -18,7 +18,7 @@ import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
 -- local
-import Irc2me.Frontend.Helper
+import Irc2me.Frontend.Messages.Helper
 
 data IrcIdentity = IrcIdentity
   { _identityId          :: Optional 1  (Value ID_T)

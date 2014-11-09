@@ -13,7 +13,7 @@ import Irc2me.Database.Helper
 import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 
-import Irc2me.Frontend.Helper
+import Irc2me.Frontend.Messages.Helper
 import Irc2me.Frontend.Messages.IrcIdentity
 import Irc2me.Frontend.Messages.IrcNetwork
 

@@ -15,7 +15,7 @@ import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
 -- local
-import Irc2me.Frontend.Helper
+import Irc2me.Frontend.Messages.Helper
 import Irc2me.Frontend.Messages.System
 
 data ClientMessage = ClientMessage
