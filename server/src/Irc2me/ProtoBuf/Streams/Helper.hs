@@ -12,10 +12,61 @@ import Data.Maybe
 import Data.Monoid
 import Data.ProtocolBuffers
 
+import Data.Serialize
+import Data.ProtocolBuffers.Internal
+
+import qualified Data.ByteString as B
+
 import Irc2me.Database.Tables.Accounts
 import Irc2me.ProtoBuf.Messages.Client
 import Irc2me.ProtoBuf.Messages.Server
-import Irc2me.ProtoBuf.Streams
+import Irc2me.ProtoBuf.Streams.Types
+
+--------------------------------------------------------------------------------
+-- messages
+
+getMessage :: (Monad m, Decode a) => StreamT (First String) m a
+getMessage = withChunks $ \chunks ->
+
+  handleChunks chunks $ runGetPartial getVarintPrefixedBS
+
+ where
+
+  handleChunks (chunk : rest) f
+
+    -- skip empty chunks
+    | B.null chunk = handleChunks rest f
+
+    | otherwise =
+
+      -- parse chunk
+      case f chunk of
+
+        Fail err _ -> throwS "getMessage" $ "Unexpected error: " ++ show err
+
+        Partial f' -> handleChunks rest f'
+
+        Done bs chunk' -> do
+          -- try to parse current message
+          case runGet decodeMessage bs of
+            Left err  -> throwS "getMessage" $ "Failed to parse message: " ++ show err
+            Right msg -> return (chunk' : rest, msg)
+
+  handleChunks [] f =
+
+    case f B.empty of
+      Done bs _ | Right msg <- runGet decodeMessage bs ->
+        return ([], msg)
+      _ -> throwS "getMessage" "Unexpected end of input."
+
+sendMessage :: Encode a => a -> Stream ()
+sendMessage msg = withHandle $ \h -> do
+
+  let encoded = runPut $ encodeMessage msg
+  liftIO $ B.hPut h $ runPut $ putVarintPrefixedBS encoded
+
+--------------------------------------------------------------------------------
+-- Server response state
 
 data ServerReaderState = ServerReaderState
   { connectionAccount :: Maybe AccountID
