@@ -20,7 +20,7 @@ import qualified Data.ByteString as B
 import Irc2me.Database.Tables.Accounts
 import Irc2me.ProtoBuf.Messages.Client
 import Irc2me.ProtoBuf.Messages.Server
-import Irc2me.ProtoBuf.Streams.Types
+import Irc2me.ProtoBuf.Streams.StreamT
 
 --------------------------------------------------------------------------------
 -- messages

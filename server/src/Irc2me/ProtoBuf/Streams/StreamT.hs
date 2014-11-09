@@ -6,7 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Irc2me.ProtoBuf.Streams.Types
+module Irc2me.ProtoBuf.Streams.StreamT
   ( -- * Streams
     Stream, StreamT
   , Chunks
