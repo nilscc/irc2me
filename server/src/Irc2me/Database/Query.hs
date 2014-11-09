@@ -20,6 +20,9 @@ import qualified Data.ByteString.Char8 as B8
 
 import Irc2me.Database.Config
 
+runInIO :: ExceptT e IO a -> IO (Either e a)
+runInIO = runExceptT
+
 ------------------------------------------------------------------------------
 -- Query & Update types
 
