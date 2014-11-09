@@ -2,13 +2,10 @@
 
 module Irc2me.Events where
 
-import Data.ByteString ( ByteString )
-import Data.ByteString.Lazy ( fromStrict )
 import Control.Lens
 import Pipes
 import Control.Concurrent.Event
 import Data.Time
-import Network.TLS as TLS
 
 import Irc2me.ProtoBuf.Pipes
 import Irc2me.ProtoBuf.Messages
@@ -32,12 +29,6 @@ type EventWO m a = EventT WO AccountEvent m a
 
 --------------------------------------------------------------------------------
 -- IRC events
-
-class ClientConnection c where
-  sendToClient :: c -> ByteString -> IO ()
-
-instance ClientConnection TLS.Context where
-  sendToClient tls = sendData tls . fromStrict
 
 clientConnected
   :: ClientConnection c
