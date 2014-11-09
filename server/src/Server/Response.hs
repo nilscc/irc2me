@@ -15,7 +15,7 @@ import Data.ProtocolBuffers
 import Irc2me.Database.Tables.Accounts
 import Irc2me.ProtoBuf.Messages.Client
 import Irc2me.ProtoBuf.Messages.Server
-import Server.Streams
+import Irc2me.ProtoBuf.Streams
 
 data ServerReaderState = ServerReaderState
   { connectionAccount :: Maybe AccountID
