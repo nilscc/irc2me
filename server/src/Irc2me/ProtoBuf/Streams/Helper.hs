@@ -91,12 +91,11 @@ getClientMessage :: ServerResponseT ClientMessage
 getClientMessage = lift $ asks clientMessage
 
 messageField
-  :: (HasField a)
-  => Getter ClientMessage a
-  -> ServerResponseT (FieldType a)
+  :: Getter ClientMessage a
+  -> ServerResponseT a
 messageField lns = do
   msg <- getClientMessage
-  return $ msg ^. lns . field
+  return $ msg ^. lns
 
 guardMessageField
   :: Getter ClientMessage (Maybe a)
@@ -138,14 +137,14 @@ requireMessageFieldValue lns val = do
 -- Folds
 
 foldOn, guardFoldOn
-  :: (Foldable f, HasField field, FieldType field ~ f a)
-  => Getter ClientMessage field
+  :: Foldable f
+  => Getter ClientMessage (f a)
   -> Fold a b
   -> ServerResponseT [b]
 
 foldOn lns fld = do
   msg <- getClientMessage
-  return $ (msg ^. lns.field) ^.. folded . fld
+  return $ (msg ^. lns) ^.. folded . fld
 
 guardFoldOn lns fld = do
   lis <- foldOn lns fld
@@ -153,8 +152,8 @@ guardFoldOn lns fld = do
   return lis
 
 foldROn, guardFoldROn
-  :: (Foldable f, HasField field, FieldType field ~ f a)
-  => Getter ClientMessage field
+  :: Foldable f
+  => Getter ClientMessage (f a)
   -> ReifiedFold a b
   -> ServerResponseT [b]
 
