@@ -115,23 +115,22 @@ guardMessageFieldValue lns val = do
   guard $ (msg ^. lns) == val
 
 requireMessageField
-  :: (HasField a, FieldType a ~ Maybe t)
-  => Getter ClientMessage a
+  :: Getter ClientMessage (Maybe t)
   -> ServerResponseT t
 requireMessageField lns = do
   msg <- getClientMessage
-  case msg ^. lns . field of
+  case msg ^. lns of
     Just t  -> return t
     Nothing -> mzero
 
 requireMessageFieldValue
-  :: (HasField a, FieldType a ~ Maybe t, Eq t)
-  => Getter ClientMessage a
+  :: Eq t
+  => Getter ClientMessage (Maybe t)
   -> t
   -> ServerResponseT ()
 requireMessageFieldValue lns val = do
   msg <- getClientMessage
-  case msg ^. lns . field of
+  case msg ^. lns of
     Just t | t == val -> return ()
     _                 -> mzero
 
