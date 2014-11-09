@@ -33,7 +33,7 @@ import Data.List
 import Data.Monoid
 
 import Irc2me.Events
-import Irc2me.Frontend.Connection
+import Irc2me.Frontend.Connection.Types
 
 --------------------------------------------------------------------------------
 -- newtype on chunks
