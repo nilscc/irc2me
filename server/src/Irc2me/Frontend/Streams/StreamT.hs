@@ -18,7 +18,7 @@ module Irc2me.Frontend.Streams.StreamT
     -- ** Connections
   , runStream
   , runStreamT
-  , withChunks, sendChunk
+  , withChunks, withClientConnection, sendChunk
   , disconnect
   ) where
 
@@ -39,7 +39,7 @@ import Irc2me.Frontend.Connection
 -- newtype on chunks
 
 newtype StreamT e m a = StreamT
-  { unStreamT :: ((ByteString -> IO ()), Chunks) -> ExceptT e m (Chunks, a)
+  { unStreamT :: ClientConnection con => (con, Chunks) -> ExceptT e m (Chunks, a)
   }
 
 type Stream = StreamT (First String) (EventWO IO)
@@ -81,6 +81,12 @@ instance MonadError e m => MonadError e (StreamT e m) where
   catchError s c = StreamT $ \a ->
     unStreamT s a `catchError` (\e -> unStreamT (c e) a)
 
+instance (Monad m, Functor m, MonadEventR m ev) => MonadEventR (StreamT e m) ev where
+  getEvent = StreamT $ \(_,c) -> (c,) <$> getEvent
+
+instance (Monad m, Functor m, MonadEventW m ev) => MonadEventW (StreamT e m) ev where
+  raiseEvent e = StreamT $ \(_,c) -> (c,) <$> raiseEvent e
+
 --------------------------------------------------------------------------------
 
 disconnect
@@ -108,9 +114,15 @@ showS w et = do
     Right a -> return a
 
 sendChunk :: MonadIO m => ByteString -> StreamT e m ()
-sendChunk bs = StreamT $ \(send,c) -> do
-  liftIO $ send bs
+sendChunk bs = StreamT $ \(con,c) -> do
+  liftIO $ sendToClient con bs
   return (c,())
+
+withClientConnection
+  :: (Monad m)
+  => (forall con. ClientConnection con => con -> StreamT e m a)
+  -> StreamT e m a
+withClientConnection f = StreamT $ \s@(con,_) -> unStreamT (f con) s
 
 -- | Manually modify bytestring chunks
 withChunks :: Monad m => (Chunks -> StreamT e m (Chunks, a)) -> StreamT e m a
@@ -138,7 +150,7 @@ runStreamT
   => c -> StreamT e m a -> m (Either e a)
 runStreamT con st = do
   c <- liftIO $ incomingChunks con
-  runExceptT $ snd <$> unStreamT st (sendToClient con,c)
+  runExceptT $ snd <$> unStreamT st (con,c)
 
 choice :: (Alternative m, Monad m, Monoid e) => [StreamT e m a] -> StreamT e m a
 choice = foldl' (<|>) empty
