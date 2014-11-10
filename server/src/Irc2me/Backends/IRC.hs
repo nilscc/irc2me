@@ -7,7 +7,6 @@ module Irc2me.Backends.IRC where
 import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.Event
-import Control.Exception
 import qualified Data.Foldable as F
 import Data.Time
 import Data.List
@@ -126,23 +125,6 @@ manageIrcConnections = fix $ \loop irc -> do
 
 ------------------------------------------------------------------------------
 -- Testing
-
-test :: IO ()
-test = (print =<<) $ runExceptT $ do
-  connections <- reconnectAll Map.empty
-
-  forM_ (Map.toList connections) $ \(acc, networks) -> do
-
-    let log' s = putStrLn $ "[" ++ show (_accountId acc) ++ "] " ++ s
-
-    forM_ (Map.toList networks) $ \(_netid, bc) -> do
-      liftIO $ forkIO $ subscribe bc $ log' . testFormat
-
-  liftIO $ do
-    void getLine `finally` forM_ (Map.toList connections) (\(_acc, networks) -> do
-      forM_ (Map.toList networks) $ \(_, bc) -> do
-        stopBroadcasting bc Nothing
-      )
 
 testFormat :: (UTCTime, IrcMessage) -> String
 testFormat (t, msg) =
