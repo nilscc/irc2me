@@ -39,6 +39,7 @@ serverStream = do
 
     response <- getServerResponse state $ do
                   choice [ systemStream
+                         , throwS "serverStream" $ "Not implemented: " ++ show msg
                          ]
 
     sendMessage $ addResponseId msg response

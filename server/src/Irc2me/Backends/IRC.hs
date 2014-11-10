@@ -19,6 +19,8 @@ import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
+import System.IO
+
 -- containers
 import           Data.Map (Map)
 import qualified Data.Map as Map
@@ -38,6 +40,27 @@ import Irc2me.Events
 import Irc2me.Backends.IRC.Broadcast
 
 type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
+
+runIrcBackend :: MonadIO m => EventT mode AccountEvent  m Bool
+runIrcBackend = do
+  eq <- getEventQueue
+  runIrcBackend' eq
+
+runIrcBackend' :: MonadIO m => EventQueue WO AccountEvent -> m Bool
+runIrcBackend' eq = do
+  mcs <- runExceptT $ reconnectAll Map.empty
+  case mcs of
+    Right cs -> do
+      _  <- liftIO $ forkIO $ runEventTRW eq $
+        manageIrcConnections cs
+      return True
+    Left err -> do
+      liftIO $ hPutStrLn stderr $
+        "[IRC] Failed to start backend, reason: " ++ show err
+      return False
+
+--------------------------------------------------------------------------------
+-- Starting up
 
 reconnectAll
   :: (MonadIO m, MonadError SqlError m)
@@ -93,10 +116,13 @@ manageIrcConnections = fix $ \loop irc -> do
   case ev of
 
     ClientConnected (IrcHandler h) -> do
+      logM $ "Subscribe client (Account #" ++ show (aid ^. accountId) ++ ") to IRC networks"
       F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc ->
         liftIO $ forkIO $ subscribe bc h
 
   loop irc
+ where
+  logM msg = liftIO $ putStrLn $ "[IRC] " ++ msg
 
 ------------------------------------------------------------------------------
 -- Testing
