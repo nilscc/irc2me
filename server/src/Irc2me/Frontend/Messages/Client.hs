@@ -5,8 +5,6 @@
 -- | Module for client to server messages
 module Irc2me.Frontend.Messages.Client where
 
-import Data.Text
-
 import GHC.Generics (Generic)
 
 -- protobuf
@@ -23,10 +21,6 @@ data ClientMessage = ClientMessage
     -- system
   { _clientResponseID       :: Optional 3  (Value ID_T)
   , _clientSystemMsg        :: Optional 5  (Enumeration SystemMsg)
-
-    -- acount
-  , _authLogin              :: Optional 10 (Value Text)
-  , _authPassword           :: Optional 11 (Value Text)
 
     -- identities
   -- , _ident_set              :: Repeated 20  (Message Identity)
@@ -49,8 +43,6 @@ emptyClientMessage :: ClientMessage
 emptyClientMessage = ClientMessage
   { _clientResponseID     = putField Nothing
   , _clientSystemMsg      = putField Nothing
-  , _authLogin            = putField Nothing
-  , _authPassword         = putField Nothing
   }
 
 ------------------------------------------------------------------------------
