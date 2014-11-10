@@ -85,11 +85,21 @@ reconnectAll con = withCon con $ do
         -- reconnect network
         Nothing -> do
 
-          log' $ "Connecting to " ++ show (server ^. serverHost)
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
           mbc'  <- liftIO $ startBroadcasting ident server
           case mbc' of
             Just bc -> do
+
+              log' $ "Connected to "
+                ++ (server ^. serverHost . _Just . _Text)
+                ++ ":"
+                ++ show (server ^. serverPort . non 0)
+                ++ " ("
+                ++ (if server ^. serverUseTLS . non False then "using TLS" else "plaintext")
+                ++ ")"
+
+              _ <- liftIO $ forkIO $ subscribe bc $ \tmsg ->
+                putStrLn $ "[IRC] " ++ testFormat tmsg
 
               -- store new broadcast
               at accid . non' _Empty . at netid ?= bc
