@@ -41,9 +41,6 @@ import System.IO
 -- tls
 import Network.TLS
 
--- attoparsec
-import Data.Attoparsec.ByteString.Char8 as Attoparsec
-
 -- irc-bytestring
 import Network.IRC.ByteString.Parser
 
@@ -98,6 +95,7 @@ data TLSSettings
   | OptionalTLS -- ^ Use CAP command to find out whether or not IRC server
                 --   supports TLS
   | Plaintext   -- ^ No TLS at all
+  deriving Show
 
 connect
   :: MonadIO m
@@ -178,7 +176,7 @@ capLoop
   -> [(UTCTime, IRCMsg)]
   -> m (Producer ByteString m e, Maybe ByteString, [(UTCTime, IRCMsg)])
 capLoop prod msgs = do
-  (r, prod') <- Pipes.runStateT (Pipes.parse ircParser) prod
+  (r, prod') <- Pipes.runStateT (Pipes.parse ircLine) prod
   case r of
     Just (Right msg)
 
@@ -205,7 +203,7 @@ starttlsLoop
   -> [(UTCTime, IRCMsg)]
   -> m (Bool, [(UTCTime, IRCMsg)])
 starttlsLoop prod msgs = do
-  (r, prod') <- Pipes.runStateT (Pipes.parse ircParser) prod
+  (r, prod') <- Pipes.runStateT (Pipes.parse ircLine) prod
   case r of
     Just (Right msg)
 
@@ -265,14 +263,11 @@ parsedIrcMessage
               m
               (Either (ParsingError, Producer ByteString m a) a)
 parsedIrcMessage bsprod = do
-  for (parsed ircParser bsprod) addTimeStamp
+  for (parsed ircLine bsprod) addTimeStamp
  where
   addTimeStamp msg = do
     now <- lift . liftIO $ getCurrentTime
     yield (now, msg)
-
-ircParser :: Attoparsec.Parser IRCMsg
-ircParser = ircLine <* optional (string "\r\n")
 
 -- | Continue parsing IRC messages from a `Producer`, possibly returned
 -- from a `ParsingError'`
