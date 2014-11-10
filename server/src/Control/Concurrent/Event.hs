@@ -69,6 +69,12 @@ instance MonadReader r m => MonadReader r (EventT mode e m) where
     eq <- ask
     lift $ local f (runReaderT a eq)
 
+instance MonadError err m => MonadError err (EventT mode ev m) where
+  throwError = EventT . throwError
+  catchError m h = EventT $
+    catchError (unEventT m)
+               (\e -> unEventT (h e))
+
 class RunEventT (mode :: ReadMode) where
   runEventT :: MonadIO m => EventQueue WO e -> EventT mode e m a -> m a
 
@@ -107,14 +113,19 @@ newEventQueue = do
 
 class MonadEventW m e where
   raiseEvent :: e -> m ()
+  getEventQueue :: m (EventQueue WO e)
 
 instance MonadIO m => MonadEventW (EventT mode e m) e where
   raiseEvent ae = EventT $ do
     eq <- ask
     raiseEvent' eq ae
+  getEventQueue = EventT $ do
+    EventQueue eq <- ask
+    return $ EventQueue eq
 
 instance (Monad m, MonadEventW m e) => MonadEventW (ExceptT exc m) e where
   raiseEvent e = lift $ raiseEvent e
+  getEventQueue = lift $ getEventQueue
 
 class MonadEventR m e where
   getEvent :: m e
