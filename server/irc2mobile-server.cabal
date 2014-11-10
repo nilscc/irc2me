@@ -39,7 +39,7 @@ executable irc2mobile-server
                        HDBC, HDBC-postgresql,
                        scrypt,
                        parsec,
-                       lens,
+                       lens >= 4.2,
                        protobuf-fieldlenses-th,
                        pipes, pipes-attoparsec, pipes-parse
 
