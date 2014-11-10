@@ -73,15 +73,15 @@ message Client
 
 
     // identities
-    repeated Identity  identity_set            = 20;
-    repeated int64     identity_remove         = 21;
-    optional bool      identity_get_all        = 22;
+    //repeated Identity  identity_set            = 20;
+    //repeated int64     identity_remove         = 21;
+    //optional bool      identity_get_all        = 22;
 
     // networks
-    repeated Network   network_set             = 100;
-    repeated int64     network_remove          = 101;
-    optional bool      network_get_all_names   = 102;
-    repeated int64     network_get_details     = 103;
+    //repeated Network   network_set             = 100;
+    //repeated int64     network_remove          = 101;
+    //optional bool      network_get_all_names   = 102;
+    //repeated int64     network_get_details     = 103;
 };
 
 message Server

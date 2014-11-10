@@ -8,6 +8,10 @@
 
 #define MAX_BUFFER_LEN 1024
 
+#ifdef _MSC_VER
+#include "stdint.h"
+#endif
+
 class IODeviceInputStream : public google::protobuf::io::ZeroCopyInputStream
 {
 private:

@@ -42,11 +42,13 @@ FormIdentities::~FormIdentities()
 
 void FormIdentities::loadIdentities()
 {
+    /*
     // load data
     irc2me.requestIdentities([this](const ResponseCode_T &code, const IdentityList_T &idents) {
         if (code == Server_T::ResponseOK)
             addIdentities(idents);
     });
+    */
 }
 /*
  * Identity
@@ -157,6 +159,7 @@ void FormIdentities::removeNewIdentityItemFromList()
 
 void FormIdentities::on_pushButton_ident_save_clicked()
 {
+    /*
     string nick     = ui->lineEdit_ident_nick->text().trimmed().toStdString();
     string username = ui->lineEdit_ident_username->text().trimmed().toStdString();
     string realname = ui->lineEdit_ident_realname->text().trimmed().toStdString();
@@ -223,10 +226,12 @@ void FormIdentities::on_pushButton_ident_save_clicked()
             addIdentityItem(ident);
         });
     }
+    */
 }
 
 void FormIdentities::on_pushButton_ident_delete_clicked()
 {
+    /*
     if (currentIdentity < 0)
         return;
 
@@ -240,6 +245,7 @@ void FormIdentities::on_pushButton_ident_delete_clicked()
             qDebug() << "DELETE FAIL on ID" << id;
 
     });
+    */
 }
 
 

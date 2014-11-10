@@ -75,7 +75,7 @@ public:
 
     // Identities
 
-
+/*
     void setIdentities     (const std::vector<Identity_T> &idents,
                             Callback_T<ResponseCode_T, std::vector<ID_T>> ids = Callback_T<ResponseCode_T, std::vector<ID_T>>()
                             );
@@ -87,6 +87,7 @@ public:
 
     void requestNetworkNames  (Callback_T<ResponseCode_T, NetworkList_T> cb);
     void requestNetworkDetails(std::vector<ID_T> networkids = std::vector<ID_T>());
+*/
 
 private:
 

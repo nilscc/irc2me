@@ -28,11 +28,11 @@ HEADERS  += \
     protobuf/messagestream.h \
     widgets/hostselector.h \
     widgets/networklist.h \
-    irc2me/backlog.h \
     form/identities.h \
     form/connect.h \
     form/networks.h \
-    form/mainwindow.h
+    form/mainwindow.h \
+    stdint.h
 
 SOURCES += \
     main.cpp \
@@ -41,7 +41,6 @@ SOURCES += \
     protobuf/messagestream.cpp \
     widgets/hostselector.cpp \
     widgets/networklist.cpp \
-    irc2me/backlog.cpp \
     form/identities.cpp \
     form/connect.cpp \
     form/networks.cpp \
