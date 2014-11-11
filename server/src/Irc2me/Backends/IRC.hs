@@ -5,13 +5,8 @@
 
 module Irc2me.Backends.IRC where
 
-import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.Event
-import qualified Data.Foldable as F
-import Data.Time
-import Data.List
-import Data.Text.Lens
 import Irc2me.Frontend.Messages hiding (_networkId)
 
 import Control.Monad
@@ -22,7 +17,6 @@ import Control.Monad.Trans.Maybe
 import System.IO
 
 -- containers
-import           Data.Map (Map)
 import qualified Data.Map as Map
 
 -- hdbc
@@ -30,16 +24,18 @@ import Database.HDBC
 
 -- lens
 import Control.Lens
+import Data.Text.Lens
 
 -- local
+import Irc2me.Events
+
 import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 
-import Irc2me.Events
+import Irc2me.Backends.IRC.Helper
 import Irc2me.Backends.IRC.Broadcast as BC
-
-type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
+import Irc2me.Backends.IRC.Events
 
 runIrcBackend :: MonadIO m => EventT mode AccountEvent  m Bool
 runIrcBackend = do
@@ -116,59 +112,3 @@ reconnectAll con = withCon con $ do
 
   require m = maybe mzero return =<< m
   withCon c = execStateT `flip` c
-
---------------------------------------------------------------------------------
--- Managing IRC connections
-
-manageIrcConnections :: MonadIO m => IrcConnections -> EventRW m ()
-manageIrcConnections = fix $ \loop irc -> do
-  AccountEvent aid ev <- getEvent
-  case ev of
-
-    ClientConnected (IrcHandler h) -> do
-      logM $ "Subscribe client (Account #" ++ show (aid ^. accountId) ++ ") to IRC networks"
-      F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc ->
-        liftIO $ forkIO $ subscribe bc h
-
-    SendIrcMessage nid msg
-
-        -- look up account
-      | Just nw <- Map.lookup aid irc
-        -- look up network broadcast
-      , Just bc <- Map.lookup nid nw -> do
-
-        now <- liftIO getCurrentTime
-        logM $ "Sending: " ++ testFormat (now,msg)
-        BC.sendIrcMessage bc msg
-
-    _ -> return ()
-
-  loop irc
- where
-  logM msg = liftIO $ putStrLn $ "[IRC] " ++ msg
-
-------------------------------------------------------------------------------
--- Testing
-
-testFormat :: (UTCTime, IrcMessage) -> String
-testFormat (t, msg) =
-
-  let time = show t -- formatTime defaultTimeLocale "%T" t
-
-      cmd = (    msg ^? ircMessageType    . _Just . re _Show
-             <|> msg ^? ircMessageTypeRaw . _Just . _Text
-            ) ^. non "?"
-
-      who = (    msg ^? ircFromUser   . _Just . userNick . _Text
-             <|> msg ^? ircFromServer . _Just . _Text
-            ) ^. non "-"
-
-      par = msg ^. ircTo ^.. traversed . _Text & intercalate ", "
-
-      cnt = (msg ^? ircContent . _Just . _Text) ^. non ""
-
-  in "["  ++ time ++ "]"
-  ++ " "  ++ cmd
-  ++ " <" ++ who ++ ">"
-  ++ " [" ++ par ++ "]"
-  ++ " "  ++ cnt
