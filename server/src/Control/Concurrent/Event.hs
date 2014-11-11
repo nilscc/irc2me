@@ -111,6 +111,7 @@ newEventQueue = do
 --------------------------------------------------------------------------------
 -- Interacting
 
+-- | Event monad with write access
 class MonadEventW m e where
   raiseEvent :: e -> m ()
   getEventQueue :: m (EventQueue WO e)
@@ -127,6 +128,11 @@ instance (Monad m, MonadEventW m e) => MonadEventW (ExceptT exc m) e where
   raiseEvent e = lift $ raiseEvent e
   getEventQueue = lift $ getEventQueue
 
+instance (Monad m, MonadEventW m e) => MonadEventW (ReaderT r m) e where
+  raiseEvent e = lift $ raiseEvent e
+  getEventQueue = lift getEventQueue
+
+-- | Event monad with read access
 class MonadEventR m e where
   getEvent :: m e
 

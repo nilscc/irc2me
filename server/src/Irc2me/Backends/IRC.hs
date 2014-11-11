@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Irc2me.Backends.IRC where
 
@@ -36,7 +37,7 @@ import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 
 import Irc2me.Events
-import Irc2me.Backends.IRC.Broadcast
+import Irc2me.Backends.IRC.Broadcast as BC
 
 type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
 
@@ -128,6 +129,19 @@ manageIrcConnections = fix $ \loop irc -> do
       logM $ "Subscribe client (Account #" ++ show (aid ^. accountId) ++ ") to IRC networks"
       F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc ->
         liftIO $ forkIO $ subscribe bc h
+
+    SendIrcMessage nid msg
+
+        -- look up account
+      | Just nw <- Map.lookup aid irc
+        -- look up network broadcast
+      , Just bc <- Map.lookup nid nw -> do
+
+        now <- liftIO getCurrentTime
+        logM $ "Sending: " ++ testFormat (now,msg)
+        BC.sendIrcMessage bc msg
+
+    _ -> return ()
 
   loop irc
  where
