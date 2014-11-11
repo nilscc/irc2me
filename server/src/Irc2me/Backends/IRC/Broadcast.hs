@@ -24,6 +24,8 @@ import Data.Function
 
 import Network
 
+import System.IO
+
 -- bytestring
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
@@ -176,7 +178,11 @@ startBroadcasting ident (nid,server)
     mcon <- connect tlsSettings hostname (PortNumber $ fromIntegral port)
 
     case mcon of
-      Left  _e  -> return Nothing
+      Left e  -> do
+        hPutStrLn stderr $
+          "Error connecting to " ++ hostname ++ ":" ++ show port ++ " (" ++ show tlsSettings ++ "): "
+          ++ show e
+        return Nothing
       Right con -> do
 
         -- create new broadcast
