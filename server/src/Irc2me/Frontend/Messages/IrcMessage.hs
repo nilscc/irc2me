@@ -59,7 +59,7 @@ data IrcMessage = IrcMessage
 
   , _ircContent           :: Optional 20 (Value Text)
   }
-  deriving (Show, Generic)
+  deriving (Eq, Show, Generic)
 
 instance Encode IrcMessage
 instance Decode IrcMessage
@@ -73,7 +73,7 @@ data IrcUser = IrcUser
   , _userHost           :: Optional 3 (Value Text)
   , _userFlag           :: Optional 4 (Enumeration IrcUserflag)
   }
-  deriving (Show, Generic)
+  deriving (Eq, Show, Generic)
 
 instance Encode IrcUser
 instance Decode IrcUser

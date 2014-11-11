@@ -13,7 +13,9 @@ import GHC.Generics (Generic)
 import Data.ProtocolBuffers
 import Data.ProtocolBuffers.TH
 
-type ID_T = Int64
+--local
+import Irc2me.Frontend.Messages.Helper
+import Irc2me.Frontend.Messages.IrcMessage
 
 --
 -- IRC server
@@ -57,6 +59,7 @@ data IrcNetwork = IrcNetwork
     -- network channels
   -- , _network_channels  :: Repeated 30 (Message IrcChannel)
 
+  , _networkMessages  :: Repeated 40 (Message IrcMessage)
   }
   deriving (Eq, Show, Generic)
 
@@ -70,6 +73,7 @@ emptyIrcNetwork = IrcNetwork
   , _networkOnline    = putField Nothing
   , _networkReconnect = putField Nothing
   , _networkIdentity  = putField Nothing
+  , _networkMessages  = putField []
   }
 
 ------------------------------------------------------------------------------

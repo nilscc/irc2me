@@ -11,6 +11,7 @@ import Irc2me.Frontend.Pipes
 import Irc2me.Frontend.Messages
 import Irc2me.Frontend.Connection.Types
 import Irc2me.Database.Tables.Accounts
+import Irc2me.Database.Tables.Networks
 
 data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }
   deriving (Show)
@@ -20,7 +21,7 @@ data Event
   deriving (Show)
 
 newtype IrcHandler
-  = IrcHandler { runIrcHandler :: (UTCTime, IrcMessage) -> IO () }
+  = IrcHandler { runIrcHandler :: NetworkID -> (UTCTime, IrcMessage) -> IO () }
 
 instance Show IrcHandler where
   show _ = "IrcHandler{ (UTCTime, IrcMessage) -> IO () }"
@@ -37,8 +38,13 @@ clientConnected
   -> c
   -> AccountEvent
 clientConnected aid c = AccountEvent aid $ ClientConnected $
-  IrcHandler $ \(_t,msg) -> do
-    let msg' = emptyServerMessage & serverIrcMessage .~ [msg]
+  IrcHandler $ \(NetworkID nid) (_t,msg) -> do
+
+    let network = emptyIrcNetwork & networkId .~ Just (fromIntegral nid)
+                                  & networkMessages .~ [msg]
+
+        msg' = emptyServerMessage & serverNetworks .~ [network]
+
     runEffect $ yield msg' >-> encodeMsg >-> send
  where
   send = await >>= lift . sendToClient c
