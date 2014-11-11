@@ -200,5 +200,4 @@ void FormConnect::irc2me_authorized()
 void FormConnect::irc2me_notAuthorized()
 {
     log(tr("Failed to login."));
-    irc2me.disconnect();
 }

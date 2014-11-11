@@ -13,10 +13,6 @@ class NetworkList : public QTreeWidget
 
 public:
 
-    // protobuf type aliases
-    using Network    = Protobuf::Messages::Network;
-    using IrcChannel = Protobuf::Messages::IrcChannel;
-
     // constructor
     explicit NetworkList(QWidget *parent = 0);
 

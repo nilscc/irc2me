@@ -18,7 +18,7 @@ private:
     public:
         explicit Model(QObject *parent = nullptr);
 
-        void appendIrcMessage(Protobuf::Messages::IrcMessage msg);
+        void appendIrcMessage(ID_T networkid, Message_T msg);
     };
 
 public:
@@ -27,5 +27,5 @@ public:
 
     void connectTo(const Irc2me &irc2me);
 
-    void incomingIrcMessage(Protobuf::Messages::IrcMessage msg);
+    void incomingIrcMessage(ID_T networkid, Message_T msg);
 };

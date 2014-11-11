@@ -36,4 +36,8 @@ private:
     FormIdentities *form_ident;
     QMainWindow *form_networks;
 
+    ID_T currentNetwork;
+    QString currentChannel;
+
+    void inputPrompt_userInput(QString msg);
 };

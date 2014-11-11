@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>942</width>
-    <height>612</height>
+    <width>670</width>
+    <height>317</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -36,16 +36,16 @@
         </property>
        </column>
       </widget>
-      <widget class="ChatView" name="chatView"/>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="InputPrompt" name="widget" native="true">
-      <zorder>splitter</zorder>
-      <zorder>splitter</zorder>
-      <zorder>splitter</zorder>
-      <zorder>splitter</zorder>
-      <zorder>splitter</zorder>
+      <widget class="QWidget" name="verticalLayoutWidget">
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="ChatView" name="chatView"/>
+        </item>
+        <item>
+         <widget class="InputPrompt" name="inputPrompt" native="true"/>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -55,7 +55,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>942</width>
+     <width>670</width>
      <height>21</height>
     </rect>
    </property>

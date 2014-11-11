@@ -17,7 +17,6 @@ FormMainWindow::FormMainWindow(Irc2me &irc2me, FormConnect &form_connect, QWidge
     form_connect(form_connect),
     form_ident(nullptr),
     form_networks(nullptr)
-
 {
     ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose);
@@ -32,14 +31,14 @@ FormMainWindow::FormMainWindow(Irc2me &irc2me, FormConnect &form_connect, QWidge
 
     connect(ui->actionShow_connection_status, SIGNAL(triggered()),
             this, SLOT(showStatusWindow()));
-    /*
-    connect(ui->action_Identities, SIGNAL(triggered()),
-            this, SLOT(showIdentitiesWindow()));
-    connect(ui->action_Networks, SIGNAL(triggered()),
-            this, SLOT(showNetworksWindow()));
-    */
+
     connect(ui->actionClose, SIGNAL(triggered()),
             this, SLOT(quit()));
+
+    // user input
+
+    connect(ui->inputPrompt, &InputPrompt::userInput,
+            this, &FormMainWindow::inputPrompt_userInput);
 
     // connect network list
     ui->treeWidget_networklist->connectTo(irc2me);
@@ -107,3 +106,74 @@ void FormMainWindow::showIdentitiesWindow()
     form_ident->loadIdentities();
     form_ident->show();
 }
+
+/*
+ * Irc UI events
+ *
+ */
+
+void FormMainWindow::inputPrompt_userInput(QString input)
+{
+    if (input.size() == 0)
+        return;
+
+    // build protobuf message
+
+    Client_T msg;
+
+    Network_T *netw = msg.add_networks();
+    netw->set_id(currentNetwork);
+
+    Message_T *ircmsg = netw->add_messages();
+    ircmsg->set_to(currentChannel.toStdString());
+
+    // check commands
+    if (input[0] == '/')
+    {
+        input.remove(0, 1);
+
+        QStringList words = input.split(' ');
+
+        if (! words.isEmpty())
+        {
+            ircmsg->set_type_raw(words[0].toStdString());
+
+            words.removeFirst();
+            ircmsg->set_content(words.join(" ").toStdString());
+        }
+    }
+
+    // set type if not already done
+    if (! (ircmsg->has_type_raw() || ircmsg->has_type()) )
+        ircmsg->set_type(Message_T::PRIVATEMESSAGE);
+
+    // set content if not already done
+    if (! ircmsg->has_content() )
+        ircmsg->set_content(input.trimmed().toStdString());
+
+    irc2me.send(msg);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

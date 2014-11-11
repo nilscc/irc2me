@@ -25,6 +25,7 @@ using RepeatedPtr_T = google::protobuf::RepeatedPtrField<T>;
 template <typename... T>
 using Callback_T     = std::function<void(const T & ...)>;
 
+using Auth_T         = Protobuf::Messages::Authentication;
 using Client_T       = Protobuf::Messages::Client;
 
 using Server_T       = Protobuf::Messages::Server;
@@ -33,8 +34,10 @@ using ResponseCode_T = Server_T::ResponseCode;
 using Identity_T     = Protobuf::Messages::Identity;
 using IdentityList_T = RepeatedPtr_T<Identity_T>;
 
-using Network_T      = Protobuf::Messages::Network;
+using Network_T      = Protobuf::Messages::IrcNetwork;
 using NetworkList_T  = RepeatedPtr_T<Network_T>;
+
+using Message_T      = Protobuf::Messages::IrcMessage;
 
 using ID_T = int64_t;
 
@@ -64,29 +67,13 @@ public:
     // Send with callback
     bool send(Client_T msg, Callback_T<Server_T> callback);
 
-    // connecting & authentication process
+    // connection & authentication process
 
     void connect(const QString &host, quint16 port);
 
     bool authenticate(QString login, QString password, QString *errorMsg);
 
     void disconnect();
-
-    // Identities
-
-/*
-    void setIdentities     (const std::vector<Identity_T> &idents,
-                            Callback_T<ResponseCode_T, std::vector<ID_T>> ids = Callback_T<ResponseCode_T, std::vector<ID_T>>()
-                            );
-
-    void deleteIdentities  (std::vector<ID_T> identids, Callback_T<ResponseCode_T> callback);
-    void requestIdentities (Callback_T<ResponseCode_T, IdentityList_T> callback);
-
-    // Networks
-
-    void requestNetworkNames  (Callback_T<ResponseCode_T, NetworkList_T> cb);
-    void requestNetworkDetails(std::vector<ID_T> networkids = std::vector<ID_T>());
-*/
 
 private:
 
@@ -104,13 +91,19 @@ private:
     void addCallback(Client_T &clientMsg, Callback_T<Server_T> cb);
     void runCallback(ID_T responseId, const Server_T &msg);
 
+    // private incoming message handler
+
+    void mstream_newServerMessage(Protobuf::Messages::Server);
+
+    void respondSystemMsg(const Protobuf::Messages::SystemMsg &msg);
+
 private slots:
 
+    // socket errors are (partly) overloaded, so the 'new' connect method won't
+    // work and we need slots here:
     void socket_connected();
     void socket_disconnected();
     void socket_error(QAbstractSocket::SocketError);
-
-    void mstream_newServerMessage(Protobuf::Messages::Server);
 
 signals:
 
@@ -144,5 +137,5 @@ signals:
 
     // backends
 
-    void incomingIrcMessage(Protobuf::Messages::IrcMessage msg);
+    void incomingIrcMessage(ID_T networkid, Message_T msg);
 };

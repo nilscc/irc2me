@@ -42,8 +42,10 @@ ChatView::Model::Model(QObject *parent)
 {
 }
 
-void ChatView::Model::appendIrcMessage(Protobuf::Messages::IrcMessage msg)
+void ChatView::Model::appendIrcMessage(ID_T networkid, Message_T msg)
 {
+    Q_UNUSED(networkid);
+
     QString curTime = "[" + QTime::currentTime().toString() + "]";
 
     QString from;
@@ -92,7 +94,7 @@ void ChatView::connectTo(const Irc2me &irc2me)
             this, &ChatView::incomingIrcMessage);
 }
 
-void ChatView::incomingIrcMessage(Protobuf::Messages::IrcMessage msg)
+void ChatView::incomingIrcMessage(ID_T networkid, Message_T msg)
 {
-    model()->appendIrcMessage(std::move(msg));
+    model()->appendIrcMessage(networkid, std::move(msg));
 }
