@@ -32,7 +32,9 @@ HEADERS  += \
     form/connect.h \
     form/networks.h \
     form/mainwindow.h \
-    stdint.h
+    stdint.h \
+    widgets/chatview.h \
+    widgets/inputprompt.h
 
 SOURCES += \
     main.cpp \
@@ -44,7 +46,9 @@ SOURCES += \
     form/identities.cpp \
     form/connect.cpp \
     form/networks.cpp \
-    form/mainwindow.cpp
+    form/mainwindow.cpp \
+    widgets/chatview.cpp \
+    widgets/inputprompt.cpp
 
 FORMS    += \
     connect.ui \
@@ -63,6 +67,9 @@ LIBS += -lprotobuf
 
 OTHER_FILES += \
     $$PROTOS \
-    generate_proto.pri
+    generate_proto.pri \
+    widgets/inputprompt.css
 
-RESOURCES +=
+RESOURCES += \
+    styles.qrc \
+    fonts.qrc

@@ -68,8 +68,7 @@ public:
 
     void connect(const QString &host, quint16 port);
 
-    bool auth(const QString &login, const QString &password,
-              QString *errorMsg = nullptr);
+    bool authenticate(QString login, QString password, QString *errorMsg);
 
     void disconnect();
 
@@ -94,6 +93,8 @@ private:
     QAbstractSocket *socket;
     MessageStream *mstream;
 
+    bool sendString(std::string s, QString *errorMsg = nullptr);
+
     bool is_authorized;
 
     ID_T response_id = 0;
@@ -108,9 +109,6 @@ private slots:
     void socket_connected();
     void socket_disconnected();
     void socket_error(QAbstractSocket::SocketError);
-
-//    void authorized();
-//    void notAuthorized();
 
     void mstream_newServerMessage(Protobuf::Messages::Server);
 
@@ -143,4 +141,8 @@ signals:
 
     void channelOnline    (ID_T networkid, ID_T channelid, bool online);
     void channelName      (ID_T networkid, ID_T channelid, std::string name);
+
+    // backends
+
+    void incomingIrcMessage(Protobuf::Messages::IrcMessage msg);
 };

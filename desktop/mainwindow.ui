@@ -36,7 +36,16 @@
         </property>
        </column>
       </widget>
-      <widget class="QTableWidget" name="tableWidget"/>
+      <widget class="ChatView" name="chatView"/>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="InputPrompt" name="widget" native="true">
+      <zorder>splitter</zorder>
+      <zorder>splitter</zorder>
+      <zorder>splitter</zorder>
+      <zorder>splitter</zorder>
+      <zorder>splitter</zorder>
      </widget>
     </item>
    </layout>
@@ -63,7 +72,6 @@
    </widget>
    <addaction name="menuServer"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
   <action name="actionShow_connection_status">
    <property name="text">
     <string>&amp;Status</string>
@@ -90,6 +98,17 @@
    <class>NetworkList</class>
    <extends>QTreeWidget</extends>
    <header>widgets/networklist.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ChatView</class>
+   <extends>QTableWidget</extends>
+   <header>widgets/chatview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>InputPrompt</class>
+   <extends>QWidget</extends>
+   <header>widgets/inputprompt.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

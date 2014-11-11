@@ -3,6 +3,7 @@
 #include <QDebug>
 
 #include <messages.pb.h>
+#include <string>
 
 const quint16 Irc2me::DEFAULT_PORT = 6565;
 const QString Irc2me::DEFAULT_SERVER = "nils-vm.fritz.box";
@@ -29,14 +30,14 @@ Irc2me::~Irc2me()
  *
  */
 
-bool Irc2me::send(Client_T msg, QString *errorMsg)
+bool Irc2me::sendString(string s, QString *errorMsg)
 {
     bool ownErrorMsg = (errorMsg == nullptr);
 
     if (ownErrorMsg)
         errorMsg = new QString();
 
-    bool success = mstream->send(msg, errorMsg);
+    bool success = mstream->sendString(s, errorMsg);
 
     if (ownErrorMsg)
     {
@@ -47,6 +48,11 @@ bool Irc2me::send(Client_T msg, QString *errorMsg)
     }
 
     return success;
+}
+
+bool Irc2me::send(Client_T msg, QString *errorMsg)
+{
+    return sendString(msg.SerializeAsString(), errorMsg);
 }
 
 bool Irc2me::send(Client_T msg, Callback_T<Server_T> callback)
@@ -86,6 +92,15 @@ void Irc2me::connect(const QString &host, quint16 port)
     is_authorized = false;
 }
 
+bool Irc2me::authenticate(QString login, QString password, QString *errorMsg)
+{
+    Protobuf::Messages::Authentication msg;
+    msg.set_login(login.toStdString());
+    msg.set_password(password.toStdString());
+
+    return sendString(msg.SerializeAsString(), errorMsg);
+}
+
 void Irc2me::disconnect()
 {
     if (mstream)
@@ -107,7 +122,6 @@ void Irc2me::disconnect()
 
     if (socket) delete socket; socket = nullptr;
 }
-
 
 void Irc2me::addCallback(Client_T &clientMsg, Callback_T<Server_T> cb)
 {
@@ -209,23 +223,6 @@ void Irc2me::requestNetworkDetails(vector<ID_T> networkids)
 */
 
 /*
- * Specific messages
- *
- */
-
-bool Irc2me::auth(const QString &login, const QString &password,
-                  QString *errorMsg)
-{
-    Msg::Client clientMsg;
-
-    clientMsg.set_auth_login(login.toStdString());
-    clientMsg.set_auth_password(password.toStdString());
-
-    return send(clientMsg, errorMsg);
-}
-
-
-/*
  * Slots
  *
  */
@@ -274,12 +271,15 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
         return runCallback(msg.response_id(), msg);
 
     // check for identity list
+    /*
     if (msg.identity_list_size() > 0)
     {
         emit identities(msg.identity_list());
     }
+    */
 
     // check for network list
+    /*
     if (msg.network_list_size() > 0)
     {
         for (const Msg::Network &network : msg.network_list())
@@ -306,6 +306,9 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
                 }
             }
         }
-
     }
+    */
+
+    for (const Msg::IrcMessage &ircmsg : msg.irc_message())
+        emit incomingIrcMessage(ircmsg);
 }

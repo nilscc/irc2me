@@ -147,7 +147,7 @@ void FormConnect::irc2me_connected()
     const QString &pw = ui->lineEdit_password->text();
 
     QString errorMsg;
-    if (!irc2me.auth(login, pw, &errorMsg))
+    if (!irc2me.authenticate(login, pw, &errorMsg))
         log(tr("Error") + ": " + errorMsg);
 
     connected = true;
