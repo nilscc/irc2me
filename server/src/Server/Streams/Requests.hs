@@ -15,11 +15,11 @@ import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 
-import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages.Client
-import Irc2me.ProtoBuf.Messages.IrcIdentity
-import Irc2me.ProtoBuf.Messages.IrcNetwork
-import Irc2me.ProtoBuf.Messages.Server
+import Irc2me.Frontend.Messages.Helper
+import Irc2me.Frontend.Messages.Client
+import Irc2me.Frontend.Messages.IrcIdentity
+import Irc2me.Frontend.Messages.IrcNetwork
+import Irc2me.Frontend.Messages.Server
 
 import Server.Streams
 import Server.Response
