@@ -39,6 +39,35 @@ emptyIrcServer = IrcServer
   }
 
 --
+-- IRC channels
+--
+
+data ChannelStatus
+  = ChannelOffline
+  | ChannelOnline
+  | ChannelNewMessages
+  | ChannelNewNotifications
+  deriving (Eq, Show, Enum)
+
+data IrcChannel = IrcChannel
+  { _channelId        :: Optional 1 (Value ID_T)
+  , _channelName      :: Optional 2 (Value Text)
+  , _channelStatus    :: Optional 3 (Enumeration ChannelStatus)
+  }
+  deriving (Eq, Show, Generic)
+
+instance Encode IrcChannel
+instance Decode IrcChannel
+
+emptyIrcChannel :: IrcChannel
+emptyIrcChannel = IrcChannel
+  { _channelId = putField Nothing
+  , _channelName = putField Nothing
+  , _channelStatus = putField Nothing
+  }
+
+
+--
 -- IRC network message
 --
 
@@ -54,11 +83,12 @@ data IrcNetwork = IrcNetwork
   , _networkIdentity  :: Optional 12 (Value ID_T)
 
     -- network servers
-  -- , _networkServers   :: Repeated 20 (Message IrcServer)
+  , _networkServers   :: Repeated 20 (Message IrcServer)
 
-    -- network channels
-  -- , _network_channels  :: Repeated 30 (Message IrcChannel)
+    -- channels
+  , _networkChannels  :: Repeated 30 (Message IrcChannel)
 
+    -- network messages
   , _networkMessages  :: Repeated 40 (Message IrcMessage)
   }
   deriving (Eq, Show, Generic)
@@ -73,6 +103,8 @@ emptyIrcNetwork = IrcNetwork
   , _networkOnline    = putField Nothing
   , _networkReconnect = putField Nothing
   , _networkIdentity  = putField Nothing
+  , _networkServers   = putField []
+  , _networkChannels  = putField []
   , _networkMessages  = putField []
   }
 
