@@ -134,6 +134,7 @@ void Irc2me::runCallback(ID_T responseId, const Server_T &msg)
 
 // Identity slots
 
+/*
 void Irc2me::requestIdentities(Callback_T<ResponseCode_T, IdentityList_T> callback)
 {
     Msg::Client clientMsg;
@@ -204,6 +205,8 @@ void Irc2me::requestNetworkDetails(vector<ID_T> networkids)
 {
     Q_UNUSED(networkids);
 }
+
+*/
 
 /*
  * Specific messages

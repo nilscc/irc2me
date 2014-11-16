@@ -31,6 +31,7 @@ void NetworkList::connectTo(Irc2me &irc2me)
     connect(&irc2me, SIGNAL(channelName(ID_T,ID_T,std::string)),
             this, SLOT(setChannelName(ID_T,ID_T,std::string)));
 
+    /*
     irc2me.requestNetworkNames([this](const ResponseCode_T &responseCode, const NetworkList_T &networkList) {
         if (responseCode == Server_T::ResponseOK)
         {
@@ -41,6 +42,7 @@ void NetworkList::connectTo(Irc2me &irc2me)
             }
         }
     });
+    */
 }
 
 /*
