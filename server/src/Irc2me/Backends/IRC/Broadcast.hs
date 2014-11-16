@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
 
-module Irc2me.IRC.Broadcast
+module Irc2me.Backends.IRC.Broadcast
   ( startBroadcasting, stopBroadcasting
   , IrcBroadcast
   , subscribe
@@ -44,8 +44,8 @@ import Control.Concurrent.STM
 import Network.IRC.Message.Codes
 import Network.IRC.Connection
 
-import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages
+import Irc2me.Frontend.Messages.Helper
+import Irc2me.Frontend.Messages
 
 ------------------------------------------------------------------------------
 -- IRC context

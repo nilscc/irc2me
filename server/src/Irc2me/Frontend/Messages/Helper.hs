@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Irc2me.ProtoBuf.Helper where
+module Irc2me.Frontend.Messages.Helper where
 
 import Data.Int
 

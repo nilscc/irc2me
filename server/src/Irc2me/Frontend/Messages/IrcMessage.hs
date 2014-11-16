@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.ProtoBuf.Messages.IrcMessage where
+module Irc2me.Frontend.Messages.IrcMessage where
 
 import Control.Applicative
 
@@ -31,7 +31,7 @@ import qualified Network.IRC.ByteString.Parser as IRC
 
 -- local
 import Network.IRC.Message.Codes
-import Irc2me.ProtoBuf.Helper
+import Irc2me.Frontend.Messages.Helper
 
 --------------------------------------------------------------------------------
 -- IRC messages

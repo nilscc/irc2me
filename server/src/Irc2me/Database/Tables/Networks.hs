@@ -13,9 +13,9 @@ import Irc2me.Database.Helper
 import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 
-import Irc2me.ProtoBuf.Helper
-import Irc2me.ProtoBuf.Messages.IrcIdentity
-import Irc2me.ProtoBuf.Messages.IrcNetwork
+import Irc2me.Frontend.Messages.Helper
+import Irc2me.Frontend.Messages.IrcIdentity
+import Irc2me.Frontend.Messages.IrcNetwork
 
 selectServersToReconnect :: AccountID -> Query [(NetworkID, IrcServer)]
 selectServersToReconnect (AccountID acc) = Query

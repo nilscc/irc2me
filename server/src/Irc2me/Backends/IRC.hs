@@ -1,15 +1,18 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
 
-module Irc2me.IRC where
+module Irc2me.Backends.IRC where
 
 import Control.Applicative
 import Control.Concurrent
+import Control.Concurrent.Event
 import Control.Exception
+import qualified Data.Foldable as F
 import Data.Time
 import Data.List
 import Data.Text.Lens
-import Irc2me.ProtoBuf.Messages hiding (_networkId)
+import Irc2me.Frontend.Messages hiding (_networkId)
 
 import Control.Monad
 import Control.Monad.Except
@@ -31,7 +34,8 @@ import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 
-import Irc2me.IRC.Broadcast
+import Irc2me.Events
+import Irc2me.Backends.IRC.Broadcast
 
 type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
 
@@ -79,6 +83,20 @@ reconnectAll con = withCon con $ do
 
   require m = maybe mzero return =<< m
   withCon c = execStateT `flip` c
+
+--------------------------------------------------------------------------------
+-- Managing IRC connections
+
+manageIrcConnections :: MonadIO m => IrcConnections -> EventRW m ()
+manageIrcConnections = fix $ \loop irc -> do
+  AccountEvent aid ev <- getEvent
+  case ev of
+
+    ClientConnected (IrcHandler h) -> do
+      F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc ->
+        liftIO $ forkIO $ subscribe bc h
+
+  loop irc
 
 ------------------------------------------------------------------------------
 -- Testing

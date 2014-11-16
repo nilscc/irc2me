@@ -16,8 +16,9 @@ module Control.Concurrent.Event
   , EventQueue, newEventQueue
 
     -- * Interacting with events
-  , raiseEvent, raiseEvent'
-  , getEvent, withEvents, withEvents'
+  , MonadEventR (..), MonadEventW (..)
+  , raiseEvent'
+  , withEvents, withEvents'
 
     -- ** STM functions
   , readEvent, readEventIO
@@ -104,18 +105,30 @@ newEventQueue = do
 --------------------------------------------------------------------------------
 -- Interacting
 
-raiseEvent :: MonadIO m => event -> EventT mode event m ()
-raiseEvent ae = EventT $ do
-  eq <- ask
-  raiseEvent' eq ae
+class MonadEventW m e where
+  raiseEvent :: e -> m ()
+
+instance MonadIO m => MonadEventW (EventT mode e m) e where
+  raiseEvent ae = EventT $ do
+    eq <- ask
+    raiseEvent' eq ae
+
+instance (Monad m, MonadEventW m e) => MonadEventW (ExceptT exc m) e where
+  raiseEvent e = lift $ raiseEvent e
+
+class MonadEventR m e where
+  getEvent :: m e
+
+instance MonadIO m => MonadEventR (EventT RW e m) e where
+  getEvent = EventT $ do
+    eq <- ask
+    liftIO $ readEventIO eq
+
+instance (Monad m, MonadEventR m e) => MonadEventR (ExceptT exc m) e where
+  getEvent = lift getEvent
 
 raiseEvent' :: MonadIO m => (EventQueue mode event) -> event -> m ()
 raiseEvent' eq ae = liftIO . atomically $ writeEvent eq ae
-
-getEvent :: MonadIO m => EventT RW event m event
-getEvent = EventT $ do
-  eq <- ask
-  liftIO $ readEventIO eq
 
 withEvents
   :: MonadIO m
