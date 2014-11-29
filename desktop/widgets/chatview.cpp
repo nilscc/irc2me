@@ -5,12 +5,40 @@
 using namespace std;
 
 /*
+ * Conversions
+ *
+ */
+
+namespace TypeConversion
+{
+
+static const QString ircTypes[] = {
+    "PRIVATEMESSAGE",
+    "JOIN",
+    "PART",
+    "INVITE",
+    "QUIT",
+    "KICK",
+    "NICK",
+    "NOTICE",
+    "TOPIC",
+    "MOTD"
+};
+
+QString ircTypeToString(Protobuf::Messages::IrcMessage::IrcType ty)
+{
+    return ircTypes[ty];
+}
+
+}
+
+/*
  * ChatView item model
  *
  */
 
 ChatView::Model::Model(QObject *parent)
-    : QStandardItemModel(0, 3, parent)
+    : QStandardItemModel(0, 4, parent)
 {
 }
 
@@ -26,13 +54,17 @@ void ChatView::Model::appendIrcMessage(Protobuf::Messages::IrcMessage msg)
 
     QString content = QString::fromStdString(msg.content());
 
-    QStandardItem *time = new QStandardItem(curTime);
-    QStandardItem *who  = new QStandardItem(from);
-    QStandardItem *cont = new QStandardItem(content);
+    QString cmd = msg.has_type() ? TypeConversion::ircTypeToString(msg.type())
+                                 : QString::fromStdString(msg.type_raw());
 
-    appendRow({time, who, cont});
+    qDebug() << msg.has_type() << msg.type();
 
-    qDebug() << columnCount();
+    QStandardItem *time  = new QStandardItem(curTime);
+    QStandardItem *who   = new QStandardItem(from);
+    QStandardItem *what  = new QStandardItem(cmd);
+    QStandardItem *cont  = new QStandardItem(content);
+
+    appendRow({time, who, what, cont});
 }
 
 /*

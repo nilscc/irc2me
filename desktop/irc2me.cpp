@@ -223,34 +223,6 @@ void Irc2me::requestNetworkDetails(vector<ID_T> networkids)
 */
 
 /*
- * Conversions
- *
- */
-
-namespace TypeConversion
-{
-
-static const QString ircTypes[] = {
-    "PRIVATEMESSAGE",
-    "JOIN",
-    "PART",
-    "INVITE",
-    "QUIT",
-    "KICK",
-    "NICK",
-    "NOTICE",
-    "TOPIC",
-    "MOTD"
-};
-
-QString ircTypeToString(Msg::IrcMessage::IrcType ty)
-{
-    return ircTypes[ty];
-}
-
-}
-
-/*
  * Slots
  *
  */
