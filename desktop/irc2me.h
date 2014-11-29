@@ -141,4 +141,8 @@ signals:
 
     void channelOnline    (ID_T networkid, ID_T channelid, bool online);
     void channelName      (ID_T networkid, ID_T channelid, std::string name);
+
+    // backends
+
+    void incomingIrcMessage(Protobuf::Messages::IrcMessage msg);
 };

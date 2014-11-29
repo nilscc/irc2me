@@ -28,21 +28,24 @@ FormMainWindow::FormMainWindow(Irc2me &irc2me, FormConnect &form_connect, QWidge
     ui->splitter->setStretchFactor(1, 1);
     ui->splitter->setSizes(QList<int>() << 150 << 1);
 
-    // connect UI
+    // connect menus
 
     connect(ui->actionShow_connection_status, SIGNAL(triggered()),
             this, SLOT(showStatusWindow()));
-
+    /*
     connect(ui->action_Identities, SIGNAL(triggered()),
             this, SLOT(showIdentitiesWindow()));
-
     connect(ui->action_Networks, SIGNAL(triggered()),
             this, SLOT(showNetworksWindow()));
-
+    */
     connect(ui->actionClose, SIGNAL(triggered()),
             this, SLOT(quit()));
 
+    // connect network list
     ui->treeWidget_networklist->connectTo(irc2me);
+
+    // connect chat view
+    ui->chatView->connectTo(irc2me);
 }
 
 FormMainWindow::~FormMainWindow()

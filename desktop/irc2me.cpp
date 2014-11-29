@@ -223,21 +223,32 @@ void Irc2me::requestNetworkDetails(vector<ID_T> networkids)
 */
 
 /*
- * Specific messages
+ * Conversions
  *
  */
 
-bool Irc2me::auth(const QString &login, const QString &password,
-                  QString *errorMsg)
+namespace TypeConversion
 {
-    Msg::Client clientMsg;
 
-    clientMsg.set_auth_login(login.toStdString());
-    clientMsg.set_auth_password(password.toStdString());
+static const QString ircTypes[] = {
+    "PRIVATEMESSAGE",
+    "JOIN",
+    "PART",
+    "INVITE",
+    "QUIT",
+    "KICK",
+    "NICK",
+    "NOTICE",
+    "TOPIC",
+    "MOTD"
+};
 
-    return send(clientMsg, errorMsg);
+QString ircTypeToString(Msg::IrcMessage::IrcType ty)
+{
+    return ircTypes[ty];
 }
 
+}
 
 /*
  * Slots
@@ -288,12 +299,15 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
         return runCallback(msg.response_id(), msg);
 
     // check for identity list
+    /*
     if (msg.identity_list_size() > 0)
     {
         emit identities(msg.identity_list());
     }
+    */
 
     // check for network list
+    /*
     if (msg.network_list_size() > 0)
     {
         for (const Msg::Network &network : msg.network_list())
@@ -320,6 +334,9 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
                 }
             }
         }
-
     }
+    */
+
+    for (const Msg::IrcMessage &ircmsg : msg.irc_message())
+        emit incomingIrcMessage(ircmsg);
 }

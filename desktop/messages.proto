@@ -49,8 +49,48 @@ message IrcServer
     optional bool   use_tls             = 10;
 };
 
+
+
+
 message IrcMessage
 {
+    enum IrcType
+    {
+        PRIVATEMESSAGE = 1;
+        JOIN           = 2;
+        PART           = 3;
+        INVITE         = 4;
+        QUIT           = 5;
+        KICK           = 6;
+        NICK           = 7;
+        NOTICE         = 8;
+        TOPIC          = 9;
+        MOTD           = 10;
+    };
+
+    optional IrcType type = 1;
+    optional string type_raw = 2;
+
+    message IrcUser
+    {
+        required string nick = 1;
+        optional string name = 2;
+        optional string host = 3;
+
+        enum IrcUserflag
+        {
+            OPERATOR = 1;
+            VOICE    = 2;
+        };
+
+        optional IrcUserflag flag = 4;
+    };
+
+    optional IrcUser from_user = 10;
+    optional string from_server = 11;
+    optional string to = 15;
+
+    optional string content = 20;
 };
 
 enum SystemMsg
@@ -88,21 +128,24 @@ message Server
 {
     optional int64        response_id   = 3;
 
+    optional SystemMsg    system_msg    = 5;
+
     enum ResponseCode
     {
         ResponseOK = 0;
         ResponseError = 1;
     };
 
-    optional SystemMsg    system_msg    = 5;
-
     // response messages
     optional ResponseCode response_code = 10;
     optional string       response_msg  = 15;
 
     // Identities
-    repeated Identity     identity_list = 20;
+    //repeated Identity     identity_list = 20;
 
     // Networks
-    repeated Network      network_list  = 30;
+    //repeated Network      network_list  = 30;
+
+    // Backends
+    repeated IrcMessage   irc_message = 101;
 };
