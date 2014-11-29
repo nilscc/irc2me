@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Irc2me.Database.Tables.Accounts where
 
@@ -35,6 +36,8 @@ toID _              = Nothing
 
 newtype AccountID = AccountID { _accountId :: Integer }
   deriving (Eq, Show, Ord, Num)
+
+makeLenses ''AccountID
 
 -- converters
 

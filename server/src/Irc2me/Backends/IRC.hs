@@ -7,7 +7,6 @@ module Irc2me.Backends.IRC where
 import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.Event
-import Control.Exception
 import qualified Data.Foldable as F
 import Data.Time
 import Data.List
@@ -18,6 +17,8 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
+
+import System.IO
 
 -- containers
 import           Data.Map (Map)
@@ -38,6 +39,27 @@ import Irc2me.Events
 import Irc2me.Backends.IRC.Broadcast
 
 type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
+
+runIrcBackend :: MonadIO m => EventT mode AccountEvent  m Bool
+runIrcBackend = do
+  eq <- getEventQueue
+  runIrcBackend' eq
+
+runIrcBackend' :: MonadIO m => EventQueue WO AccountEvent -> m Bool
+runIrcBackend' eq = do
+  mcs <- runExceptT $ reconnectAll Map.empty
+  case mcs of
+    Right cs -> do
+      _  <- liftIO $ forkIO $ runEventTRW eq $
+        manageIrcConnections cs
+      return True
+    Left err -> do
+      liftIO $ hPutStrLn stderr $
+        "[IRC] Failed to start backend, reason: " ++ show err
+      return False
+
+--------------------------------------------------------------------------------
+-- Starting up
 
 reconnectAll
   :: (MonadIO m, MonadError SqlError m)
@@ -63,11 +85,21 @@ reconnectAll con = withCon con $ do
         -- reconnect network
         Nothing -> do
 
-          log' $ "Connecting to " ++ show (server ^. serverHost)
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
           mbc'  <- liftIO $ startBroadcasting ident server
           case mbc' of
             Just bc -> do
+
+              log' $ "Connected to "
+                ++ (server ^. serverHost . _Just . _Text)
+                ++ ":"
+                ++ show (server ^. serverPort . non 0)
+                ++ " ("
+                ++ (if server ^. serverUseTLS . non False then "using TLS" else "plaintext")
+                ++ ")"
+
+              _ <- liftIO $ forkIO $ subscribe bc $ \tmsg ->
+                putStrLn $ "[IRC] " ++ testFormat tmsg
 
               -- store new broadcast
               at accid . non' _Empty . at netid ?= bc
@@ -93,30 +125,16 @@ manageIrcConnections = fix $ \loop irc -> do
   case ev of
 
     ClientConnected (IrcHandler h) -> do
+      logM $ "Subscribe client (Account #" ++ show (aid ^. accountId) ++ ") to IRC networks"
       F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc ->
         liftIO $ forkIO $ subscribe bc h
 
   loop irc
+ where
+  logM msg = liftIO $ putStrLn $ "[IRC] " ++ msg
 
 ------------------------------------------------------------------------------
 -- Testing
-
-test :: IO ()
-test = (print =<<) $ runExceptT $ do
-  connections <- reconnectAll Map.empty
-
-  forM_ (Map.toList connections) $ \(acc, networks) -> do
-
-    let log' s = putStrLn $ "[" ++ show (_accountId acc) ++ "] " ++ s
-
-    forM_ (Map.toList networks) $ \(_netid, bc) -> do
-      liftIO $ forkIO $ subscribe bc $ log' . testFormat
-
-  liftIO $ do
-    void getLine `finally` forM_ (Map.toList connections) (\(_acc, networks) -> do
-      forM_ (Map.toList networks) $ \(_, bc) -> do
-        stopBroadcasting bc Nothing
-      )
 
 testFormat :: (UTCTime, IrcMessage) -> String
 testFormat (t, msg) =

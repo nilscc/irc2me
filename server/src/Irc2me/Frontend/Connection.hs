@@ -7,10 +7,13 @@ import Control.Concurrent.Event
 import Control.Exception
 import Control.Monad
 
+import System.Exit
+
 import Network
 import qualified Network.Socket as Socket
 -- import Network.TLS as TLS
 
+import Irc2me.Backends
 import Irc2me.Events
 import Irc2me.Frontend.Streams
 
@@ -41,6 +44,13 @@ runServer'
   -> IO ()
 runServer' conf eq = do
 
+  -- backends
+  putStrLn "Starting backends"
+
+  success <- runBackends' eq
+  unless success $ exitFailure
+
+  -- frontend
   putStrLn $ "Starting server on " ++ show (serverPort conf)
 
   socket <- listenOn $ PortNumber (serverPort conf)
@@ -56,4 +66,4 @@ runServer' conf eq = do
       res <- runStream h eq serverStream
       case res of
         Right () -> return ()
-        Left err -> putStrLn $ "[" ++ hostname ++ "] Exception: " ++ show err
+        Left err -> putStrLn $ "[" ++ hostname ++ "] " ++ err

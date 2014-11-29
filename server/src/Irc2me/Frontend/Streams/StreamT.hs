@@ -86,6 +86,7 @@ instance (Monad m, Functor m, MonadEventR m ev) => MonadEventR (StreamT e m) ev 
 
 instance (Monad m, Functor m, MonadEventW m ev) => MonadEventW (StreamT e m) ev where
   raiseEvent e = StreamT $ \(_,c) -> (c,) <$> raiseEvent e
+  getEventQueue = lift getEventQueue
 
 --------------------------------------------------------------------------------
 

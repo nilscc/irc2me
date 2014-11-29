@@ -21,6 +21,6 @@ instance ClientConnection TLS.Context where
   incomingChunks tls = sequence (repeat $ recvData tls)
 
 instance ClientConnection Handle where
-  sendToClient h = B8.hPutStrLn h
+  sendToClient h = B8.hPutStr h
   incomingChunks h = BL.toChunks <$> BL.hGetContents h
 
