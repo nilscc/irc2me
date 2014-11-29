@@ -60,17 +60,17 @@ enum SystemMsg
     PONG       = 2;
 };
 
+message Authentication
+{
+    required string login = 1;
+    required string password = 2;
+};
 
 message Client
 {
     optional int64     response_id             = 3;
 
     optional SystemMsg system_msg              = 5;
-
-    // acount
-    optional string    auth_login              = 10;
-    optional string    auth_password           = 11;
-
 
     // identities
     //repeated Identity  identity_set            = 20;

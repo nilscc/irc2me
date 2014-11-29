@@ -22,12 +22,8 @@ MessageStream::~MessageStream()
     delete ostream;
 }
 
-bool MessageStream::send(const Protobuf::Messages::Client &msg,
-                         QString *errorMsg)
+bool MessageStream::sendString(string s, QString *errorMsg)
 {
-    string s;
-    msg.SerializeToString(&s);
-
     // create new output stream in seperate block to force call on BackUp etc.
     {
         CodedOutputStream out(ostream);

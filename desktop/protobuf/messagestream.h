@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <QObject>
 #include <QAbstractSocket>
 #include <QString>
@@ -29,8 +31,7 @@ public:
     explicit MessageStream(QAbstractSocket &socket, QObject *parent = 0);
     ~MessageStream();
 
-    bool send(const Protobuf::Messages::Client &msg,
-              QString *errormsg = nullptr);
+    bool sendString(std::string msg, QString *errorMsg = nullptr);
 
 signals:
 
