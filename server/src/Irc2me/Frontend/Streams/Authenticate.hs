@@ -11,7 +11,7 @@ import qualified Data.Text.Encoding as TE
 import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 
-import Irc2me.Frontend.Messages.Client
+import Irc2me.Frontend.Messages.Authentication
 import Irc2me.Frontend.Messages.Server
 
 import Irc2me.Frontend.Streams.StreamT
@@ -21,28 +21,22 @@ authenticate :: Stream AccountID
 authenticate = do
 
   msg <- getMessage
+  let login = msg ^. authLogin
+      pw    = msg ^. authPassword
 
-  case msg of
+  -- run database query
+  maccount <- showS "authenticate" $ runQuery $ selectAccountByLogin (Text.unpack login)
+  case maccount of
 
-    _ | Just login <- msg ^. authLogin
-      , Just pw    <- msg ^. authPassword -> do
+    Just account -> do
 
-        -- run database query
-        maccount <- showS "authenticate" $ runQuery $ selectAccountByLogin (Text.unpack login)
-        case maccount of
+      ok <- showS "authenticate" $ runQuery $ checkPassword account (TE.encodeUtf8 pw)
+      if ok then
+        return account
+       else
+        throwS "authenticate" $ "Invalid password for user: " ++ Text.unpack login
 
-          Just account -> do
-
-            ok <- showS "authenticate" $ runQuery $ checkPassword account (TE.encodeUtf8 pw)
-            if ok then
-              return account
-             else
-              throwS "authenticate" $ "Invalid password for user: " ++ Text.unpack login
-
-          Nothing -> throwS "authenticate" $ "Invalid login: " ++ Text.unpack login
-
-      | otherwise ->
-        throwS "authenticate" $ "Unexpected message: " ++ show msg
+    Nothing -> throwS "authenticate" $ "Invalid login: " ++ Text.unpack login
 
 throwUnauthorized :: Stream a
 throwUnauthorized = do

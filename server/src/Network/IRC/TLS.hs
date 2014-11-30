@@ -14,6 +14,7 @@ import Network.TLS.Extra
 certificationErrorsToIgnore :: [FailedReason]
 certificationErrorsToIgnore =
   [ UnknownCA
+  , NameMismatch "irc.freenode.org"
   ]
 
 type CertValidationFunction =

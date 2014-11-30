@@ -86,7 +86,7 @@ reconnectAll con = withCon con $ do
         Nothing -> do
 
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
-          mbc'  <- liftIO $ startBroadcasting ident server
+          mbc'  <- liftIO $ startBroadcasting ident (netid,server)
           case mbc' of
             Just bc -> do
 
@@ -98,7 +98,7 @@ reconnectAll con = withCon con $ do
                 ++ (if server ^. serverUseTLS . non False then "using TLS" else "plaintext")
                 ++ ")"
 
-              _ <- liftIO $ forkIO $ subscribe bc $ \tmsg ->
+              _ <- liftIO $ forkIO $ subscribe bc $ \_nid tmsg ->
                 putStrLn $ "[IRC] " ++ testFormat tmsg
 
               -- store new broadcast

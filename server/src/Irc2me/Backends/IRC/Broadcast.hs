@@ -6,6 +6,7 @@ module Irc2me.Backends.IRC.Broadcast
   ( startBroadcasting, stopBroadcasting
   , IrcBroadcast
   , subscribe
+  , broadcastNetworkId, NetworkID
     -- * Connection status
   , IrcConnectionStatus (..)
   , getBroadcastConnectionStatus
@@ -22,6 +23,8 @@ import Control.Monad.Trans
 import Data.Function
 
 import Network
+
+import System.IO
 
 -- bytestring
 import           Data.ByteString (ByteString)
@@ -43,6 +46,8 @@ import Control.Concurrent.STM
 -- local
 import Network.IRC.Message.Codes
 import Network.IRC.Connection
+
+import Irc2me.Database.Tables.Networks (NetworkID)
 
 import Irc2me.Frontend.Messages.Helper
 import Irc2me.Frontend.Messages
@@ -67,6 +72,7 @@ makePrisms ''IrcConnectionStatus
 
 data IrcBroadcast = IrcBroadcast
   { _broadcastIrcConnection   :: Connection IO
+  , _broadcastNetworkId       :: NetworkID
   , _broadcastMessages        :: TChan (UTCTime, IrcMessage)
   , _broadcastIrcStatus       :: TVar  IrcConnectionStatus
   , _broadcastThread          :: Maybe ThreadId
@@ -82,12 +88,13 @@ makeLenses ''IrcBroadcast
 -- Utility functions
 --
 
-newIrcBroadcast :: (Connection IO) -> IO IrcBroadcast
-newIrcBroadcast con = do
+newIrcBroadcast :: NetworkID -> (Connection IO) -> IO IrcBroadcast
+newIrcBroadcast nid con = do
   broadcastTChan <- newBroadcastTChanIO
   statusTVar     <- newTVarIO (IrcDisconnected Nothing)
   return $ IrcBroadcast
     { _broadcastIrcConnection = con
+    , _broadcastNetworkId     = nid
     , _broadcastMessages      = broadcastTChan
     , _broadcastIrcStatus     = statusTVar
     , _broadcastThread        = Nothing
@@ -115,7 +122,7 @@ broadcast :: MonadIO m => IrcBroadcast -> (UTCTime, IRCMsg) -> m ()
 broadcast bc (t,msg) = liftIO $ atomically $
   writeTChan (bc ^. broadcastMessages) (t, msg ^. ircMessage)
 
-subscribe :: IrcBroadcast -> ((UTCTime, IrcMessage) -> IO ()) -> IO ()
+subscribe :: IrcBroadcast -> (NetworkID -> (UTCTime, IrcMessage) -> IO ()) -> IO ()
 subscribe bc go = do
 
   incoming <- atomically $ dupTChan (bc ^. broadcastMessages)
@@ -133,7 +140,7 @@ subscribe bc go = do
     case m of
       Nothing  -> return ()
       Just msg -> do
-        go msg
+        go (bc ^. broadcastNetworkId) msg
         loop
 
 --
@@ -151,8 +158,8 @@ connecting bc = do
 ------------------------------------------------------------------------------
 -- IRC broadcasting
 
-startBroadcasting :: IrcIdentity -> IrcServer -> IO (Maybe IrcBroadcast)
-startBroadcasting ident server
+startBroadcasting :: IrcIdentity -> (NetworkID, IrcServer) -> IO (Maybe IrcBroadcast)
+startBroadcasting ident (nid,server)
 
     -- server
   | Just hostname <- server ^? serverHost . _Just . _Text
@@ -171,11 +178,15 @@ startBroadcasting ident server
     mcon <- connect tlsSettings hostname (PortNumber $ fromIntegral port)
 
     case mcon of
-      Left  _e  -> return Nothing
+      Left e  -> do
+        hPutStrLn stderr $
+          "Error connecting to " ++ hostname ++ ":" ++ show port ++ " (" ++ show tlsSettings ++ "): "
+          ++ show e
+        return Nothing
       Right con -> do
 
         -- create new broadcast
-        bc <- newIrcBroadcast con
+        bc <- newIrcBroadcast nid con
 
         -- set status to 'connecting'
         atomically $ writeTVar (bc ^. broadcastIrcStatus)
