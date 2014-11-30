@@ -42,7 +42,7 @@
          <widget class="ChatView" name="chatView"/>
         </item>
         <item>
-         <widget class="InputPrompt" name="widget" native="true"/>
+         <widget class="InputPrompt" name="inputPrompt" native="true"/>
         </item>
        </layout>
       </widget>

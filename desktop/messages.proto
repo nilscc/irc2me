@@ -13,20 +13,30 @@ message IrcNetwork
     optional bool   reconnect              = 11;
     optional int64  identity               = 12;
 
+    // servers
+    repeated IrcServer servers             = 20;
+
+    // channels
+    repeated IrcChannel channels           = 30;
+
     // messages
     repeated IrcMessage messages           = 40;
 };
 
 message IrcChannel
 {
-    // ID
-    required int64  channel_id          = 1;
+    enum ChannelStatus
+    {
+        OFFLINE            = 1;
+        ONLINE             = 2;
+        NEWMESSAGES        = 3;
+        NEWNOTIFICATIONS   = 4;
+    };
 
-    // status
-    optional bool   channel_online      = 5;
+    optional int64  id            = 1;
+    optional string name          = 2;
 
-    // name
-    optional string channel_name        = 10;
+    optional ChannelStatus status = 3;
 };
 
 message Identity
@@ -102,8 +112,10 @@ message Authentication
 
 message Client
 {
-    optional int64     response_id             = 3;
-    optional SystemMsg system_msg              = 5;
+    optional int64        response_id             = 3;
+    optional SystemMsg    system_msg              = 5;
+
+    repeated IrcNetwork   networks                = 50;
 };
 
 message Server
