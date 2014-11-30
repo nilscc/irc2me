@@ -32,12 +32,7 @@ FormMainWindow::FormMainWindow(Irc2me &irc2me, FormConnect &form_connect, QWidge
 
     connect(ui->actionShow_connection_status, SIGNAL(triggered()),
             this, SLOT(showStatusWindow()));
-    /*
-    connect(ui->action_Identities, SIGNAL(triggered()),
-            this, SLOT(showIdentitiesWindow()));
-    connect(ui->action_Networks, SIGNAL(triggered()),
-            this, SLOT(showNetworksWindow()));
-    */
+
     connect(ui->actionClose, SIGNAL(triggered()),
             this, SLOT(quit()));
 

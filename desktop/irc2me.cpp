@@ -105,10 +105,13 @@ void Irc2me::disconnect()
 {
     if (mstream)
     {
-        // send DISCONNECT message
-        Msg::Client clientMsg;
-        clientMsg.set_system_msg(Msg::DISCONNECT);
-        send(clientMsg);
+        if (is_authorized)
+        {
+            // send DISCONNECT message
+            Msg::Client clientMsg;
+            clientMsg.set_system_msg(Msg::DISCONNECT);
+            send(clientMsg);
+        }
 
         delete mstream;
     }
@@ -210,6 +213,7 @@ void Irc2me::mstream_newServerMessage(Msg::Server msg)
         {
             is_authorized = false;
             emit notAuthorized();
+            disconnect();
         }
 
         // quit, auth message is not supposed to contain any other data
