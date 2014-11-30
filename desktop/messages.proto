@@ -1,23 +1,20 @@
 package Protobuf.Messages;
 
-message Network
+message IrcNetwork
 {
     // ID
-    optional int64  network_id           = 1;
+    optional int64  id                     = 1;
 
     // status
-    optional bool   network_online       = 5;
+    optional bool   online                 = 5;
 
     // settings
-    optional string network_name         = 10;
-    optional bool   network_reconnect    = 11;
-    optional int64  network_identity     = 12;
+    optional string name                   = 10;
+    optional bool   reconnect              = 11;
+    optional int64  identity               = 12;
 
-    // servers
-    repeated IrcServer network_servers   = 20;
-
-    // channels
-    repeated IrcChannel network_channels = 30;
+    // messages
+    repeated IrcMessage messages           = 40;
 };
 
 message IrcChannel
@@ -48,9 +45,6 @@ message IrcServer
     optional int32  server_port         = 2;
     optional bool   use_tls             = 10;
 };
-
-
-
 
 message IrcMessage
 {
@@ -109,25 +103,12 @@ message Authentication
 message Client
 {
     optional int64     response_id             = 3;
-
     optional SystemMsg system_msg              = 5;
-
-    // identities
-    //repeated Identity  identity_set            = 20;
-    //repeated int64     identity_remove         = 21;
-    //optional bool      identity_get_all        = 22;
-
-    // networks
-    //repeated Network   network_set             = 100;
-    //repeated int64     network_remove          = 101;
-    //optional bool      network_get_all_names   = 102;
-    //repeated int64     network_get_details     = 103;
 };
 
 message Server
 {
     optional int64        response_id   = 3;
-
     optional SystemMsg    system_msg    = 5;
 
     enum ResponseCode
@@ -144,8 +125,5 @@ message Server
     //repeated Identity     identity_list = 20;
 
     // Networks
-    //repeated Network      network_list  = 30;
-
-    // Backends
-    repeated IrcMessage   irc_message = 101;
+    repeated IrcNetwork   networks = 50;
 };
