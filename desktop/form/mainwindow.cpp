@@ -16,7 +16,10 @@ FormMainWindow::FormMainWindow(Irc2me &irc2me, FormConnect &form_connect, QWidge
     irc2me(irc2me),
     form_connect(form_connect),
     form_ident(nullptr),
-    form_networks(nullptr)
+    form_networks(nullptr),
+
+    currentNetwork(1),
+    currentChannel("##norsk")
 {
     ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose);
@@ -125,31 +128,25 @@ void FormMainWindow::inputPrompt_userInput(QString input)
     netw->set_id(currentNetwork);
 
     Message_T *ircmsg = netw->add_messages();
-    ircmsg->set_to(currentChannel.toStdString());
 
     // check commands
     if (input[0] == '/')
     {
-        input.remove(0, 1);
+        input.remove(0,1);
 
-        QStringList words = input.split(' ');
+        ircmsg->set_type(Message_T::JOIN);
 
-        if (! words.isEmpty())
-        {
-            ircmsg->set_type_raw(words[0].toStdString());
+        currentChannel = input.trimmed();
 
-            words.removeFirst();
-            ircmsg->set_content(words.join(" ").toStdString());
-        }
+        ircmsg->set_to(currentChannel.toStdString());
     }
-
-    // set type if not already done
-    if (! (ircmsg->has_type_raw() || ircmsg->has_type()) )
+    else
+    {
         ircmsg->set_type(Message_T::PRIVATEMESSAGE);
+        ircmsg->set_to(currentChannel.toStdString());
 
-    // set content if not already done
-    if (! ircmsg->has_content() )
         ircmsg->set_content(input.trimmed().toStdString());
+    }
 
     irc2me.send(msg);
 }

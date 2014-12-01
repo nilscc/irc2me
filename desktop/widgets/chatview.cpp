@@ -59,8 +59,6 @@ void ChatView::Model::appendIrcMessage(ID_T networkid, Message_T msg)
     QString cmd = msg.has_type() ? TypeConversion::ircTypeToString(msg.type())
                                  : QString::fromStdString(msg.type_raw());
 
-    qDebug() << msg.has_type() << msg.type();
-
     QStandardItem *time  = new QStandardItem(curTime);
     QStandardItem *who   = new QStandardItem(from);
     QStandardItem *what  = new QStandardItem(cmd);
