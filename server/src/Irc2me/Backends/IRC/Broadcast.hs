@@ -7,6 +7,7 @@ module Irc2me.Backends.IRC.Broadcast
   , IrcBroadcast
   , subscribe
   , broadcastNetworkId, NetworkID
+  , sendIrcMessage
     -- * Connection status
   , IrcConnectionStatus (..)
   , getBroadcastConnectionStatus
@@ -113,6 +114,18 @@ isConnected bc = do
   case status of
     IrcConnected -> return True
     _            -> return False
+
+--
+-- Sending messages
+--
+
+sendIrcMessage :: MonadIO m => IrcBroadcast -> IrcMessage -> m ()
+sendIrcMessage bc msg = liftIO $ do
+  sendIrc (bc ^. broadcastIrcConnection) (msg ^. from ircMessage)
+
+  -- re-broadcast, FIXME
+  now <- getCurrentTime
+  broadcast bc (now, msg ^. from ircMessage)
 
 --
 -- Subscription

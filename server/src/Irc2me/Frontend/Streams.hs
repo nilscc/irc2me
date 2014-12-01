@@ -18,6 +18,7 @@ import Irc2me.Frontend.Streams.Helper
 
 -- specific streams
 import Irc2me.Frontend.Streams.Authenticate
+import Irc2me.Frontend.Streams.Irc
 import Irc2me.Frontend.Streams.System
 
 serverStream :: Stream ()
@@ -39,6 +40,7 @@ serverStream = do
 
     response <- getServerResponse state $ do
                   choice [ systemStream
+                         , ircStream
                          , throwS "serverStream" $ "Not implemented: " ++ show msg
                          ]
 

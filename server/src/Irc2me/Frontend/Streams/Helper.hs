@@ -87,7 +87,7 @@ getServerResponse
 getServerResponse state resp =
   liftMonadTransformer (runReaderT `flip` state) resp
 
-withAccount :: (AccountID -> ServerResponse) -> ServerResponse
+withAccount :: (AccountID -> ServerResponseT a) -> ServerResponseT a
 withAccount f = do
   macc <- lift $ asks connectionAccount
   case macc of

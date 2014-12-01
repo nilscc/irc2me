@@ -14,6 +14,7 @@ import Data.ProtocolBuffers.TH
 
 -- local
 import Irc2me.Frontend.Messages.Helper
+import Irc2me.Frontend.Messages.IrcNetwork
 import Irc2me.Frontend.Messages.System
 
 data ClientMessage = ClientMessage
@@ -22,16 +23,8 @@ data ClientMessage = ClientMessage
   { _clientResponseID       :: Optional 3  (Value ID_T)
   , _clientSystemMsg        :: Optional 5  (Enumeration SystemMsg)
 
-    -- identities
-  -- , _ident_set              :: Repeated 20  (Message Identity)
-  -- , _ident_remove           :: Repeated 21  (Value ID_T)
-  -- , _ident_get_all          :: Optional 22  (Value Bool)
-
     -- networks
-  -- , _network_set            :: Repeated 100 (Message Network)
-  -- , _network_remove         :: Repeated 101 (Value ID_T)
-  -- , _network_get_all_names  :: Optional 102 (Value Bool)
-  -- , _network_get_details    :: Repeated 103 (Value ID_T)
+  , _clientNetworks         :: Repeated 50 (Message IrcNetwork)
 
   }
   deriving (Eq, Show, Generic)
@@ -43,6 +36,7 @@ emptyClientMessage :: ClientMessage
 emptyClientMessage = ClientMessage
   { _clientResponseID     = putField Nothing
   , _clientSystemMsg      = putField Nothing
+  , _clientNetworks       = putField []
   }
 
 ------------------------------------------------------------------------------

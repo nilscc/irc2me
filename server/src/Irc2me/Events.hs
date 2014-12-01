@@ -18,6 +18,7 @@ data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event
 
 data Event
   = ClientConnected IrcHandler
+  | SendIrcMessage  NetworkID IrcMessage
   deriving (Show)
 
 newtype IrcHandler
@@ -48,3 +49,6 @@ clientConnected aid c = AccountEvent aid $ ClientConnected $
     runEffect $ yield msg' >-> encodeMsg >-> send
  where
   send = await >>= lift . sendToClient c
+
+sendIrcMessage :: AccountID -> NetworkID -> IrcMessage -> AccountEvent
+sendIrcMessage aid nid msg = AccountEvent aid $ SendIrcMessage nid msg
