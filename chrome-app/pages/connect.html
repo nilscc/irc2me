@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+
+<!-- dependencies -->
+<script type="text/javascript" src="../libs/jquery-2.1.1.min.js"></script>
+<script type="text/javascript" src="../libs/Long.min.js"></script>
+<script type="text/javascript" src="../libs/ByteBufferAB.min.js"></script>
+<script type="text/javascript" src="../libs/ProtoBuf.min.js"></script>
+
+<script type="text/javascript" src="../Irc2me.js"></script>
+
+<!-- our own scripts -->
+<script type="text/javascript" src="connect.js"></script>
+
+<!-- style sheets -->
+<link rel="stylesheet" type="text/css" href="../styles/Roboto.css">
+<link rel="stylesheet" type="text/css" href="../styles/cards.css">
+<link rel="stylesheet" type="text/css" href="../styles/connect.css">
+
+<title>irc2me – Connect</title>
+
+<!-- main body -->
+
+<div class="title">
+    irc2me – <span id="title-status">Connect</span>
+</div>
+
+<div class="card">
+    <div class="content">
+        <table id="login-form">
+            <tr>
+                <th>Hostname:</th>
+                <td><input type="text" name="hostname" value="nils-vm.fritz.box"></td>
+            </tr>
+            <tr>
+                <th>Port:</th>
+                <td><input type="text" name="port" value="6565"></td>
+            </tr>
+            <tr>
+                <th>Username:</th>
+                <td><input type="text" name="username" value="test"></td>
+            </tr>
+            <tr>
+                <th>Password:</th>
+                <td><input type="password" name="password" value="test"></td>
+            </tr>
+        </table>
+    </div>
+    <div class="comments">
+        <div id="connection-log">
+        </div>
+    </div>
+</div>
+
+<footer>
+    <div class="button" id="connect">Connect</div>
+    <div class="button" id="quit">Quit</div>
+</footer>

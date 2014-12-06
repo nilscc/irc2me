@@ -1,0 +1,176 @@
+
+.card
+{
+  font: 12pt "Roboto";
+  text-align: left;
+  display: block;
+  border: 1pt solid rgba(0,0,0,0.2);
+  border-radius: 2pt;
+  box-shadow: 0 0 10pt -2pt rgba(0,0,0,0.2);
+  background: white;
+  margin: 16pt auto;
+  padding: 0;
+  min-width: 300pt;
+  width: 40%;
+}
+
+.card > .title,
+.card > .content
+{
+  padding: 16pt;
+}
+.card > .title :first-child,
+.card > .content :first-child
+{
+  margin-top: 0;
+}
+
+.card > .title
+{
+  border-bottom: 1pt solid rgba(0,0,0,0.1);
+  background-color: rgba(0,0,0,0.00);
+}
+
+.card > .title p
+{
+  margin: 0;
+}
+
+.card > .title .user-pic
+{
+  float: left;
+  display: inline-block;
+  margin-right: 8pt;
+
+  border-radius: 50%;
+  height: 32pt;
+  width: 32pt;
+
+  position: relative;
+  top: -8pt;
+}
+
+.card > .title .user
+{
+  display: inline-block;
+}
+
+.card > .title .date
+{
+  color: rgba(0,0,0,0.4);
+  float: right;
+}
+
+.card > .title :last-child:after
+{
+  content: "\A";
+  clear: right;
+}
+
+.card > .content
+{
+}
+
+.card > .footer {
+  margin: 24pt 0 0pt;
+  padding: 6pt 16pt 6pt;
+  border-top: 1pt solid rgba(0,0,0,0.2);
+  cursor: initial;
+}
+
+.card > .footer.right
+{
+  float: right;
+}
+.card > .footer:after
+{
+  pointer: normal;
+  content: "\A";
+  display: block;
+  height: 0;
+  clear: both;
+}
+
+.card > .footer .button
+{
+  display: inline-block;
+
+  min-width: 40pt;
+  padding: 6pt 8pt 6pt;
+
+  margin-left: 4pt;
+  margin-right: 4pt;
+
+  color: rgba(0,0,0,0.6);
+  border-radius: 2pt;
+
+  text-align: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-decoration: none;
+
+  cursor: pointer;
+}
+
+.card > .footer .button:first-child
+{
+  margin-left: 0;
+}
+.card > .footer .button:last-child
+{
+  margin-right: 0;
+}
+
+.card > .footer .button.inactive {
+  color: rgba(0,0,0,0.3);
+}
+.card > .footer .button.right:last-child:after
+{
+  clear: both;
+}
+
+.card > .comments
+{
+  margin: 0;
+  padding: 8pt 16pt 8pt;
+  border-top: 1pt solid rgba(0,0,0,0.1);
+  background-color: rgba(0,0,0,0.075);
+  font-size: 10pt;
+  max-height: 100pt;
+  overflow: auto;
+}
+
+.card > .comments .comment
+{
+  list-style: none;
+  padding: 0;
+}
+
+.card > .comments .comment > .user
+{
+  margin: 0;
+  color: rgba(0,0,0,0.4);
+}
+
+.card > .comments .comment > .date
+{
+  margin: 0;
+  float: right;
+  color: rgba(0,0,0,0.4);
+}
+
+.card > .comments .comment > .text
+{
+  margin: 6pt 0 6pt;
+}
+
+.card > .comments .comment:last-child > .text
+{
+  margin-bottom: 0;
+}
+
+.card > .comments .comment > .replies
+{
+  padding-left: 0;
+  margin: 8pt 0 8pt 16pt;
+}

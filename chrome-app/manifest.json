@@ -1,0 +1,21 @@
+{
+    "name": "irc2me",
+    "description": "irc2me client as chrome application",
+    "version": "0.0.1",
+    "manifest_version": 2,
+
+    // enable TCP sockets
+    "sockets": {
+        "tcp": { "connect": "*" }
+    },
+
+    "app":
+    {
+        "background":
+        {
+            "scripts":
+                [ "background.js"
+                ]
+        }
+    }
+}
