@@ -121,7 +121,8 @@ connect tls hostname port = runExceptT $ do
       -- start TLS handshake
       mp <- lift $ fromTLS h (clientParams hostname)
       case mp of
-        Right (p, ctxt) -> return $ toTLSConnection ctxt $ continueWith p
+        Right (p, ctxt) -> do handshake ctxt
+                              return $ toTLSConnection ctxt $ continueWith p
         Left (Left  e) -> throwError $ TLSException' e
         Left (Right e) -> throwError $ IOException' e
 
