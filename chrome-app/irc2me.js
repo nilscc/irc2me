@@ -8,6 +8,7 @@ function Irc2me(proto_file)
     var self = this;
 
     self._connected = false;
+    self._incomingMessageCallbacks = [];
 
     dcodeIO.ProtoBuf.loadProtoFile(proto_file, function(err, builder) {
 
@@ -105,28 +106,112 @@ Irc2me.prototype.sendMessage = function(proto_message)
     buffer.writeVarint64(byteLength);
     buffer.append(encodedMessage);
 
-    // set correct buffer length for this message
-    chrome.sockets.tcp.update(self._socket, {
-        bufferSize: totalLength,
-    }, function() {
+    // jump back to buffer start
+    buffer.offset = 0;
 
-        // jump back to buffer start
-        buffer.offset = 0;
+    // send buffer
+    chrome.sockets.tcp.send(self._socket, buffer.toArrayBuffer(), function(res) {
 
-        // send buffer
-        chrome.sockets.tcp.send(self._socket, buffer.toArrayBuffer(), function(res) {
+        var bytesSent = res.bytesSent + " of " + totalLength + " bytes sent";
 
-            var bytesSent = res.bytesSent + " of " + totalLength + " bytes sent";
-
-            if (res.resultCode != 0) {
-                return Logger.error("Could not send message (" + res.resultCode + ", " + bytesSent + ").");
-            }
-            if (res.bytesSent < totalLength) {
-                return Logger.warn("Only " + bytesSent + ".");
-            }
-        });
-
+        if (res.resultCode != 0) {
+            return Logger.error("Could not send message (" + res.resultCode + ", " + bytesSent + ").");
+        }
+        if (res.bytesSent < totalLength) {
+            return Logger.warn("Only " + bytesSent + ".");
+        }
     });
+}
+
+Irc2me.prototype.onReceive = function(info)
+{
+    var self = this;
+
+    // skip other sockets
+    if (info.socketId != self._socket) {
+        return;
+    }
+
+    var totalLength = info.data.byteLength;
+
+    // wrap the array buffer into our byte buffer
+    var buffer = dcodeIO.ByteBuffer.wrap(info.data);
+
+    // see if we have any incomplete messages still in buffer
+    if (self._incompleteMessageBuffer != null) {
+
+        totalLength += self._incompleteMessageBuffer.remaining();
+
+        // append 'buffer' to the end of incomplete message buffer
+        self._incompleteMessageBuffer.append(buffer, self._incompleteMessageBuffer.limit);
+
+        // swap buffer/incomplete buffer
+        buffer = self._incompleteMessageBuffer;
+        self._incompleteMessageBuffer = null;
+    }
+
+    // reset all limit/offsets
+    buffer.clear();
+
+    // loop over all messages
+    while (buffer.remaining() > 0) {
+
+        // mark current buffer position
+        buffer.mark();
+
+        // read message
+        var messageLength = buffer.readVarint64();
+
+        if (buffer.remaining() >= messageLength) {
+
+            // set proper limit
+            buffer.limit = parseInt(buffer.offset) + parseInt(messageLength);
+
+            // decode message
+            var message = self._proto.Server.decode(buffer);
+
+            // run all registered callbacks
+            for (var cb_i = 0; cb_i < self._incomingMessageCallbacks.length; cb_i++) {
+                if (self._incomingMessageCallbacks[cb_i]
+                        && typeof(self._incomingMessageCallbacks[cb_i]) == "function") {
+                    self._incomingMessageCallbacks[cb_i](message);
+                }
+            }
+
+            // reset buffer and set proper offset
+            buffer.offset = buffer.limit;
+            buffer.limit  = totalLength;
+
+        } else {
+
+            // jump back to old 'marked' varint64 message length prefix position
+            buffer.reset();
+
+            // break out of while loop
+            break;
+        }
+    }
+
+    // check if we have left over data
+    if (buffer.remaining() > 0) {
+
+        if (!self._incompleteMessageBuffer) {
+            self._incompleteMessageBuffer = buffer;
+        } else {
+            self._incompleteMessageBuffer.append(buffer);
+        }
+
+    }
+}
+
+Irc2me.prototype.addIncomingMessageListener = function(messageCallback)
+{
+    return this._incomingMessageCallbacks.push(messageCallback) - 1;
+}
+
+Irc2me.prototype.removeIncomingMessageListener = function(index)
+{
+    this._incomingMessageCallbacks[index] = null;
 }
 
 /*
@@ -186,7 +271,7 @@ Irc2me.prototype.connect = function(hostname, port, cb)
 
         Logger.info("Socket created with ID " + createInfo.socketId + ".");
 
-        // disable delay
+        // (try to) disable delay
         chrome.sockets.tcp.setNoDelay(self._socket, true, function(res) {
             if (res != 0) {
                 return Logger.warn("Could not set NoDelay (" + res + ").");
@@ -207,6 +292,11 @@ Irc2me.prototype.connect = function(hostname, port, cb)
             self._connected = true;
 
             Logger.info("Connected to " + hostname + ":" + port + ".");
+
+            // add onReceive callback
+            chrome.sockets.tcp.onReceive.addListener(function (info) {
+                self.onReceive(info);
+            });
 
             if (cb && typeof(cb) == "function") {
                 cb();

@@ -65,5 +65,9 @@ $(document).ready(function () {
         message: "Application started.",
     });
 
+    var cb_i = irc2me.addIncomingMessageListener(function(msg) {
+        console.log(msg);
+    });
+
     $("#connect").click(connect);
 });
