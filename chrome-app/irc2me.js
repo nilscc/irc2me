@@ -8,20 +8,25 @@ function Irc2me(proto_file)
     var self = this;
 
     self._connected = false;
-    self._incomingMessageCallbacks = [];
+    self._authorized = false;
 
     dcodeIO.ProtoBuf.loadProtoFile(proto_file, function(err, builder) {
 
         // quit on error
         if (err) {
-            console.log("ProtoBuf: Error loading " + proto_file);
+            console.error("ProtoBuf: Error loading " + proto_file);
             return;
         }
 
-        console.log(proto_file + " loaded");
         self._proto = builder.build("Protobuf.Messages");
     });
+
+    self._receiving = false;
 }
+
+Irc2me.ServerMessageType = "irc2me-server-message";
+Irc2me.CommandMessageType = "irc2me-command";
+Irc2me.LogMessageType = "irc2me-log";
 
 /*
  * Logging
@@ -75,7 +80,7 @@ Irc2me.prototype.log = function(statusObject)
  *
  */
 
-Irc2me.prototype.sendMessage = function(proto_message)
+Irc2me.prototype.sendMessage = function(proto_message, cb)
 {
     var self = this;
 
@@ -118,14 +123,63 @@ Irc2me.prototype.sendMessage = function(proto_message)
             return Logger.error("Could not send message (" + res.resultCode + ", " + bytesSent + ").");
         }
         if (res.bytesSent < totalLength) {
-            return Logger.warn("Only " + bytesSent + ".");
+            Logger.warn("Only " + bytesSent + ".");
+        }
+
+        if (cb && typeof cb == "function") {
+            cb();
         }
     });
 }
 
+Irc2me.AuthenticatedType = "Irc2me.AuthenticatedType";
+
+Irc2me.prototype.handleIncomingMessage = function (message) {
+
+    var self = this;
+
+    var Logger = self.getLogger("handleIncomingMessage()");
+
+    // alias messages
+    var ServerMsg = self._proto.Server,
+        SystemMsg = self._proto.SystemMsg;
+
+    if (!self.isAuthenticated()) {
+        if (message.response_code == ServerMsg.ResponseCode.OK) {
+
+            self._authorized = true;
+
+            // send event to everyone
+            chrome.runtime.sendMessage({
+                type: Irc2me.AuthenticatedType
+            });
+
+            // log system message
+            Logger.info("Successfully authenticated.");
+
+        } else {
+            self._authorized = false;
+            self._disconnect();
+
+            // log system message
+            Logger.info("Authentication failed.");
+        }
+
+        return; // quit after auth message
+    }
+
+    // send all other messages as chrome message
+    chrome.runtime.sendMessage({
+        type: Irc2me.ServerMessageType,
+        content: message,
+    });
+
+}
 Irc2me.prototype.onReceive = function(info)
 {
     var self = this;
+
+    console.log("incoming on " + info.socketId + " (our: " + self._socket + ")");
 
     // skip other sockets
     if (info.socketId != self._socket) {
@@ -170,13 +224,7 @@ Irc2me.prototype.onReceive = function(info)
             // decode message
             var message = self._proto.Server.decode(buffer);
 
-            // run all registered callbacks
-            for (var cb_i = 0; cb_i < self._incomingMessageCallbacks.length; cb_i++) {
-                if (self._incomingMessageCallbacks[cb_i]
-                        && typeof(self._incomingMessageCallbacks[cb_i]) == "function") {
-                    self._incomingMessageCallbacks[cb_i](message);
-                }
-            }
+            self.handleIncomingMessage(message);
 
             // reset buffer and set proper offset
             buffer.offset = buffer.limit;
@@ -204,22 +252,15 @@ Irc2me.prototype.onReceive = function(info)
     }
 }
 
-Irc2me.prototype.addIncomingMessageListener = function(messageCallback)
-{
-    return this._incomingMessageCallbacks.push(messageCallback) - 1;
-}
-
-Irc2me.prototype.removeIncomingMessageListener = function(index)
-{
-    this._incomingMessageCallbacks[index] = null;
-}
-
 /*
  * Connecting & authentication
  *
  */
 
-Irc2me.prototype.disconnect = function()
+Irc2me.prototype.isConnected     = function() { return this._connected;  }
+Irc2me.prototype.isAuthenticated = function() { return this._authorized; }
+
+Irc2me.prototype._disconnect = function()
 {
     var self = this,
         Logger = self.getLogger("disconnect()");
@@ -234,23 +275,41 @@ Irc2me.prototype.disconnect = function()
         return Logger.warn("Not connected.");
     }
 
-    chrome.sockets.tcp.close(self._socket);
+    // wrap the actual act of disconnecting into a function so that we can call
+    // them in our isAuthorized callback
+    var do_disconnect = function () {
+        chrome.sockets.tcp.disconnect(self._socket, function() {
+            chrome.sockets.tcp.close(self._socket);
 
-    self._socket = null;
-    self._connected = false;
+            self._socket = null;
+            self._connected = false;
+            self._authorized = false;
 
-    // log disconnect() call
-    Logger.log("Disconnected", "Disconnected.");
+            // log disconnect() call
+            Logger.log("Disconnected", "Disconnected.");
+        });
+    }
+
+    // send "disconnect" message first if authorized
+    if (self.isAuthenticated()) {
+
+        // alias message
+        var ClientMsg = self._proto.Client,
+            SystemMsg = self._proto.SystemMsg;
+
+        self.sendMessage(new ClientMsg({
+            system_msg: SystemMsg.DISCONNECT,
+        }), do_disconnect);
+
+    } else {
+
+        // otherwise just disconnect
+        do_disconnect();
+
+    }
 }
 
-Irc2me.prototype.isConnected = function()
-{
-    var self = this;
-
-    return self._connected;
-}
-
-Irc2me.prototype.connect = function(hostname, port, cb)
+Irc2me.prototype._connect = function(hostname, port, cb)
 {
     var self = this,
         Logger = self.getLogger("connect(\"" + hostname + "\", " + port + ", <" + typeof(cb) + ">)");
@@ -273,39 +332,51 @@ Irc2me.prototype.connect = function(hostname, port, cb)
 
         // (try to) disable delay
         chrome.sockets.tcp.setNoDelay(self._socket, true, function(res) {
-            if (res != 0) {
-                return Logger.warn("Could not set NoDelay (" + res + ").");
-            }
-        });
 
-        // connect
-        chrome.sockets.tcp.connect(self._socket, hostname, parseInt(port), function(res) {
+            var reason;
 
-            if (res != 0) {
-                // log error
-                Logger.error("Could not connect socket (" + res + ").");
-
-                // quit
-                return self.disconnect();
+            // check error
+            if (chrome.runtime.lastError) {
+                reason = chrome.runtime.lastError.message;
             }
 
-            self._connected = true;
+            if (reason || res != 0) {
+                Logger.warn("Could not set NoDelay (" + (reason ? reason : res) + ").");
+            }
 
-            Logger.info("Connected to " + hostname + ":" + port + ".");
+            // connect
+            chrome.sockets.tcp.connect(self._socket, hostname, parseInt(port), function(res) {
 
-            // add onReceive callback
-            chrome.sockets.tcp.onReceive.addListener(function (info) {
-                self.onReceive(info);
+                if (res != 0) {
+                    // log error
+                    Logger.error("Could not connect socket (" + res + ").");
+
+                    // quit
+                    return self._disconnect();
+                }
+
+                self._connected = true;
+
+                Logger.info("Connected to " + hostname + ":" + port + ".");
+
+                // install handler for incoming data
+                if (! self._receiving) {
+                    chrome.sockets.tcp.onReceive.addListener(function (info) {
+                        self.onReceive(info);
+                    });
+                    self._receiving = true;
+                }
+
+                if (cb && typeof(cb) == "function") {
+                    cb();
+                }
             });
 
-            if (cb && typeof(cb) == "function") {
-                cb();
-            }
         });
     });
 }
 
-Irc2me.prototype.authenticate = function(username, password)
+Irc2me.prototype._authenticate = function(username, password)
 {
     var self = this,
         Logger = self.getLogger("authenticate(\"" + username + "\", ****)");
@@ -320,4 +391,43 @@ Irc2me.prototype.authenticate = function(username, password)
         login: username,
         password: password,
     }));
+}
+
+/*
+ * Chrome message interface
+ *
+ */
+
+Irc2me.connect      = new ChromeMessage("Irc2me.connect");
+Irc2me.disconnect   = new ChromeMessage("Irc2me.disconnect");
+Irc2me.authenticate = new ChromeMessage("Irc2me.authenticate");
+
+Irc2me.prototype.setListeners = function () {
+
+    var self = this;
+
+    Irc2me.connect.setListener(function(content, sendResponse) {
+        var host = content.hostname,
+            port = content.port;
+
+        self._connect(host, port, sendResponse);
+
+        // async response
+        return true;
+    });
+
+    Irc2me.authenticate.setListener(function(content, sendResponse) {
+        var user = content.username,
+            pass = content.password;
+
+        self._authenticate(user, pass, sendResponse);
+
+        // async response
+        return true;
+    });
+
+    Irc2me.disconnect.setListener(function(content, sendResponse) {
+        self._disconnect();
+    });
+
 }
