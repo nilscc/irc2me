@@ -61,7 +61,8 @@ RuntimeStorage.prototype.storePrivateValues = function (callback) {
 }
 
 /*
- * Restore all properties stored by 'storePrivateValues'
+ * Restore all properties stored by 'storePrivateValues'. Runtime storage data
+ * is deleted after restoring it.
  *
  */
 RuntimeStorage.prototype.restorePrivateValues = function (callback) {
@@ -83,8 +84,19 @@ RuntimeStorage.prototype.restorePrivateValues = function (callback) {
             self._object[prop] = val;
         }
 
-        if (typeof callback == "function") {
-            callback();
-        }
+        // remove stored data
+        chrome.storage.local.remove(key, function () {
+
+            // done, so check for any errors
+            if (chrome.runtime.lastError) {
+                return console.error("Error in RuntimeStorage.restorePrivateValues(): "
+                    + chrome.runtime.lastError.message);
+            }
+
+            if (typeof callback == "function") {
+                callback();
+            }
+        });
+
     });
 }
