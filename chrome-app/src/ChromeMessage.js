@@ -9,19 +9,27 @@ function ChromeMessage (id) {
         }
 
         chrome.runtime.sendMessage({
-            id: f.id,
+            id: f._id,
             content: content || {},
         }, callback);
     };
 
-    // copy prototype
+    // link ChromeMessages prototype to f
     f.__proto__ = ChromeMessage.prototype;
 
     // set current values
-    f.id = id;
+    f._id = id;
 
     return f;
 }
+
+// inherit prototype from Function class
+ChromeMessage.prototype = Object.create(Function.prototype);
+
+/*
+ * Global/static listener interface
+ *
+ */
 
 ChromeMessage._allListeners = {};
 
@@ -48,13 +56,15 @@ ChromeMessage.listenAll = function () {
 
 }
 
-// inherit from Function
-ChromeMessage.prototype = Object.create(Function.prototype);
+/*
+ * Prototype listener functions
+ *
+ */
 
 ChromeMessage.prototype.setListener = function (run) {
     var self = this;
 
-    ChromeMessage._allListeners[self.id] = run;
+    ChromeMessage._allListeners[self._id] = run;
 }
 
 ChromeMessage.prototype.removeListener = function () {
@@ -63,7 +73,7 @@ ChromeMessage.prototype.removeListener = function () {
     var listeners = ChromeMessage._allListeners;
 
     // delete property
-    if (listeners.hasOwnProperty(self.id) && typeof listeners[self.id] == "function") {
-        delete listeners[self.id];
+    if (listeners.hasOwnProperty(self._id) && typeof listeners[self._id] == "function") {
+        delete listeners[self._id];
     }
 }
