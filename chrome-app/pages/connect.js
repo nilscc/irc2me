@@ -1,32 +1,4 @@
 /*
- * Helper class
- *
- */
-
-var Helper = {
-
-    // helper to escape typical html characters
-    escapeHtml: function(text) {
-
-        var map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-    },
-
-    // helper to access input fields
-    inputByName: function(name, context) {
-        return $("input[name='" + name + "']", context).val();
-    },
-
-};
-
-/*
  * Page class
  *
  */
