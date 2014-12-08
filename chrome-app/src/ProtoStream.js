@@ -288,6 +288,13 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
 
                 log.info("Connected to " + hostname + ":" + port + ".");
 
+                // set socket to KeepAlive
+                chrome.sockets.tcp.setKeepAlive(self._socket, true, function (rc) {
+                    if (rc != 0) {
+                        log.warn("Could not enable keep-alive (" + err + ")");
+                    }
+                });
+
                 // install handler for incoming data
                 if (! self._receiving) {
                     chrome.sockets.tcp.onReceive.addListener(function (info) {
