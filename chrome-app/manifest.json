@@ -4,6 +4,10 @@
     "version": "0.0.1",
     "manifest_version": 2,
 
+    "permissions":
+        [ "storage"
+        ],
+
     // enable TCP sockets
     "sockets": {
         "tcp": { "connect": "*" }
@@ -16,10 +20,13 @@
             "scripts":
                 [ "libs/Long.min.js"
                 , "libs/ByteBufferAB.min.js"
-                , "libs/ProtoBuf.min.js"
+                , "libs/ProtoBuf.js"
+                , "src/Logger.js"
+                , "src/RuntimeStorage.js"
                 , "src/ChromeMessage.js"
-                , "Irc2me.js"
-                , "UIState.js"
+                , "src/ProtoStream.js"
+                , "src/Irc2me.js"
+                , "src/UIState.js"
                 , "background.js"
                 ],
             "persistent": false

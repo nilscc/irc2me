@@ -57,17 +57,10 @@ PageConnect.prototype.connect = function() {
     Irc2me.connect({
         hostname: host,
         port: port,
+        username: user,
+        password: pass,
     }, function () {
-
-        console.log("connected!");
-
-        Irc2me.authenticate({
-            username: user,
-            password: pass,
-        }, function () {
-            console.log("Authenticated!");
-        });
-
+        console.log("Authenticated!");
     });
 }
 

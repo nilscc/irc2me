@@ -1,4 +1,4 @@
-package Protobuf.Messages;
+package Irc2me;
 
 message IrcNetwork
 {
@@ -110,7 +110,7 @@ message Authentication
     required string password = 2;
 };
 
-message Client
+message ClientMsg
 {
     optional int64        response_id             = 3;
     optional SystemMsg    system_msg              = 5;
@@ -118,7 +118,7 @@ message Client
     repeated IrcNetwork   networks                = 50;
 };
 
-message Server
+message ServerMsg
 {
     optional int64        response_id   = 3;
     optional SystemMsg    system_msg    = 5;

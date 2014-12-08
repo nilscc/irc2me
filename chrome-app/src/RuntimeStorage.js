@@ -74,6 +74,12 @@ RuntimeStorage.prototype.restorePrivateValues = function (callback) {
 
     chrome.storage.local.get(key, function (data) {
 
+        console.log(data);
+
+        if (typeof data[key] != "object") {
+            return; // no data to restore
+        }
+
         var properties = Object.keys(data[key]);
         for (var i = 0; i < properties.length; i++) {
 
