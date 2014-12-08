@@ -22,7 +22,6 @@
                 , "libs/ByteBufferAB.min.js"
                 , "libs/ProtoBuf.js"
                 , "src/Logger.js"
-                , "src/RuntimeStorage.js"
                 , "src/ChromeMessage.js"
                 , "src/ProtoStream.js"
                 , "src/Irc2me.js"
