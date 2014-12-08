@@ -36,7 +36,16 @@ ProtoStream.restore = function () {
 
     var self = new ProtoStream();
 
-    self._runtime.restorePrivateValues();
+    self._runtime.restorePrivateValues(function () {
+
+        // restore handler for incoming data
+        if (self._receiving) {
+            chrome.sockets.tcp.onReceive.addListener(function (info) {
+                self._onReceive(info);
+            });
+        }
+
+    });
 
     return self;
 }

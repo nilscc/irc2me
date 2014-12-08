@@ -56,21 +56,26 @@ Irc2me.restore = function () {
 
     var self = new Irc2me();
 
-    self._runtime.restorePrivateValues();
+    // load protobuf messages
+    self._loadMessages();
 
     // restore stream
     self._protoStream = ProtoStream.restore();
 
-    // set message handler
-    if (self._authenticated === true) {
-        self._protoStream.setIncomingCallback(function (buffer) {
-            self._handleIncomingMessages(buffer);
-        });
-    } else {
-        self._protoStream.setIncomingCallback(function (buffeR) {
-            self._handleAuthenticationResponse(buffer);
-        });
-    }
+    self._runtime.restorePrivateValues(function () {
+
+        // set message handler
+        if (self._authenticated === true) {
+            self._protoStream.setIncomingCallback(function (buffer) {
+                self._handleIncomingMessages(buffer);
+            });
+        } else {
+            self._protoStream.setIncomingCallback(function (buffer) {
+                self._handleAuthenticationResponse(buffer);
+            });
+        }
+
+    });
 
     return self;
 }
@@ -156,13 +161,6 @@ Irc2me.prototype._connect = function(hostname, port, username, password) {
 
     var self = this;
 
-    // load protobuf messages if not done already
-    if (self._messages == null) {
-        return self._loadMessages(function () {
-            self._connect(hostname, port, username, password);
-        });
-    }
-
     // aliases
     var stream   = self._protoStream,
         messages = self._messages;
@@ -184,13 +182,6 @@ Irc2me.prototype._connect = function(hostname, port, username, password) {
 
 Irc2me.prototype._disconnect = function (cb) {
     var self = this;
-
-    // load protobuf messages if not done already
-    if (self._messages == null) {
-        return self._loadMessages(function () {
-            self._disconnect(cb);
-        });
-    }
 
     // aliases
     var stream   = self._protoStream,
