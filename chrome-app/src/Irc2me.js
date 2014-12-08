@@ -184,7 +184,22 @@ Irc2me.prototype._connect = function(hostname, port, username, password) {
 
 Irc2me.prototype._disconnect = function (cb) {
     var self = this;
-    self._protoStream.disconnect(cb);
+
+    // aliases
+    var stream   = self._protoStream,
+        messages = self._messages;
+
+    if (self._authenticated) {
+        stream.sendMessage(new messages.ClientMsg({
+            system_msg: messages.SystemMsg.DISCONNECT,
+        }), function() {
+            self._protoStream.disconnect(cb);
+        });
+    } else {
+        self._protoStream.disconnect(cb);
+    }
+
+
     self._authenticated = false;
 }
 
