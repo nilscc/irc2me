@@ -1,33 +1,25 @@
-var irc2me = Irc2me.restore();
-
-/*
-var uistate = new UIState(irc2me);
-
-irc2me.loadProtoFile("messages.proto");
+var irc2me  = Irc2me.restore();
+var uistate = UIState.restore(irc2me);
 
 irc2me.setLogger(function(statusObject) {
     uistate.addSystemLog(statusObject);
 });
-*/
 
 /*
  * Setup chrome messages
  *
  */
 
-/*
 uistate.setListeners();
-*/
 irc2me.setListeners();
 
 ChromeMessage.listenAll();
 
 /*
- * Chrome runtime events
+ * Application launch
  *
  */
 
-// Start application
 chrome.app.runtime.onLaunched.addListener(function () {
 
     console.log("onLaunched");
@@ -44,8 +36,14 @@ chrome.app.runtime.onLaunched.addListener(function () {
 
 });
 
+/*
+ * Other runtime events
+ *
+ */
+
 chrome.runtime.onSuspend.addListener(function () {
 
+    uistate.suspend();
     irc2me.suspend();
 
 });

@@ -26,7 +26,14 @@ RuntimeStorage.prototype._storageKey = function () {
  * character and a non-object/function 'typeof')
  *
  */
-RuntimeStorage.prototype.storePrivateValues = function (callback) {
+RuntimeStorage.prototype.storePrivateValues = function (additional_props, callback) {
+
+    if (callback == null && typeof additional_props == "function") {
+        callback = additional_props;
+        additional_props = null;
+    }
+
+    additional_props = additional_props || [];
 
     var self = this;
 
@@ -48,7 +55,12 @@ RuntimeStorage.prototype.storePrivateValues = function (callback) {
         }
 
         // check if type of property is in the stored types array
-        if (RuntimeStorage.storedTypes.indexOf(typeof self._object[prop]) == -1) {
+        var non_scalar_type = RuntimeStorage.storedTypes.indexOf(typeof self._object[prop]) == -1;
+
+        // make exceptions for 'additional_props'
+        var not_additional_field = additional_props.indexOf(prop) == -1;
+
+        if (non_scalar_type && not_additional_field) {
             continue;
         }
 

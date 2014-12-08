@@ -4,12 +4,30 @@
  */
 
 function UIState(irc2me) {
-    this._systemLogs = [ {
-        time: new Date().toLocaleTimeString(),
-        where: "UIState()",
-        message: "Application started.",
-    } ];
-    this._irc2me = irc2me;
+    var self = this;
+
+    self._systemLogs = [];
+    self._irc2me = irc2me;
+    self._runtime = new RuntimeStorage(self);
+}
+
+/*
+ * Suspend & restore
+ *
+ */
+
+UIState.prototype.suspend = function () {
+    var self = this;
+
+    self._runtime.storePrivateValues(["_systemLogs"]);
+}
+
+UIState.restore = function (irc2me) {
+    var self = new UIState(irc2me);
+
+    self._runtime.restorePrivateValues();
+
+    return self;
 }
 
 UIState.ConnectionStatus = {

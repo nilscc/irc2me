@@ -21,19 +21,19 @@ function Irc2me()
 
 Irc2me.prototype.setLogger = function(callback)
 {
-    this._logger_cb = callback;
+    var self = this;
+
+    self._logger_cb = callback;
+
+    if (self._protoStream != null) {
+        self._protoStream.setLogger(callback);
+    }
 }
 
 // Set up logger for internal logging
 Irc2me.prototype.getLogger = function(where)
 {
     return new Logger("Irc2me." + where, this._logger_cb);
-}
-
-// external logging
-Irc2me.prototype.log = function(statusObject)
-{
-    this._logger_cb(statusObject);
 }
 
 /*
