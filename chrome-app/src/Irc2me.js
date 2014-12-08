@@ -185,6 +185,13 @@ Irc2me.prototype._connect = function(hostname, port, username, password) {
 Irc2me.prototype._disconnect = function (cb) {
     var self = this;
 
+    // load protobuf messages if not done already
+    if (self._messages == null) {
+        return self._loadMessages(function () {
+            self._disconnect(cb);
+        });
+    }
+
     // aliases
     var stream   = self._protoStream,
         messages = self._messages;
