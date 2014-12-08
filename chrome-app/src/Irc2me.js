@@ -9,8 +9,8 @@ function Irc2me()
 
     self._authenticated = false;
 
-    // runtime storagement
-    self._runtime = new RuntimeStorage(self);
+    // prepare connection
+    self._protoStream = new ProtoStream();
 }
 
 /*
@@ -19,8 +19,8 @@ function Irc2me()
  */
 
 
-Irc2me.prototype.setLogger = function(callback)
-{
+Irc2me.prototype.setLogger = function(callback) {
+
     var self = this;
 
     self._logger_cb = callback;
@@ -31,8 +31,7 @@ Irc2me.prototype.setLogger = function(callback)
 }
 
 // Set up logger for internal logging
-Irc2me.prototype.getLogger = function(where)
-{
+Irc2me.prototype.getLogger = function(where) {
     return new Logger("Irc2me." + where, this._logger_cb);
 }
 
@@ -41,43 +40,17 @@ Irc2me.prototype.getLogger = function(where)
  *
  */
 
+Irc2me.prototype.init = function (cb) {
+    var self = this;
+
+    self._loadMessages(cb);
+}
+
 Irc2me.prototype.suspend = function () {
     var self = this;
 
-    self._runtime.storePrivateValues();
-
     // suspend stream
-    if (self._protoStream != null) {
-        self._protoStream.suspend();
-    }
-}
-
-Irc2me.restore = function () {
-
-    var self = new Irc2me();
-
-    // load protobuf messages
-    self._loadMessages();
-
-    // restore stream
-    self._protoStream = ProtoStream.restore();
-
-    self._runtime.restorePrivateValues(function () {
-
-        // set message handler
-        if (self._authenticated === true) {
-            self._protoStream.setIncomingCallback(function (buffer) {
-                self._handleIncomingMessages(buffer);
-            });
-        } else {
-            self._protoStream.setIncomingCallback(function (buffer) {
-                self._handleAuthenticationResponse(buffer);
-            });
-        }
-
-    });
-
-    return self;
+    self._protoStream.suspend();
 }
 
 /*
