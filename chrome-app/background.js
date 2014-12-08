@@ -1,26 +1,33 @@
-var irc2me  = Irc2me.restore();
-var uistate = UIState.restore(irc2me);
-
-irc2me.setLogger(function(statusObject) {
-    uistate.addSystemLog(statusObject);
-});
-
-/*
- * Setup chrome messages
- *
- */
-
-uistate.setListeners();
-irc2me.setListeners();
-
-ChromeMessage.listenAll();
+var irc2me = new Irc2me();
+var uistate = new UIState();
 
 /*
  * Application launch
  *
  */
 
-chrome.app.runtime.onLaunched.addListener(function () {
+function loadApp() {
+
+    irc2me.setLogger(function(statusObject) {
+        uistate.addSystemLog(statusObject);
+    });
+
+    /*
+     * Chrome messages
+     *
+     */
+
+    uistate.setListeners();
+    irc2me.setListeners();
+
+    ChromeMessage.listenAll();
+
+    /*
+     * UI
+     *
+     */
+
+    uistate.addSystemLog({ message: "Application started." });
 
     chrome.app.window.create("pages/connect.html", {
         id: "connect",
@@ -31,7 +38,18 @@ chrome.app.runtime.onLaunched.addListener(function () {
         },
         resizable: false,
     });
+}
 
+chrome.app.runtime.onLaunched.addListener(function () {
+
+    console.log("onLaunched");
+
+    irc2me.init(function () {
+
+        // start application
+        loadApp();
+
+    });
 });
 
 /*
@@ -41,7 +59,6 @@ chrome.app.runtime.onLaunched.addListener(function () {
 
 chrome.runtime.onSuspend.addListener(function () {
 
-    uistate.suspend();
     irc2me.suspend();
 
 });

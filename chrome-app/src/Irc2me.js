@@ -25,9 +25,8 @@ Irc2me.prototype.setLogger = function(callback) {
 
     self._logger_cb = callback;
 
-    if (self._protoStream != null) {
-        self._protoStream.setLogger(callback);
-    }
+    // also set for protostream
+    self._protoStream.setLogger(callback);
 }
 
 // Set up logger for internal logging

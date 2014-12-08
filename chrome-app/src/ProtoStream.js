@@ -272,7 +272,7 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
                 if (reason) {
                     log.warn("Could not set NoDelay (" + reason + ").");
                 }
-            }
+            });
 
             // install handler for incoming data
             chrome.sockets.tcp.onReceive.addListener(function (info) {
