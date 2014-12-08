@@ -22,8 +22,6 @@ ChromeMessage.listenAll();
 
 chrome.app.runtime.onLaunched.addListener(function () {
 
-    console.log("onLaunched");
-
     chrome.app.window.create("pages/connect.html", {
         id: "connect",
         frame: "chrome",

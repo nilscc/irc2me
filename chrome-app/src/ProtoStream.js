@@ -91,8 +91,6 @@ ProtoStream.prototype.sendMessage = function (proto_message, callback) {
 
     var self = this;
 
-    console.log(proto_message);
-
     var Logger = self.getLogger("sendMessage()");
 
     if (!self._socket) {
@@ -144,8 +142,6 @@ ProtoStream.prototype.sendMessage = function (proto_message, callback) {
 ProtoStream.prototype._onReceive = function(info) {
 
     var self = this;
-
-    console.log("incoming on " + info.socketId + " (our: " + self._socket + ")");
 
     // skip other sockets
     if (info.socketId != self._socket) {

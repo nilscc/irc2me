@@ -37,8 +37,6 @@ ChromeMessage.listenAll = function () {
 
     chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
 
-        console.log(msg);
-
         // ignore invalid messages
         if (typeof msg != "object" || typeof msg.id != "string") {
             return;
