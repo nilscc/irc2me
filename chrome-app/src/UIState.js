@@ -3,31 +3,9 @@
  *
  */
 
-function UIState(irc2me) {
+function UIState() {
     var self = this;
-
     self._systemLogs = [];
-    self._irc2me = irc2me;
-    self._runtime = new RuntimeStorage(self);
-}
-
-/*
- * Suspend & restore
- *
- */
-
-UIState.prototype.suspend = function () {
-    var self = this;
-
-    self._runtime.storePrivateValues(["_systemLogs"]);
-}
-
-UIState.restore = function (irc2me) {
-    var self = new UIState(irc2me);
-
-    self._runtime.restorePrivateValues();
-
-    return self;
 }
 
 /*
@@ -51,8 +29,6 @@ UIState.prototype.addSystemLog = function(msg) {
  */
 
 UIState.getSystemLogs = new ChromeMessage("UIState.getSystemLogs");
-
-// Listener
 
 UIState.prototype.setListeners = function() {
 
