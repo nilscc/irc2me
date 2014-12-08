@@ -285,7 +285,7 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
                     log.error("Could not connect socket (" + res + ").");
 
                     // quit
-                    return self._disconnect();
+                    return self.disconnect();
                 }
 
                 self._connected = true;

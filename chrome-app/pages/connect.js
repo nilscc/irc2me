@@ -132,23 +132,12 @@ PageConnect.prototype.loadSystemLog = function () {
 PageConnect.prototype.loadConnectionStatus = function () {
     var self = this;
 
-    self.setDisconnected();
-
-    UIState.getConnectionStatus(function(stat) {
-
-        switch (stat) {
-
-            case UIState.ConnectionStatus.Authorized:
-            case UIState.ConnectionStatus.Connected: {
-                self.setConnected();
-                break;
-            }
-
-            default: {
-                self.setDisconnected();
-            }
+    Irc2me.isConnected(function (connected) {
+        if (connected) {
+            self.setConnected();
+        } else {
+            self.setDisconnected();
         }
-
     });
 }
 

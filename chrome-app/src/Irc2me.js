@@ -182,9 +182,9 @@ Irc2me.prototype._connect = function(hostname, port, username, password) {
     });
 }
 
-Irc2me.prototype._disconnect = function () {
+Irc2me.prototype._disconnect = function (cb) {
     var self = this;
-    self._protoStream.disconnect();
+    self._protoStream.disconnect(cb);
     self._authenticated = false;
 }
 
@@ -193,8 +193,9 @@ Irc2me.prototype._disconnect = function () {
  *
  */
 
-Irc2me.connect    = new ChromeMessage("Irc2me.connect");
-Irc2me.disconnect = new ChromeMessage("Irc2me.disconnect");
+Irc2me.connect     = new ChromeMessage("Irc2me.connect");
+Irc2me.isConnected = new ChromeMessage("Irc2me.isConnected");
+Irc2me.disconnect  = new ChromeMessage("Irc2me.disconnect");
 
 Irc2me.prototype.setListeners = function () {
 
@@ -218,7 +219,11 @@ Irc2me.prototype.setListeners = function () {
     });
 
     Irc2me.disconnect.setListener(function(content, sendResponse) {
-        self._disconnect();
+        self._disconnect(sendResponse);
+    });
+
+    Irc2me.isConnected.setListener(function(content, sendResponse) {
+        sendResponse(self._authenticated === true);
     });
 
 }

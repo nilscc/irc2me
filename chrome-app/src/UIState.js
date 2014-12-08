@@ -30,28 +30,6 @@ UIState.restore = function (irc2me) {
     return self;
 }
 
-UIState.ConnectionStatus = {
-    Disconnected: 0,
-    Connected: 1,
-    Authorized: 2,
-}
-
-UIState.prototype.connectionStatus = function () {
-
-    var self = this;
-
-    if (self._irc2me.isConnected()) {
-        return UIState.ConnectionStatus.Connected;
-    }
-
-    if (self._irc2me.isAuthenticated()) {
-        return UIState.ConnectionStatus.Authorized;
-    }
-
-    // otherwise
-    return UIState.ConnectionStatus.Disconnected;
-}
-
 /*
  * System state
  *
@@ -68,19 +46,13 @@ UIState.prototype.addSystemLog = function(msg) {
 }
 
 /*
- * Queries
- *
- * All queries are meant to be called from content scripts
+ * Chrome message interface
  *
  */
 
-UIState.getSystemLogs       = new ChromeMessage("UIState.getSystemLogs");
-UIState.getConnectionStatus = new ChromeMessage("UIState.getConnectionStatus");
+UIState.getSystemLogs = new ChromeMessage("UIState.getSystemLogs");
 
-/*
- * Messages
- *
- */
+// Listener
 
 UIState.prototype.setListeners = function() {
 
@@ -88,10 +60,6 @@ UIState.prototype.setListeners = function() {
 
     UIState.getSystemLogs.setListener(function(content, sendResponse) {
         sendResponse(self._systemLogs);
-    });
-
-    UIState.getConnectionStatus.setListener(function(content, sendResponse) {
-        sendResponse(self.connectionStatus());
     });
 
 }
