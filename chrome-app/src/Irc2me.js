@@ -61,6 +61,17 @@ Irc2me.restore = function () {
     // restore stream
     self._protoStream = ProtoStream.restore();
 
+    // set message handler
+    if (self._authenticated === true) {
+        self._protoStream.setIncomingCallback(function (buffer) {
+            self._handleIncomingMessages(buffer);
+        });
+    } else {
+        self._protoStream.setIncomingCallback(function (buffeR) {
+            self._handleAuthenticationResponse(buffer);
+        });
+    }
+
     return self;
 }
 
@@ -86,6 +97,43 @@ Irc2me.prototype._loadMessages = function(cb) {
     });
 }
 
+Irc2me.prototype._handleAuthenticationResponse = function (buffer) {
+
+    var self = this;
+
+    // alias
+    var ServerMsg = self._messages.ServerMsg;
+
+    // decode as ServerMsg
+    var msg = ServerMsg.decode(buffer);
+
+    /*
+     * Authentication reply
+     *
+     */
+    if (self._authenticated == false || typeof self._authenticated == "function") {
+
+        if (msg.response_code == ServerMsg.ResponseCode.OK) {
+
+            // properly authenticated, run callback (if any)
+            if (typeof self._authenticated == "function") {
+                self._authenticated();
+            }
+
+            self._authenticated = true;
+
+            // setup proper handler
+            self._protoStream.setIncomingCallback(function (buffer) {
+                self._handleIncomingMessages(buffer);
+            });
+
+        } else {
+            // authentication failed :(
+            self._authenticated = false;
+        }
+    }
+}
+
 Irc2me.prototype._handleIncomingMessages = function (buffer) {
 
     var self = this;
@@ -96,31 +144,7 @@ Irc2me.prototype._handleIncomingMessages = function (buffer) {
     // decode as ServerMsg
     var msg = ServerMsg.decode(buffer);
 
-    console.log(msg);
-
-    /*
-     * Authentication reply
-     *
-     */
-    if (self._authenticated == false || typeof self._authenticated == "function") {
-
-        if (msg.response_code == ServerMsg.ResponseCode.OK) {
-            if (typeof self._authenticated == "function") {
-                self._authenticated();
-            }
-            self._authenticated = true;
-        } else {
-            self._authenticated = false;
-        }
-
-        return; // authentication reply has no other message fields
-    }
-
-    /*
-     * Other
-     *
-     */
-    return;
+    console.log(msg); // TODO;
 }
 
 /*
@@ -146,7 +170,7 @@ Irc2me.prototype._connect = function(hostname, port, username, password) {
     stream.connect(hostname, port, function () {
 
         stream.setIncomingCallback(function (buffer) {
-            self._handleIncomingMessages(buffer);
+            self._handleAuthenticationResponse(buffer);
         });
 
         // send authentication message
