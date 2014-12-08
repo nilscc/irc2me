@@ -9,13 +9,9 @@ function ProtoStream (socket) {
     var self = this;
 
     self._connected = false;
-    self._receiving = false;
 
     // set socket
     self._socket = socket;
-
-    // load runtime storage
-    self._runtime = new RuntimeStorage(self);
 
     // log nothing
     self._logger = function () { };
@@ -26,28 +22,10 @@ function ProtoStream (socket) {
  *
  */
 
-ProtoStream.prototype.suspend = function () {
+ProtoStream.prototype.suspend = function (cb) {
     var self = this;
 
-    self._runtime.storePrivateValues();
-}
-
-ProtoStream.restore = function () {
-
-    var self = new ProtoStream();
-
-    self._runtime.restorePrivateValues(function () {
-
-        // restore handler for incoming data
-        if (self._receiving) {
-            chrome.sockets.tcp.onReceive.addListener(function (info) {
-                self._onReceive(info);
-            });
-        }
-
-    });
-
-    return self;
+    self.disconnect(cb);
 }
 
 /*
@@ -263,59 +241,47 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
 
         log.info("Socket created with ID " + createInfo.socketId + ".");
 
-        // (try to) disable delay
-        chrome.sockets.tcp.setNoDelay(self._socket, true, function(res) {
 
-            var reason;
+        // connect
+        chrome.sockets.tcp.connect(self._socket, hostname, parseInt(port), function(res) {
 
             // check error
             if (chrome.runtime.lastError) {
-                reason = chrome.runtime.lastError.message;
+                return log.error(chrome.runtime.lastError.message);
             }
 
-            if (reason || res != 0) {
-                log.warn("Could not set NoDelay (" + (reason ? reason : res) + ").");
+            if (res != 0) {
+
+                // log error
+                log.error("Could not connect socket (" + res + ").");
+
+                // quit
+                return self.disconnect();
             }
 
-            // connect
-            chrome.sockets.tcp.connect(self._socket, hostname, parseInt(port), function(res) {
+            self._connected = true;
+
+            log.info("Connected to " + hostname + ":" + port + ".");
+
+            // (try to) disable delay
+            chrome.sockets.tcp.setNoDelay(self._socket, true, function(res) {
+
+                var reason = chrome.runtime.lastError ? chrome.runtime.lastError.message : res;
 
                 // check error
-                if (chrome.runtime.lastError) {
-                    return log.error(chrome.runtime.lastError.message);
+                if (reason) {
+                    log.warn("Could not set NoDelay (" + reason + ").");
                 }
+            }
 
-                if (res != 0) {
-                    // log error
-                    log.error("Could not connect socket (" + res + ").");
-
-                    // quit
-                    return self.disconnect();
-                }
-
-                self._connected = true;
-
-                log.info("Connected to " + hostname + ":" + port + ".");
-
-                // set socket to KeepAlive
-                chrome.sockets.tcp.setKeepAlive(self._socket, true, function (rc) {
-                    if (rc != 0) {
-                        log.warn("Could not enable keep-alive (" + err + ")");
-                    }
-                });
-
-                // install handler for incoming data
-                if (! self._receiving) {
-                    chrome.sockets.tcp.onReceive.addListener(function (info) {
-                        self._onReceive(info);
-                    });
-                    self._receiving = true;
-                }
-
-                if (typeof callback == "function") {
-                    callback();
-                }
+            // install handler for incoming data
+            chrome.sockets.tcp.onReceive.addListener(function (info) {
+                self._onReceive(info);
             });
+
+            if (typeof callback == "function") {
+                callback();
+            }
         });
     });
 }
@@ -338,13 +304,14 @@ ProtoStream.prototype.disconnect = function (callback) {
     // perform disconnect
     chrome.sockets.tcp.disconnect(self._socket, function() {
 
+        // buffer value
+        var socket = self._socket;
+
+        // reset self status
+        self._socket = null;
         self._connected = false;
 
         if (chrome.runtime.lastError) {
-
-            // probably a closed socket, so unset _socket
-            self._socket = null;
-
             return log.error(chrome.runtime.lastError.message);
         }
 
@@ -352,9 +319,9 @@ ProtoStream.prototype.disconnect = function (callback) {
         log.log("Disconnected", "Disconnected.");
 
         // close socket
-        chrome.sockets.tcp.close(self._socket, function () {
+        chrome.sockets.tcp.close(socket, function () {
 
-            self._socket = null;
+            socket = null;
 
             if (chrome.runtime.lastError) {
                 return log.error(chrome.runtime.lastError.message);
