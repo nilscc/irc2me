@@ -49,7 +49,7 @@ Irc2me.prototype.suspend = function () {
     var self = this;
 
     // suspend stream
-    self._protoStream.suspend();
+    self._disconnect();
 }
 
 /*
@@ -104,9 +104,15 @@ Irc2me.prototype._handleAuthenticationResponse = function (buffer) {
                 self._handleIncomingMessages(buffer);
             });
 
+            // send signal
+            Irc2me.Signals.connected();
+
         } else {
             // authentication failed :(
             self._authenticated = false;
+
+            // send signal
+            Irc2me.Signals.disconnected();
         }
     }
 }
@@ -160,21 +166,27 @@ Irc2me.prototype._disconnect = function (cb) {
         messages = self._messages;
 
     if (self._authenticated) {
-        stream.sendMessage(new messages.ClientMsg({
+
+        var DISCONNECT = new messages.ClientMsg({
             system_msg: messages.SystemMsg.DISCONNECT,
-        }), function() {
+        });
+
+        // send DISCONNECT message
+        stream.sendMessage(DISCONNECT, function() {
             self._protoStream.disconnect(cb);
         });
+
     } else {
         self._protoStream.disconnect(cb);
     }
 
-
     self._authenticated = false;
+
+    Irc2me.Signals.disconnected();
 }
 
 /*
- * Chrome message interface
+ * Chrome message interface: Incoming messages
  *
  */
 
@@ -182,11 +194,11 @@ Irc2me.connect     = new ChromeMessage("Irc2me.connect");
 Irc2me.isConnected = new ChromeMessage("Irc2me.isConnected");
 Irc2me.disconnect  = new ChromeMessage("Irc2me.disconnect");
 
-Irc2me.prototype.setListeners = function () {
+Irc2me.prototype.listen = function () {
 
     var self = this;
 
-    Irc2me.connect.setListener(function(content, sendResponse) {
+    Irc2me.connect.addListener(function(content, sendResponse) {
 
         var host = content.hostname,
             port = content.port,
@@ -203,12 +215,22 @@ Irc2me.prototype.setListeners = function () {
         return true;
     });
 
-    Irc2me.disconnect.setListener(function(content, sendResponse) {
+    Irc2me.disconnect.addListener(function(content, sendResponse) {
         self._disconnect(sendResponse);
     });
 
-    Irc2me.isConnected.setListener(function(content, sendResponse) {
+    Irc2me.isConnected.addListener(function(content, sendResponse) {
         sendResponse(self._authenticated === true);
     });
 
 }
+
+/*
+ * Chrome message interface: Outgoing signals
+ *
+ */
+
+Irc2me.Signals = {};
+
+Irc2me.Signals.connected    = new ChromeMessage("Irc2me.Signals.connected");
+Irc2me.Signals.disconnected = new ChromeMessage("Irc2me.Signals.disconnected");

@@ -275,9 +275,11 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
             });
 
             // install handler for incoming data
-            chrome.sockets.tcp.onReceive.addListener(function (info) {
+            self._onReceiveListener = function (info) {
                 self._onReceive(info);
-            });
+            };
+
+            chrome.sockets.tcp.onReceive.addListener(self._onReceiveListener);
 
             if (typeof callback == "function") {
                 callback();
@@ -301,15 +303,22 @@ ProtoStream.prototype.disconnect = function (callback) {
         return log.warn("Not connected.");
     }
 
+    // buffer value
+    var socket = self._socket;
+
+    // reset self status
+    self._socket = null;
+    self._connected = false;
+    self._incomingCB = null;
+
+    // remove chrome api listener
+    if (self._onReceiveListener) {
+        chrome.sockets.tcp.onReceive.removeListener(self._onReceiveListener);
+        self._onReceiveListener = null;
+    }
+
     // perform disconnect
-    chrome.sockets.tcp.disconnect(self._socket, function() {
-
-        // buffer value
-        var socket = self._socket;
-
-        // reset self status
-        self._socket = null;
-        self._connected = false;
+    chrome.sockets.tcp.disconnect(socket, function() {
 
         if (chrome.runtime.lastError) {
             return log.error(chrome.runtime.lastError.message);
@@ -320,8 +329,6 @@ ProtoStream.prototype.disconnect = function (callback) {
 
         // close socket
         chrome.sockets.tcp.close(socket, function () {
-
-            socket = null;
 
             if (chrome.runtime.lastError) {
                 return log.error(chrome.runtime.lastError.message);

@@ -1,26 +1,19 @@
 var irc2me = new Irc2me();
 var uistate = new UIState();
 
+irc2me.setLogger(function(statusObject) {
+    uistate.addSystemLog(statusObject);
+});
+
+uistate.listen();
+irc2me.listen();
+
 /*
  * Application launch
  *
  */
 
 function loadApp() {
-
-    irc2me.setLogger(function(statusObject) {
-        uistate.addSystemLog(statusObject);
-    });
-
-    /*
-     * Chrome messages
-     *
-     */
-
-    uistate.setListeners();
-    irc2me.setListeners();
-
-    ChromeMessage.listenAll();
 
     /*
      * UI
@@ -41,8 +34,6 @@ function loadApp() {
 }
 
 chrome.app.runtime.onLaunched.addListener(function () {
-
-    console.log("onLaunched");
 
     irc2me.init(function () {
 

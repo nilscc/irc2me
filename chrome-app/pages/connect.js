@@ -3,14 +3,9 @@
  *
  */
 
-function PageConnect() {
+var page;
 
-    var self = this;
-
-    // find important UI elements
-    self._connectButton = $("#connect");
-    self._quitButton = $("#quit");
-}
+function PageConnect() { }
 
 /*
  * Actions
@@ -18,8 +13,6 @@ function PageConnect() {
  */
 
 PageConnect.prototype.connect = function() {
-    var self = this;
-
     // input data
     var host = Helper.inputByName("hostname"),
         port = Helper.inputByName("port"),
@@ -44,12 +37,63 @@ PageConnect.prototype.close = function() {
     chrome.app.window.current().close();
 }
 
+PageConnect.prototype.setConnected = function() {
+    var self = this;
+
+    $("#connect")
+        .text("Disconnect")
+        .unbind("click")
+        .click(function () { self.disconnect(); });
+}
+
+PageConnect.prototype.setDisconnected = function() {
+    var self = this;
+
+    $("#connect")
+        .text("Connect")
+        .unbind("click")
+        .click(function () { self.connect(); });
+}
+
 /*
- * UI updates
+ * Connection status
  *
  */
 
-PageConnect.prototype.appendLogMessage = function (statusObject) {
+PageConnect.prototype.ConnectionStatus = {};
+
+PageConnect.prototype.ConnectionStatus.load = function () {
+    Irc2me.isConnected(function (connected) {
+        if (connected) {
+            page.setConnected();
+        } else {
+            page.setDisconnected();
+        }
+    });
+}
+
+PageConnect.prototype.ConnectionStatus.listen = function () {
+
+    var self = this;
+
+    Irc2me.Signals.connected.addListener(function() {
+        page.setConnected();
+    });
+
+    Irc2me.Signals.disconnected.addListener(function() {
+        page.setDisconnected();
+    });
+
+}
+
+/*
+ * System log
+ *
+ */
+
+PageConnect.prototype.SystemLog = {};
+
+PageConnect.prototype.SystemLog.append = function (statusObject) {
 
     var log = $("#connection-log");
 
@@ -63,30 +107,7 @@ PageConnect.prototype.appendLogMessage = function (statusObject) {
 
 }
 
-PageConnect.prototype.setConnected = function() {
-    var self = this;
-
-    $("#connect")
-        .text("Disconnect")
-        .unbind("click")
-        .click(self.disconnect);
-}
-
-PageConnect.prototype.setDisconnected = function() {
-    var self = this;
-
-    $("#connect")
-        .text("Connect")
-        .unbind("click")
-        .click(self.connect);
-}
-
-/*
- * UI state queries
- *
- */
-
-PageConnect.prototype.loadSystemLog = function () {
+PageConnect.prototype.SystemLog.loadAll = function () {
     var self = this;
 
     UIState.getSystemLogs(function(logs) {
@@ -95,73 +116,38 @@ PageConnect.prototype.loadSystemLog = function () {
         $("#connection-log").html("");
 
         for (var i = 0; i < logs.length; i++) {
-            self.appendLogMessage(logs[i]);
+            self.append(logs[i]);
         }
 
     });
 }
 
-PageConnect.prototype.loadConnectionStatus = function () {
+PageConnect.prototype.SystemLog.listen = function () {
+
     var self = this;
 
-    Irc2me.isConnected(function (connected) {
-        if (connected) {
-            self.setConnected();
-        } else {
-            self.setDisconnected();
-        }
+    UIState.Signals.addSystemLog.addListener(function (obj) {
+        self.append(obj);
     });
-}
 
-PageConnect.prototype.loadUI = function () {
-
-    var self = this;
-
-    self.loadSystemLog();
-    self.loadConnectionStatus();
-
-    // bind quit button
-    self._quitButton.click(self.close);
 }
 
 /*
- * Messages
+ * Setup UI
  *
  */
-
-/*
-PageConnect.prototype.listen = function () {
-
-    var self = this;
-
-    chrome.runtime.onMessage.addListener(function (msg, sndr, sendResponse) {
-
-        // ignore invalid messages
-        if (typeof msg != "object" || typeof msg.type != "string") {
-            return;
-        }
-
-        var async = false;
-
-        switch (msg.type) {
-            default: {} // do nothing
-        }
-
-        if (async) {
-            return true;
-        }
-    });
-}
-*/
-
-var page;
 
 $(document).ready(function () {
 
     page = new PageConnect();
 
-    page.loadUI();
+    page.SystemLog.loadAll();
+    page.SystemLog.listen();
 
-    //page.listen();
+    page.ConnectionStatus.load();
+    page.ConnectionStatus.listen();
+
+    // bind "quit" button
+    $("#quit").click(page.close);
 
 });

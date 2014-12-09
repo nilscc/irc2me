@@ -27,51 +27,30 @@ function ChromeMessage (id) {
 ChromeMessage.prototype = Object.create(Function.prototype);
 
 /*
- * Global/static listener interface
+ * Add listener functions
  *
  */
 
-ChromeMessage._allListeners = {};
+ChromeMessage.prototype.addListener = function (run) {
+    var self = this;
 
-ChromeMessage.listenAll = function () {
+    if (typeof run != "function") {
+        return;
+    }
 
-    chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+    var f = function (msg, sender, sendResponse) {
 
         // ignore invalid messages
         if (typeof msg != "object" || typeof msg.id != "string") {
             return;
         }
 
-        // alias
-        var listeners = ChromeMessage._allListeners;
-
-        // lookup and run listener with msg.id
-        if (listeners.hasOwnProperty(msg.id) && typeof listeners[msg.id] == "function") {
-            return listeners[msg.id](msg.content, sendResponse);
+        if (msg.id == self._id) {
+            run(msg.content, sendResponse);
         }
+    };
 
-    });
+    chrome.runtime.onMessage.addListener(f);
 
-}
-
-/*
- * Prototype listener functions
- *
- */
-
-ChromeMessage.prototype.setListener = function (run) {
-    var self = this;
-
-    ChromeMessage._allListeners[self._id] = run;
-}
-
-ChromeMessage.prototype.removeListener = function () {
-    var self = this;
-
-    var listeners = ChromeMessage._allListeners;
-
-    // delete property
-    if (listeners.hasOwnProperty(self._id) && typeof listeners[self._id] == "function") {
-        delete listeners[self._id];
-    }
+    return f;
 }
