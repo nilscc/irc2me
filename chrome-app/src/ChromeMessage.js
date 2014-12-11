@@ -46,11 +46,9 @@ ChromeMessage.prototype.addListener = function (run) {
         }
 
         if (msg.id == self._id) {
-            run(msg.content, sendResponse);
+            return run(msg.content, sendResponse);
         }
     };
 
     chrome.runtime.onMessage.addListener(f);
-
-    return f;
 }
