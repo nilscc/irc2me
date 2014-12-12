@@ -1,0 +1,34 @@
+{
+    "name": "irc2me",
+    "description": "irc2me client as chrome application",
+    "version": "0.0.1",
+    "manifest_version": 2,
+
+    "permissions":
+        [ "storage"
+        ],
+
+    // enable TCP sockets
+    "sockets": {
+        "tcp": { "connect": "*" }
+    },
+
+    "app":
+    {
+        "background":
+        {
+            "scripts":
+                [ "libs/Long.min.js"
+                , "libs/ByteBufferAB.min.js"
+                , "libs/ProtoBuf.js"
+                , "src/Logger.js"
+                , "src/ChromeMessage.js"
+                , "src/ProtoStream.js"
+                , "src/Irc2me.js"
+                , "src/UIState.js"
+                , "background.js"
+                ],
+            "persistent": false
+        }
+    }
+}

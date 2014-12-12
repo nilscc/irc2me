@@ -60,16 +60,16 @@ message IrcMessage
 {
     enum IrcType
     {
-        PRIVATEMESSAGE = 1;
-        JOIN           = 2;
-        PART           = 3;
-        INVITE         = 4;
-        QUIT           = 5;
-        KICK           = 6;
-        NICK           = 7;
-        NOTICE         = 8;
-        TOPIC          = 9;
-        MOTD           = 10;
+        PRIVATEMESSAGE = 0;
+        JOIN           = 1;
+        PART           = 2;
+        INVITE         = 3;
+        QUIT           = 4;
+        KICK           = 5;
+        NICK           = 6;
+        NOTICE         = 7;
+        TOPIC          = 8;
+        MOTD           = 9;
     };
 
     optional IrcType type = 1;

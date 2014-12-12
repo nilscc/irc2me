@@ -1,0 +1,121 @@
+body
+{
+    font-size: 12pt;
+    font-family: "Roboto", sans-serif;
+
+    background-color: rgba(0,0,0,0.05);
+
+    margin: 0;
+    padding: 0 0 16pt 0;
+
+    overflow: auto;
+}
+
+.button
+{
+    cursor: pointer;
+}
+
+input[type="text"],
+input[type="password"]
+{
+    background-color: white;
+    border: none;
+    border-bottom: 1pt solid rgba(0,0,0,0.2);
+}
+
+.title
+{
+    font-size: 24pt;
+    font-weight: bold;
+    text-align: center;
+    background-color: white;
+    margin: 0 0 16pt 0;
+    padding: 8pt 0 8pt;
+    border-top: 1pt solid rgba(0,0,0,0.2);
+    border-bottom: 1pt solid rgba(0,0,0,0.2);
+}
+
+/*
+ * Login form
+ *
+ */
+
+#login-form
+{
+    margin: auto;
+}
+
+#login-form tr > *
+{
+    padding-bottom: 8pt;
+}
+#login-form tr:last-child > *
+{
+    padding-bottom: 0;
+}
+
+#login-form th,
+#login-form td input
+{
+    width: 100pt;
+}
+
+#login-form th
+{
+    text-align: right;
+    padding-right: 8pt;
+}
+
+#login-form td
+{
+    padding-left: 8pt;
+}
+
+/*
+ * Connection log
+ *
+ */
+
+#connection-log
+{
+    -webkit-user-select: text;
+}
+
+#connection-log > p
+{
+    cursor: text;
+    margin: 4pt;
+}
+
+/*
+ * Footer
+ *
+ */
+
+footer
+{
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8pt 16pt 8pt;
+    background: white;
+    border-top: 1pt solid rgba(0,0,0,0.2);
+}
+
+footer .button
+{
+    display: inline-block;
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 12pt;
+    color: rgba(0,0,0,0.6);
+    margin: 0 4pt 0;
+    padding: 6pt;
+}
+
+footer .button#connect
+{
+    float: right;
+}
