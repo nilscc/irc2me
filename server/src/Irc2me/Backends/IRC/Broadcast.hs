@@ -7,7 +7,7 @@ module Irc2me.Backends.IRC.Broadcast
   , IrcBroadcast
   , subscribe
   , broadcastNetworkId, NetworkID
-  , sendIrcMessage
+  , sendIrcMessage, IrcMessage
     -- * Connection status
   , IrcConnectionStatus (..)
   , getBroadcastConnectionStatus
@@ -38,7 +38,7 @@ import Data.Time
 import Network.IRC.ByteString.Parser (IRCMsg, ircMsg)
 
 -- lens
-import Control.Lens
+import Control.Lens hiding (Identity)
 import Data.Text.Lens
 
 -- STM
@@ -52,6 +52,8 @@ import Irc2me.Database.Tables.Networks (NetworkID)
 
 import Irc2me.Frontend.Messages.Helper
 import Irc2me.Frontend.Messages
+
+type IrcMessage = (ChatMessage, Parameters)
 
 ------------------------------------------------------------------------------
 -- IRC context
@@ -121,11 +123,11 @@ isConnected bc = do
 
 sendIrcMessage :: MonadIO m => IrcBroadcast -> IrcMessage -> m ()
 sendIrcMessage bc msg = liftIO $ do
-  sendIrc (bc ^. broadcastIrcConnection) (msg ^. from ircMessage)
+  sendIrc (bc ^. broadcastIrcConnection) (msg ^. from chatMessage)
 
   -- re-broadcast, FIXME
   now <- getCurrentTime
-  broadcast bc (now, msg ^. from ircMessage)
+  broadcast bc (now, msg ^. from chatMessage)
 
 --
 -- Subscription
@@ -133,7 +135,7 @@ sendIrcMessage bc msg = liftIO $ do
 
 broadcast :: MonadIO m => IrcBroadcast -> (UTCTime, IRCMsg) -> m ()
 broadcast bc (t,msg) = liftIO $ atomically $
-  writeTChan (bc ^. broadcastMessages) (t, msg ^. ircMessage)
+  writeTChan (bc ^. broadcastMessages) (t, msg ^. chatMessage)
 
 subscribe :: IrcBroadcast -> (NetworkID -> (UTCTime, IrcMessage) -> IO ()) -> IO ()
 subscribe bc go = do
@@ -171,7 +173,9 @@ connecting bc = do
 ------------------------------------------------------------------------------
 -- IRC broadcasting
 
-startBroadcasting :: IrcIdentity -> (NetworkID, IrcServer) -> IO (Maybe IrcBroadcast)
+type IrcServer = Server
+
+startBroadcasting :: Identity -> (NetworkID, IrcServer) -> IO (Maybe IrcBroadcast)
 startBroadcasting ident (nid,server)
 
     -- server

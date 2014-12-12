@@ -4,7 +4,6 @@ import Control.Concurrent
 import Control.Monad.Trans
 
 import Data.Function
-import Data.Time
 import qualified Data.Foldable as F
 
 -- containers
@@ -35,7 +34,8 @@ manageIrcConnections = fix $ \loop irc -> do
       F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc ->
         liftIO $ forkIO $ subscribe bc h
 
-    SendIrcMessage nid msg
+    {-
+    SendMessage nid msg
 
         -- look up account
       | Just nw <- Map.lookup aid irc
@@ -47,6 +47,7 @@ manageIrcConnections = fix $ \loop irc -> do
         BC.sendIrcMessage bc msg
 
     _ -> return ()
+    -}
 
   loop irc
  where

@@ -4,7 +4,7 @@ import Control.Applicative
 import Data.List
 
 -- lens
-import Control.Lens
+import Control.Lens hiding (Identity)
 
 -- hdbc
 import Database.HDBC
@@ -14,14 +14,14 @@ import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 
 import Irc2me.Frontend.Messages.Helper
-import Irc2me.Frontend.Messages.IrcIdentity
-import Irc2me.Frontend.Messages.IrcNetwork
+import Irc2me.Frontend.Messages.Identity
+import Irc2me.Frontend.Messages.Network
 
-selectServersToReconnect :: AccountID -> Query [(NetworkID, IrcServer)]
+selectServersToReconnect :: AccountID -> Query [(NetworkID, Server)]
 selectServersToReconnect (AccountID acc) = Query
   query
   [toSql acc]
-  (convertList $ \(x:r) -> (,) <$> toNetworkId [x] <*> toIrcServer r)
+  (convertList $ \(x:r) -> (,) <$> toNetworkId [x] <*> toServer r)
  where
   query = "SELECT n.id, " ++ (qualified "s" serverFields & intercalate ", ") ++
           "  FROM servers_to_reconnect AS s, " ++ networkTable `as` "n" ++
@@ -46,32 +46,34 @@ toNetworkId :: Converter NetworkID
 toNetworkId [SqlInteger i] = Just $ NetworkID i
 toNetworkId _              = Nothing
 
-toIrcNetwork :: Converter IrcNetwork
-toIrcNetwork [SqlInteger i, SqlByteString name, SqlBool reconnect, ident] = Just $
+toNetwork :: Converter Network
+toNetwork [SqlInteger i, SqlByteString name, SqlBool reconnect, ident] = Just $
 
-  emptyIrcNetwork &~ do
+  emptyNetwork &~ do
     networkId         .= Just (fromIntegral i)
     networkName       .= Just (name ^. encoded)
     networkReconnect  .= Just reconnect
     networkIdentity   .= case ident of
-                           SqlInteger i' -> Just (fromIntegral i')
+                           SqlInteger i' ->
+                             Just $ emptyIdentity
+                                  & identityId .~ Just (fromIntegral i')
                            _             -> Nothing
 
-toIrcNetwork _ = Nothing
+toNetwork _ = Nothing
 
 -- queries
 
-selectNetworks :: AccountID -> Query [IrcNetwork]
+selectNetworks :: AccountID -> Query [Network]
 selectNetworks (AccountID a) = Query
   (networkSELECT ++ " WHERE account = ? ORDER BY ord, id")
   [toSql a]
-  (convertList toIrcNetwork)
+  (convertList toNetwork)
 
-selectNetworkIdentity :: AccountID -> NetworkID -> Query (Maybe IrcIdentity)
+selectNetworkIdentity :: AccountID -> NetworkID -> Query (Maybe Identity)
 selectNetworkIdentity (AccountID a) (NetworkID n) = Query
   query
   [toSql a, toSql n]
-  (convertOne toIrcIdentity)
+  (convertOne toIdentity)
  where
   query = "SELECT " ++ intercalate ", " (qualified "i" identityFields) ++
           "  FROM network_identities as i, networks as n \
@@ -80,12 +82,12 @@ selectNetworkIdentity (AccountID a) (NetworkID n) = Query
 
 -- updates
 
-addNetwork :: AccountID -> String -> Bool -> Update (Maybe IrcNetwork)
+addNetwork :: AccountID -> String -> Bool -> Update (Maybe Network)
 addNetwork (AccountID a) name reconnect = UpdateReturning
   "INSERT INTO networks (account, name, reconnect) VALUES (?, ?, ?) \
   \  RETURNING id, name, reconnect, identity"
   [toSql a, toSql name, toSql reconnect]
-  (convertOne toIrcNetwork)
+  (convertOne toNetwork)
 
 --------------------------------------------------------------------------------
 -- "network_servers" table
@@ -101,10 +103,10 @@ serverTable = "network_servers"
 serverSELECT :: String
 serverSELECT = "SELECT " ++ intercalate ", " serverFields ++ " FROM " ++ serverTable
 
-toIrcServer :: Converter IrcServer
-toIrcServer s = case s of
+toServer :: Converter Server
+toServer s = case s of
   [SqlByteString a, SqlInteger p, SqlBool ssl] -> Just $
-    emptyIrcServer &~ do
+    emptyServer &~ do
       serverHost    .= Just (a ^. encoded)
       serverPort    .= Just (fromIntegral p)
       serverUseTLS  .= Just ssl
@@ -112,16 +114,16 @@ toIrcServer s = case s of
 
 -- queries
 
-selectIrcServers :: IrcNetwork -> Query [IrcServer]
-selectIrcServers netw = Query
+selectServers :: Network -> Query [Server]
+selectServers netw = Query
   (serverSELECT ++ " WHERE network = ?")
   [toSql $ netw ^. networkId]
-  (convertList toIrcServer)
+  (convertList toServer)
 
 -- updates
 
-addIrcServer :: IrcNetwork -> IrcServer -> Update Bool
-addIrcServer netw server = Update
+addServer :: Network -> Server -> Update Bool
+addServer netw server = Update
   "INSERT INTO network_servers (network, address, port, use_tls) \
    \    VALUES (?, ?, ?, ?)"
   [ toSql $ netw ^. networkId

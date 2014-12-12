@@ -6,6 +6,7 @@ import Control.Lens
 import Pipes
 import Control.Concurrent.Event
 import Data.Time
+import Data.Time.Clock.POSIX
 
 import Irc2me.Frontend.Pipes
 import Irc2me.Frontend.Messages
@@ -18,14 +19,16 @@ data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event
 
 data Event
   = ClientConnected IrcHandler
-  | SendIrcMessage  NetworkID IrcMessage
+  -- | SendMessage  NetworkID IrcMessage
   deriving (Show)
+
+type IrcMessage = (ChatMessage, Parameters)
 
 newtype IrcHandler
   = IrcHandler { runIrcHandler :: NetworkID -> (UTCTime, IrcMessage) -> IO () }
 
 instance Show IrcHandler where
-  show _ = "IrcHandler{ (UTCTime, IrcMessage) -> IO () }"
+  show _ = "IrcHandler{ (UTCTime, ChatMessage) -> IO () }"
 
 type EventRW m = EventT RW AccountEvent m
 type EventWO m = EventT WO AccountEvent m
@@ -39,16 +42,26 @@ clientConnected
   -> c
   -> AccountEvent
 clientConnected aid c = AccountEvent aid $ ClientConnected $
-  IrcHandler $ \(NetworkID nid) (_t,msg) -> do
+  IrcHandler $ \(NetworkID nid) (t,(msg,params)) -> do
 
-    let network = emptyIrcNetwork & networkId .~ Just (fromIntegral nid)
-                                  & networkMessages .~ [msg]
+    let -- timestamp in epoch seconds
+        epoch     = floor (utcTimeToPOSIXSeconds t)
 
-        msg' = emptyServerMessage & serverNetworks .~ [network]
+        -- add timestamp
+        msg'      = msg & messageTimestamp .~ Just epoch
 
-    runEffect $ yield msg' >-> encodeMsg >-> send
+        -- put in network message
+        network   = emptyNetwork & networkId .~ Just (fromIntegral nid)
+                                 & networkMessages .~ [msg']
+
+        -- final server message
+        serverMsg = emptyServerMessage & serverNetworks .~ [network]
+
+    -- send message
+    runEffect $ yield serverMsg >-> encodeMsg >-> send
+
  where
   send = await >>= lift . sendToClient c
 
-sendIrcMessage :: AccountID -> NetworkID -> IrcMessage -> AccountEvent
-sendIrcMessage aid nid msg = AccountEvent aid $ SendIrcMessage nid msg
+--sendMessage :: AccountID -> NetworkID -> ChatMessage -> AccountEvent
+--sendMessage aid nid msg = AccountEvent aid $ SendMessage nid msg
