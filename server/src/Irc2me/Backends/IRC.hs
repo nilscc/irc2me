@@ -36,6 +36,7 @@ import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 
 import Irc2me.Backends.IRC.Helper
+import Irc2me.Backends.IRC.NetworkState
 import Irc2me.Backends.IRC.Broadcast as BC
 import Irc2me.Backends.IRC.Events
 
@@ -84,8 +85,15 @@ reconnectAll con = withCon con $ do
         -- reconnect network
         Nothing -> do
 
+          -- query network identity from DB
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
-          mbc'  <- liftIO $ startBroadcasting ident (netid,server)
+
+          -- init network state
+          networkState <- newNetworkState accid netid ident
+          let converter = evalIRCMsg networkState
+
+          -- start broadcasting
+          mbc'  <- liftIO $ startIrcBroadcast server ident converter
           case mbc' of
             Just bc -> do
 
@@ -96,9 +104,6 @@ reconnectAll con = withCon con $ do
                 ++ " ("
                 ++ (if server ^. serverUseTLS . non False then "using TLS" else "plaintext")
                 ++ ")"
-
-              _ <- liftIO $ forkIO $ subscribe bc $ \_nid tmsg ->
-                putStrLn $ "[IRC] " ++ testFormat tmsg
 
               -- store new broadcast
               at accid . non' _Empty . at netid ?= bc
@@ -114,3 +119,25 @@ reconnectAll con = withCon con $ do
 
   require m = maybe mzero return =<< m
   withCon c = execStateT `flip` c
+
+--------------------------------------------------------------------------------
+-- IRC message evaluation & network state
+
+evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> ServerMessage
+evalIRCMsg = undefined
+
+{-
+    let (msg, params) = ircMsg ^. networkMessage
+        -- timestamp in epoch seconds
+        epoch     = floor (utcTimeToPOSIXSeconds t)
+
+        -- add timestamp
+        msg'      = msg & messageTimestamp .~ Just epoch
+
+        -- put in network message
+        network   = emptyNetwork & networkId .~ Just (fromIntegral nid)
+                                 & networkMessages .~ [msg']
+
+        -- final server message
+        serverMsg = emptyServerMessage & serverNetworks .~ [network]
+-}

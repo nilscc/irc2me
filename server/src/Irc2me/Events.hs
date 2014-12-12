@@ -1,33 +1,33 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+
+{-# OPTIONS -fno-warn-orphans #-} -- for Show instance of SendServerMessage
 
 module Irc2me.Events where
 
-import Control.Lens
+-- pipes
 import Pipes
-import Control.Concurrent.Event
-import Data.Time
-import Data.Time.Clock.POSIX
 
-import Irc2me.Backends.IRC.Broadcast
+-- local
+import Control.Concurrent.Event
+
 import Irc2me.Frontend.Pipes
 import Irc2me.Frontend.Messages
 import Irc2me.Frontend.Connection.Types
 import Irc2me.Database.Tables.Accounts
-import Irc2me.Database.Tables.Networks
 
 data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }
   deriving (Show)
 
 data Event
-  = ClientConnected IrcHandler
+  = ClientConnected SendServerMessage
   -- | SendMessage  NetworkID IrcMessage
   deriving (Show)
 
-newtype IrcHandler
-  = IrcHandler { runIrcHandler :: NetworkID -> (UTCTime, IRCMsg) -> IO () }
+type SendServerMessage = (ServerMessage -> IO ())
 
-instance Show IrcHandler where
-  show _ = "IrcHandler{ (UTCTime, ChatMessage) -> IO () }"
+instance Show (ServerMessage -> IO ()) where
+  show _ = "(ServerMessage -> IO ())"
 
 type EventRW m = EventT RW AccountEvent m
 type EventWO m = EventT WO AccountEvent m
@@ -40,22 +40,7 @@ clientConnected
   => AccountID
   -> c
   -> AccountEvent
-clientConnected aid c = AccountEvent aid $ ClientConnected $
-  IrcHandler $ \(NetworkID nid) (t,ircMsg) -> do
-
-    let (msg, params) = ircMsg ^. networkMessage
-        -- timestamp in epoch seconds
-        epoch     = floor (utcTimeToPOSIXSeconds t)
-
-        -- add timestamp
-        msg'      = msg & messageTimestamp .~ Just epoch
-
-        -- put in network message
-        network   = emptyNetwork & networkId .~ Just (fromIntegral nid)
-                                 & networkMessages .~ [msg']
-
-        -- final server message
-        serverMsg = emptyServerMessage & serverNetworks .~ [network]
+clientConnected aid c = AccountEvent aid $ ClientConnected $ \serverMsg -> do
 
     -- send message
     runEffect $ yield serverMsg >-> encodeMsg >-> send

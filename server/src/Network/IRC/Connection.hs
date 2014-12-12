@@ -293,7 +293,7 @@ continueWith p = do
 sendIrc :: Connection m -> IRCMsg -> IO ()
 sendIrc con msg = mkSafe $ case con of
   PlaintextConnection _ h -> B8.hPutStrLn h bs
-  TLSConnection       _ c -> sendData     c $ BL.fromStrict bs
+  TLSConnection       _ c -> sendData c $ BL.fromStrict bs
  where
   mkSafe io = io `catch` (\(_ :: IOException) -> return ())
   bs = fromIRCMsg msg

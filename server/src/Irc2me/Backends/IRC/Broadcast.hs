@@ -32,6 +32,7 @@ import Control.Concurrent.Broadcast
 --import Network.IRC.Message.Codes
 import Network.IRC.Connection
 
+import Irc2me.Backends.IRC.Helper
 import Irc2me.Frontend.Messages.Helper
 import Irc2me.Frontend.Messages
 
@@ -87,7 +88,13 @@ startIrcBroadcast server ident convert
 
     -- start broadcasting messages
     bc <- getBroadcastFunction
-    mce <- lift $ handleIrcMessages con (bc . convert)
+    mce <- lift $ handleIrcMessages con $ \tmsg -> do
+
+      -- output for debugging purposes
+      putStrLn $ testFormat tmsg
+
+      -- broadcast
+      bc $ convert tmsg
 
     -- handle closed connections
     case mce of
