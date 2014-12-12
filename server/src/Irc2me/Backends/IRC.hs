@@ -156,7 +156,9 @@ evalIRCMsg ns (t,msg)
              ]
 
   | otherwise
-  = return Nothing
+  = do -- broadcast everything else as 'private' network message:
+       return $ Just $ serverMessage $ network &~ do
+         networkMessages .= [ cm ]
 
  where
 
