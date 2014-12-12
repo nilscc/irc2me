@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Irc2me.Database.Tables.Networks where
 
 import Control.Applicative
@@ -13,9 +15,14 @@ import Irc2me.Database.Helper
 import Irc2me.Database.Query
 import Irc2me.Database.Tables.Accounts
 
-import Irc2me.Frontend.Messages.Helper
-import Irc2me.Frontend.Messages.Identity
-import Irc2me.Frontend.Messages.Network
+import Irc2me.Frontend.Messages.Helper   as Messages
+import Irc2me.Frontend.Messages.Identity as Messages
+import Irc2me.Frontend.Messages.Network  as Messages
+
+newtype NetworkID = NetworkID { _networkId :: Integer }
+  deriving (Eq, Ord, Show)
+
+makeLenses ''NetworkID
 
 selectServersToReconnect :: AccountID -> Query [(NetworkID, Server)]
 selectServersToReconnect (AccountID acc) = Query
@@ -30,9 +37,6 @@ selectServersToReconnect (AccountID acc) = Query
 
 --------------------------------------------------------------------------------
 -- "networks" table
-
-newtype NetworkID = NetworkID { _networkId :: Integer }
-  deriving (Eq, Ord, Show)
 
 -- converters
 
@@ -50,14 +54,14 @@ toNetwork :: Converter Network
 toNetwork [SqlInteger i, SqlByteString name, SqlBool reconnect, ident] = Just $
 
   emptyNetwork &~ do
-    networkId         .= Just (fromIntegral i)
-    networkName       .= Just (name ^. encoded)
-    networkReconnect  .= Just reconnect
-    networkIdentity   .= case ident of
-                           SqlInteger i' ->
-                             Just $ emptyIdentity
-                                  & identityId .~ Just (fromIntegral i')
-                           _             -> Nothing
+    Messages.networkId         .= Just (fromIntegral i)
+    Messages.networkName       .= Just (name ^. encoded)
+    Messages.networkReconnect  .= Just reconnect
+    Messages.networkIdentity   .= case ident of
+                                    SqlInteger i' ->
+                                      Just $ emptyIdentity
+                                            & identityId .~ Just (fromIntegral i')
+                                    _             -> Nothing
 
 toNetwork _ = Nothing
 
@@ -117,7 +121,7 @@ toServer s = case s of
 selectServers :: Network -> Query [Server]
 selectServers netw = Query
   (serverSELECT ++ " WHERE network = ?")
-  [toSql $ netw ^. networkId]
+  [toSql $ netw ^. Messages.networkId]
   (convertList toServer)
 
 -- updates
@@ -126,7 +130,7 @@ addServer :: Network -> Server -> Update Bool
 addServer netw server = Update
   "INSERT INTO network_servers (network, address, port, use_tls) \
    \    VALUES (?, ?, ?, ?)"
-  [ toSql $ netw ^. networkId
+  [ toSql $ netw ^. Messages.networkId
   , toSql $ server ^. serverHost
   , toSql $ server ^. serverPort
   , toSql $ server ^. serverUseTLS

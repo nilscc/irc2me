@@ -2,14 +2,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Irc2me.Backends.IRC
   ( runIrcBackend, runIrcBackend'
   ) where
 
 import Control.Concurrent
-import Control.Concurrent.Event
-import Irc2me.Frontend.Messages hiding (_networkId)
 
 import Control.Monad
 import Control.Monad.Except
@@ -17,6 +16,9 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
 import System.IO
+
+-- irc-bytestring
+import Network.IRC.ByteString.Parser as IRC
 
 -- containers
 import qualified Data.Map as Map
@@ -29,11 +31,15 @@ import Control.Lens
 import Data.Text.Lens
 
 -- local
+import Control.Concurrent.Event
 import Irc2me.Events
 
-import Irc2me.Database.Query
-import Irc2me.Database.Tables.Accounts
-import Irc2me.Database.Tables.Networks
+import Irc2me.Frontend.Messages        as M hiding (_networkId)
+import Irc2me.Frontend.Messages.Helper as M
+
+import Irc2me.Database.Query            as DB
+import Irc2me.Database.Tables.Accounts  as DB
+import Irc2me.Database.Tables.Networks  as DB
 
 import Irc2me.Backends.IRC.Helper
 import Irc2me.Backends.IRC.NetworkState
@@ -123,21 +129,34 @@ reconnectAll con = withCon con $ do
 --------------------------------------------------------------------------------
 -- IRC message evaluation & network state
 
-evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> ServerMessage
-evalIRCMsg = undefined
+evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> IO (Maybe ServerMessage)
+evalIRCMsg ns (t,msg)
 
-{-
-    let (msg, params) = ircMsg ^. networkMessage
-        -- timestamp in epoch seconds
-        epoch     = floor (utcTimeToPOSIXSeconds t)
+  | "PRIVMSG" <- IRC.msgCmd msg
+  , [to]      <- IRC.msgParams msg & map (^. encoded)
 
-        -- add timestamp
-        msg'      = msg & messageTimestamp .~ Just epoch
+  = do ident <- getNetworkIdentitiy ns
+       return $ Just $ serverMessage $ network &~ do
+         if ident ^. identityNick == Just to then
+           networkMessages .= [ cm ]
+          else
+           networkChannels .=
+             [ emptyChannel &~ do
+                 channelName     .= Just to
+                 channelMessages .= [ cm ]
+             ]
 
-        -- put in network message
-        network   = emptyNetwork & networkId .~ Just (fromIntegral nid)
-                                 & networkMessages .~ [msg']
+  | otherwise
+  = return Nothing
 
-        -- final server message
-        serverMsg = emptyServerMessage & serverNetworks .~ [network]
--}
+ where
+
+  (cm,params) = msg ^. chatMessage
+
+  -- ServerMessage default 'template'
+  serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
+
+  -- network template
+  network = emptyNetwork &~ do
+
+    M.networkId .= Just (ns ^. nsNetworkID . DB.networkId & fromIntegral)

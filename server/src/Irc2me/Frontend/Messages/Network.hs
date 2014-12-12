@@ -54,6 +54,7 @@ data Channel = Channel
   { _channelId        :: Optional 1 (Value ID_T)
   , _channelName      :: Optional 2 (Value Text)
   , _channelStatus    :: Optional 3 (Enumeration ChannelStatus)
+  , _channelMessages  :: Repeated 10 (Message ChatMessage)
   }
   deriving (Eq, Show, Generic)
 
@@ -65,6 +66,7 @@ emptyChannel = Channel
   { _channelId = putField Nothing
   , _channelName = putField Nothing
   , _channelStatus = putField Nothing
+  , _channelMessages = putField []
   }
 
 
@@ -113,4 +115,5 @@ emptyNetwork = Network
 -- Lenses
 
 makeFieldLenses ''Server
+makeFieldLenses ''Channel
 makeFieldLenses ''Network

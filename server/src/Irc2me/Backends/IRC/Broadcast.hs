@@ -19,7 +19,7 @@ import Pipes
 import Data.Time
 
 -- irc-bytestring
-import Network.IRC.ByteString.Parser (IRCMsg, ircMsg)
+import Network.IRC.ByteString.Parser (IRCMsg, ircMsg, msgCmd)
 
 -- lens
 import Control.Lens hiding (Identity)
@@ -41,7 +41,7 @@ import Irc2me.Frontend.Messages
 startIrcBroadcast
   :: Server
   -> Identity
-  -> ((UTCTime, IRCMsg) -> msg)  -- ^ Converter/evalutor for incoming messages (before
+  -> ((UTCTime, IRCMsg) -> IO (Maybe msg))  -- ^ Converter/evalutor for incoming messages (before
                       -- broadcast)
   -> IO (Maybe (Broadcast msg))
 startIrcBroadcast server ident convert
@@ -87,13 +87,16 @@ startIrcBroadcast server ident convert
 
     -- start broadcasting messages
     bc <- getBroadcastFunction
-    mce <- lift $ handleIrcMessages con $ \tmsg -> do
+    mce <- lift $ handleIrcMessages con $ \tmsg@(_,msg) -> do
 
       -- output for debugging purposes
       putStrLn $ testFormat tmsg
 
-      -- broadcast
-      bc $ convert tmsg
+      if msgCmd msg == "PING" then
+        sendIrc con $ ircMsg "PONG" [] ""
+       else
+        -- broadcast
+        maybe (return ()) bc =<< convert tmsg
 
     -- handle closed connections
     case mce of

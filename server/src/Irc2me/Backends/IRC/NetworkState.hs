@@ -2,7 +2,9 @@
 
 module Irc2me.Backends.IRC.NetworkState where
 
-import Control.Monad.Trans
+import Control.Monad.Reader
+
+import Data.Text
 
 -- lens
 import Control.Lens hiding (Identity)
@@ -15,15 +17,13 @@ import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 import Irc2me.Frontend.Messages
 
-type NetworkState = TVar NetworkStateData
-
-data NetworkStateData = NetworkState
+data NetworkState = NetworkState
   { _nsAccountID :: AccountID
   , _nsNetworkID :: NetworkID
-  , _nsIdentity  :: Identity
+  , _nsIdentity  :: TVar Identity
   }
 
-makeLenses ''NetworkStateData
+makeLenses ''NetworkState
 
 newNetworkState
   :: MonadIO m
@@ -32,4 +32,22 @@ newNetworkState
   -> Identity
   -> m NetworkState
 newNetworkState aid nid ident = do
-  liftIO $ newTVarIO $ NetworkState aid nid ident
+  tIdent <- liftIO $ newTVarIO ident
+  return $ NetworkState aid nid tIdent
+
+getNetworkIdentitiy :: MonadIO m => NetworkState -> m Identity
+getNetworkIdentitiy ns = do
+  liftIO $ readTVarIO $ ns ^. nsIdentity
+
+--------------------------------------------------------------------------------
+-- Guards & such
+
+whenSentToMe :: Monad m => Identity -> Parameters -> m () -> m ()
+whenSentToMe ident params go = do
+
+  let nick :: Maybe Text
+      nick = ident ^? identityNick . _Just
+
+      firstParam = params ^? ix 0
+
+  when (nick == firstParam) go
