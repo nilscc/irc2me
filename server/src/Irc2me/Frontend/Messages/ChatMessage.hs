@@ -60,6 +60,7 @@ data ChatMessage = ChatMessage
   , _messageFromUser      :: Optional 10 (Message User)
   , _messageFromServer    :: Optional 11 (Value Text)
 
+  , _messageParams        :: Repeated 15 (Value Text)
   , _messageContent       :: Optional 20 (Value Text)
   }
   deriving (Eq, Show, Generic)
@@ -135,6 +136,7 @@ emptyChatMessage = ChatMessage
   , _messageFromUser    = putField Nothing
   , _messageFromServer  = putField Nothing
 
+  , _messageParams      = putField []
   , _messageContent     = putField Nothing
   }
 

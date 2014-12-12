@@ -3,7 +3,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternGuards #-}
 
-module Irc2me.Backends.IRC where
+module Irc2me.Backends.IRC
+  ( runIrcBackend, runIrcBackend'
+  ) where
 
 import Control.Concurrent
 import Control.Concurrent.Event

@@ -110,7 +110,7 @@ emptyNetwork = Network
   }
 
 ------------------------------------------------------------------------------
--- Lanes
+-- Lenses
 
 makeFieldLenses ''Server
 makeFieldLenses ''Network

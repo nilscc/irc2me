@@ -1,27 +1,28 @@
 module Irc2me.Backends.IRC.Helper where
 
-import Control.Applicative
+-- import Control.Applicative
 import Data.Time
-import Data.List
+-- import Data.List
 
 import Data.Map (Map)
 
 -- lens
-import Control.Lens
-import Data.Text.Lens
+-- import Control.Lens
+-- import Data.Text.Lens
 
 -- local
 import Irc2me.Backends.IRC.Broadcast
 import Irc2me.Database.Tables.Accounts
-import Irc2me.Frontend.Messages.ChatMessage
 
 type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
 
 ------------------------------------------------------------------------------
 -- Testing
 
-testFormat :: (UTCTime, IrcMessage) -> String
-testFormat (t, (msg, params)) =
+testFormat :: (UTCTime, IRCMsg) -> String
+testFormat (t, msg) = show (t,msg)
+
+{-
 
   let time = show t -- formatTime defaultTimeLocale "%T" t
 
@@ -42,3 +43,4 @@ testFormat (t, (msg, params)) =
   ++ " <" ++ who ++ ">"
   ++ " [" ++ par ++ "]"
   ++ " "  ++ cnt
+  -}

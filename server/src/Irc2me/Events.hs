@@ -8,6 +8,7 @@ import Control.Concurrent.Event
 import Data.Time
 import Data.Time.Clock.POSIX
 
+import Irc2me.Backends.IRC.Broadcast
 import Irc2me.Frontend.Pipes
 import Irc2me.Frontend.Messages
 import Irc2me.Frontend.Connection.Types
@@ -22,10 +23,8 @@ data Event
   -- | SendMessage  NetworkID IrcMessage
   deriving (Show)
 
-type IrcMessage = (ChatMessage, Parameters)
-
 newtype IrcHandler
-  = IrcHandler { runIrcHandler :: NetworkID -> (UTCTime, IrcMessage) -> IO () }
+  = IrcHandler { runIrcHandler :: NetworkID -> (UTCTime, IRCMsg) -> IO () }
 
 instance Show IrcHandler where
   show _ = "IrcHandler{ (UTCTime, ChatMessage) -> IO () }"
@@ -42,9 +41,10 @@ clientConnected
   -> c
   -> AccountEvent
 clientConnected aid c = AccountEvent aid $ ClientConnected $
-  IrcHandler $ \(NetworkID nid) (t,(msg,params)) -> do
+  IrcHandler $ \(NetworkID nid) (t,ircMsg) -> do
 
-    let -- timestamp in epoch seconds
+    let (msg, params) = ircMsg ^. networkMessage
+        -- timestamp in epoch seconds
         epoch     = floor (utcTimeToPOSIXSeconds t)
 
         -- add timestamp
