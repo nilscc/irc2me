@@ -7,7 +7,6 @@
 module Irc2me.Frontend.Messages.ChatMessage where
 
 import Control.Applicative
-import Control.Monad
 
 import Data.Int
 import Data.Maybe
@@ -40,7 +39,8 @@ import Irc2me.Frontend.Messages.Helper
 -- IRC messages
 
 data Type
-  = JOIN
+  = PRIVMSG
+  | JOIN
   | PART
   | INVITE
   | QUIT
@@ -143,10 +143,9 @@ emptyChatMessage = ChatMessage
 toChatMsg :: IRC.IRCMsg -> (ChatMessage, Parameters)
 toChatMsg msg = (,to') $ emptyChatMessage &~ do
 
-  when (IRC.msgCmd msg /= "PRIVMSG") $
-    case IRC.msgCmd msg ^? msgType of
-      Just ty        -> messageType      .= Just ty
-      Nothing        -> messageTypeOther .= Just (IRC.msgCmd msg ^. encoded)
+  case IRC.msgCmd msg ^? msgType of
+    Just ty        -> messageType      .= Just ty
+    Nothing        -> messageTypeOther .= Just (IRC.msgCmd msg ^. encoded)
 
   messageFromUser     .= fromU
   messageFromServer   .= fromS
@@ -194,18 +193,20 @@ msgType = prism' fromType toType
 
 fromType :: Type -> ByteString
 fromType cmd = case cmd of
-  NOTICE -> "NOTICE"
-  JOIN   -> "JOIN"
-  PART   -> "PART"
-  INVITE -> "INVITE"
-  QUIT   -> "QUIT"
-  KICK   -> "KICK"
-  NICK   -> "NICK"
-  TOPIC  -> rpl_TOPIC
-  MOTD   -> "MOTD"
+  PRIVMSG -> "PRIVMSG"
+  NOTICE  -> "NOTICE"
+  JOIN    -> "JOIN"
+  PART    -> "PART"
+  INVITE  -> "INVITE"
+  QUIT    -> "QUIT"
+  KICK    -> "KICK"
+  NICK    -> "NICK"
+  TOPIC   -> rpl_TOPIC
+  MOTD    -> "MOTD"
 
 toType :: ByteString -> Maybe Type
 toType bs = case bs of
+  "PRIVMSG"         -> Just PRIVMSG
   "NOTICE"          -> Just NOTICE
   "JOIN"            -> Just JOIN
   "PART"            -> Just PART

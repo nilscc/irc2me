@@ -15,7 +15,12 @@ import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
+import Data.Int
+
 import System.IO
+
+-- time
+import Data.Time.Clock.POSIX
 
 -- irc-bytestring
 import Network.IRC.ByteString.Parser as IRC
@@ -35,7 +40,7 @@ import Control.Concurrent.Event
 import Irc2me.Events
 
 import Irc2me.Frontend.Messages        as M hiding (_networkId)
-import Irc2me.Frontend.Messages.Helper as M
+-- import Irc2me.Frontend.Messages.Helper as M
 
 import Irc2me.Database.Query            as DB
 import Irc2me.Database.Tables.Accounts  as DB
@@ -132,17 +137,21 @@ reconnectAll con = withCon con $ do
 evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> IO (Maybe ServerMessage)
 evalIRCMsg ns (t,msg)
 
-  | "PRIVMSG" <- IRC.msgCmd msg
-  , [to]      <- IRC.msgParams msg & map (^. encoded)
+  | Just _ty  <- cm ^. messageType -- known type
+  , [to']     <- params            -- one recipient
 
   = do ident <- getNetworkIdentitiy ns
+
+       -- build broadcast message
        return $ Just $ serverMessage $ network &~ do
-         if ident ^. identityNick == Just to then
+
+         -- figure out where messages goes to
+         if ident ^. identityNick == Just to' then
            networkMessages .= [ cm ]
           else
            networkChannels .=
              [ emptyChannel &~ do
-                 channelName     .= Just to
+                 channelName     .= Just to'
                  channelMessages .= [ cm ]
              ]
 
@@ -151,7 +160,13 @@ evalIRCMsg ns (t,msg)
 
  where
 
-  (cm,params) = msg ^. chatMessage
+  epoch :: Int64
+  epoch = floor $ utcTimeToPOSIXSeconds t
+
+  (cm,params) = msg ^. chatMessage &~ do
+
+    -- add timestamp
+    _1 %= (messageTimestamp .~ Just epoch)
 
   -- ServerMessage default 'template'
   serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
