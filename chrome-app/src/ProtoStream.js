@@ -76,9 +76,13 @@ ProtoStream.prototype.setIncomingCallback = function (handleIncoming) {
 
 ProtoStream.prototype.sendMessage = function (proto_message, callback) {
 
+    if (callback == null) {
+        callback = function() {};
+    }
+
     var self = this;
 
-    var Logger = self.getLogger("sendMessage()");
+    var Logger = self.getLogger("sendMessage", proto_message);
 
     if (!self._socket) {
         return Logger.error("Socket not initialized.");
@@ -111,18 +115,17 @@ ProtoStream.prototype.sendMessage = function (proto_message, callback) {
     // send buffer
     chrome.sockets.tcp.send(self._socket, buffer.toArrayBuffer(), function(res) {
 
-        var bytesSent = res.bytesSent + " of " + totalLength + " bytes sent";
-
         if (res.resultCode != 0) {
-            return Logger.error("Could not send message (" + res.resultCode + ", " + bytesSent + ").");
-        }
-        if (res.bytesSent < totalLength) {
-            Logger.warn("Only " + bytesSent + ".");
+            return callback(false, "Could not send message (" + res.resultCode + ").");
         }
 
-        if (typeof callback == "function") {
-            callback();
+        if (res.bytesSent < totalLength) {
+            var bytesSent =
+            Logger.warn("Only " +  res.bytesSent + " of " + totalLength + " bytes sent.");
         }
+
+        // done
+        return callback(true);
     });
 }
 
@@ -224,6 +227,10 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
         return log.error("ProtoStream.connect: Already connected.");
     }
 
+    if (callback == null) {
+        callback = function () {};
+    }
+
     log.log("Connecting", "Connecting…");
 
     // create new socket
@@ -234,29 +241,25 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
 
         // check error
         if (chrome.runtime.lastError) {
-            return log.error(chrome.runtime.lastError.message);
+            self.disconnect();
+            return callback(false, chrome.runtime.lastError.message);
         }
 
         self._socket = createInfo.socketId;
-
-        log.info("Socket created with ID " + createInfo.socketId + ".");
-
 
         // connect
         chrome.sockets.tcp.connect(self._socket, hostname, parseInt(port), function(res) {
 
             // check error
             if (chrome.runtime.lastError) {
-                return log.error(chrome.runtime.lastError.message);
+                self.disconnect();
+                return callback(false, chrome.runtime.lastError.message);
             }
 
             if (res != 0) {
-
-                // log error
-                log.error("Could not connect socket (" + res + ").");
-
                 // quit
-                return self.disconnect();
+                self.disconnect();
+                return callback(false, "Could not connect socket (" + res + ").");
             }
 
             self._connected = true;
@@ -281,14 +284,17 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
 
             chrome.sockets.tcp.onReceive.addListener(self._onReceiveListener);
 
-            if (typeof callback == "function") {
-                callback();
-            }
+            // done
+            return callback(true);
         });
     });
 }
 
 ProtoStream.prototype.disconnect = function (callback) {
+
+    if (callback == null) {
+        callback = function () {};
+    }
 
     var self = this,
         log = self.getLogger("disconnect");
@@ -298,13 +304,9 @@ ProtoStream.prototype.disconnect = function (callback) {
         return log.warn("No socket available.");
     }
 
-    if (! self._connected) {
-        // do nothing
-        return log.warn("Not connected.");
-    }
-
-    // buffer value
-    var socket = self._socket;
+    // buffer values
+    var socket = self._socket,
+        connected = self._connected;
 
     // reset self status
     self._socket = null;
@@ -318,25 +320,26 @@ ProtoStream.prototype.disconnect = function (callback) {
     }
 
     // perform disconnect
-    chrome.sockets.tcp.disconnect(socket, function() {
-
-        if (chrome.runtime.lastError) {
-            return log.error(chrome.runtime.lastError.message);
-        }
-
-        // log disconnect() call
-        log.log("Disconnected", "Disconnected.");
-
-        // close socket
-        chrome.sockets.tcp.close(socket, function () {
+    if (connected) {
+        chrome.sockets.tcp.disconnect(socket, function() {
 
             if (chrome.runtime.lastError) {
-                return log.error(chrome.runtime.lastError.message);
+                return callback(false, chrome.runtime.lastError.message);
             }
 
-            if (typeof callback == "function") {
-                callback();
-            }
+            // log disconnect() call
+            log.log("Disconnected", "Disconnected.");
+
+            // close socket
+            chrome.sockets.tcp.close(socket, function () {
+
+                if (chrome.runtime.lastError) {
+                    return log.error(chrome.runtime.lastError.message);
+                }
+
+                // done
+                return callback(true);
+            });
         });
-    });
+    }
 }

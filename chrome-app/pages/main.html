@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+
+<title>irc2me</title>
+
+<!-- dependencies -->
+<script type="text/javascript" src="../libs/jquery-2.1.1.min.js"></script>
+<script type="text/javascript" src="../libs/handlebars-v2.0.0.js"></script>
+
+<script type="text/javascript" src="../src/ChromeMessage.js"></script>
+<script type="text/javascript" src="../src/Irc2me.js"></script>
+<script type="text/javascript" src="../src/UIState.js"></script>
+
+<!-- content scripts -->
+<script type="text/javascript" src="helper.js"></script>
+<script type="text/javascript" src="main.js"></script>
+
+<!-- style sheets -->
+<link rel="stylesheet" type="text/css" href="../styles/Roboto.css">
+<link rel="stylesheet" type="text/css" href="../styles/cards.css">
+<link rel="stylesheet" type="text/css" href="../styles/general.css">
+<link rel="stylesheet" type="text/css" href="main.css">
+
+<!-- templates -->
+
+<script type="text/x-handlebars-template" id="usermessage-template">
+    {{#each messages}}
+    <div class="message">
+        <span class="timestamp">{{formatTimestamp timestamp}}</span>
+        {{#if user}}
+            <span class="nickname {{userflagClass user.flag}}">{{user.nick}}</span>
+        {{else}}
+            <span class="servername">{{server}}</span>
+        {{/if}}
+        <span class="text">{{content}}</span>
+    </div>
+    {{/each}}
+</script>
+
+<!-- main body -->
+
+<div class="horizontal-flex">
+
+    <div class="network-list card">
+        <div class="group-title">Channel</div>
+        <div class="network">
+        </div>
+    </div>
+
+    <div class="main-view card">
+        <div class="vertical-flex">
+            <div class="group-title">
+                <span class="channel-name">##norsk</span>
+                <span class="motd">A channel for people who want to speak and/or lift Norwegian. Please be patient, we might be afk or busy. Localtime in Oslo: <a href="http://goo.gl/3VsHM" target="_blank">http://goo.gl/3VsHM</a></span>
+            </div>
+            <div class="message-list">
+                <div class="message">
+                    <span class="timestamp">19:35</span>
+                    <span class="nickname">McManiaC</span>
+                    <span class="text">bla bla bla</span>
+                </div>
+                <div class="message">
+                    <span class="timestamp">19:35</span>
+                    <span class="nickname">McManiaC</span>
+                    <span class="text">Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.</span>
+                </div>
+            </div>
+            <div class="input-prompt">
+                <span class="nickname">McManiaC</span>
+                <input type="text" name="input-prompt">
+            </div>
+        </div>
+    </div>
+
+    <div class="user-list card">
+        <div class="group-title">User</div>
+    </div>
+</div>

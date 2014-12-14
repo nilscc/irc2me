@@ -49,7 +49,7 @@ Irc2me.prototype.suspend = function () {
     var self = this;
 
     // suspend stream
-    self._disconnect();
+    self.disconnect();
 }
 
 /*
@@ -78,6 +78,8 @@ Irc2me.prototype._handleAuthenticationResponse = function (buffer) {
 
     var self = this;
 
+    var log = self.getLogger("_handleAuthenticationResponse");
+
     // alias
     var ServerMsg = self._messages.ServerMsg;
 
@@ -88,14 +90,9 @@ Irc2me.prototype._handleAuthenticationResponse = function (buffer) {
      * Authentication reply
      *
      */
-    if (self._authenticated == false || typeof self._authenticated == "function") {
+    if (!self._authenticated) {
 
         if (msg.response_code == ServerMsg.ResponseCode.OK) {
-
-            // properly authenticated, run callback (if any)
-            if (typeof self._authenticated == "function") {
-                self._authenticated();
-            }
 
             self._authenticated = true;
 
@@ -104,14 +101,22 @@ Irc2me.prototype._handleAuthenticationResponse = function (buffer) {
                 self._handleIncomingMessages(buffer);
             });
 
+            log.info("Successfully authorized.");
+
             // send signal
             Irc2me.Signals.connected();
+        }
+        else {
 
-        } else {
             // authentication failed :(
             self._authenticated = false;
 
-            // send signal
+            // disconnect
+            self._protoStream.disconnect();
+
+            log.error("Not authorized.");
+
+            // send signals
             Irc2me.Signals.disconnected();
         }
     }
@@ -127,7 +132,9 @@ Irc2me.prototype._handleIncomingMessages = function (buffer) {
     // decode as ServerMsg
     var msg = ServerMsg.decode(buffer);
 
-    console.log(msg); // TODO;
+    Irc2me.Signals.incomingMessage(msg);
+
+    console.log(msg);
 }
 
 /*
@@ -135,15 +142,31 @@ Irc2me.prototype._handleIncomingMessages = function (buffer) {
  *
  */
 
-Irc2me.prototype._connect = function(hostname, port, username, password) {
+Irc2me.prototype.isConnected = function () {
+    return self._authenticated;
+}
+
+Irc2me.prototype.connect = function(hostname, port, username, password) {
 
     var self = this;
+
+    // default logger
+    var log = self.getLogger("connect", hostname, port, username, "***");
 
     // aliases
     var stream   = self._protoStream,
         messages = self._messages;
 
-    stream.connect(hostname, port, function () {
+    stream.connect(hostname, port, function (success, errmsg) {
+
+        if (!success && errmsg) {
+            log.error(errmsg);
+
+            // send signal
+            Irc2me.Signals.disconnected();
+
+            return;
+        }
 
         stream.setIncomingCallback(function (buffer) {
             self._handleAuthenticationResponse(buffer);
@@ -154,35 +177,50 @@ Irc2me.prototype._connect = function(hostname, port, username, password) {
             login: username,
             password: password,
         }));
-
     });
 }
 
-Irc2me.prototype._disconnect = function (cb) {
+Irc2me.prototype.disconnect = function () {
     var self = this;
+
+    var log = self.getLogger("disconnect");
 
     // aliases
     var stream   = self._protoStream,
         messages = self._messages;
 
-    if (self._authenticated) {
+    // action to perform when actually disconnecting
+    var do_disconnect = function (success, errmsg) {
+
+        if (success == false) {
+            log.error(errmsg);
+        }
+
+        self._protoStream.disconnect(function (success, errmsg) {
+
+            if (!success) {
+                log.error(errmsg);
+            }
+
+            // set status & send signal
+            self._authenticated = false;
+            Irc2me.Signals.disconnected();
+        });
+    };
+
+    // check if we have to send DISCONNECT message
+    if (self._authenticated == true) {
 
         var DISCONNECT = new messages.ClientMsg({
             system_msg: messages.SystemMsg.DISCONNECT,
         });
 
         // send DISCONNECT message
-        stream.sendMessage(DISCONNECT, function() {
-            self._protoStream.disconnect(cb);
-        });
+        stream.sendMessage(DISCONNECT, do_disconnect);
 
     } else {
-        self._protoStream.disconnect(cb);
+        do_disconnect();
     }
-
-    self._authenticated = false;
-
-    Irc2me.Signals.disconnected();
 }
 
 /*
@@ -205,18 +243,13 @@ Irc2me.prototype.listen = function () {
             user = content.username,
             pass = content.password;
 
-        // store callback
-        self._authenticated = sendResponse;
-
         // connect and send authentication message
-        self._connect(host, port, user, pass);
+        self.connect(host, port, user, pass);
 
-        // async response
-        return true;
     });
 
     Irc2me.disconnect.addListener(function(content, sendResponse) {
-        self._disconnect(sendResponse);
+        self.disconnect(sendResponse);
     });
 
     Irc2me.isConnected.addListener(function(content, sendResponse) {
@@ -232,5 +265,6 @@ Irc2me.prototype.listen = function () {
 
 Irc2me.Signals = {};
 
-Irc2me.Signals.connected    = new ChromeMessage("Irc2me.Signals.connected");
-Irc2me.Signals.disconnected = new ChromeMessage("Irc2me.Signals.disconnected");
+Irc2me.Signals.connected        = new ChromeMessage("Irc2me.Signals.connected");
+Irc2me.Signals.disconnected     = new ChromeMessage("Irc2me.Signals.disconnected");
+Irc2me.Signals.incomingMessage  = new ChromeMessage("Irc2me.Signals.incomingMessage");

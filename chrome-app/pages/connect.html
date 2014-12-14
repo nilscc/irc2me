@@ -15,7 +15,8 @@
 <!-- style sheets -->
 <link rel="stylesheet" type="text/css" href="../styles/Roboto.css">
 <link rel="stylesheet" type="text/css" href="../styles/cards.css">
-<link rel="stylesheet" type="text/css" href="../styles/connect.css">
+<link rel="stylesheet" type="text/css" href="../styles/general.css">
+<link rel="stylesheet" type="text/css" href="connect.css">
 
 <title>irc2me – Connect</title>
 
@@ -25,29 +26,31 @@
     irc2me – <span id="title-status">Connect</span>
 </div>
 
-<div class="card">
-    <div class="content">
-        <table id="login-form">
-            <tr>
-                <th>Hostname:</th>
-                <td><input type="text" name="hostname" value="nils-vm.fritz.box"></td>
-            </tr>
-            <tr>
-                <th>Port:</th>
-                <td><input type="text" name="port" value="6565"></td>
-            </tr>
-            <tr>
-                <th>Username:</th>
-                <td><input type="text" name="username" value="test"></td>
-            </tr>
-            <tr>
-                <th>Password:</th>
-                <td><input type="password" name="password" value="test"></td>
-            </tr>
-        </table>
-    </div>
-    <div class="comments">
-        <div id="connection-log">
+<div class="main-wrapper">
+    <div class="card">
+        <div class="content">
+            <table id="login-form">
+                <tr>
+                    <th>Hostname:</th>
+                    <td><input type="text" name="hostname" value="nils-vm.fritz.box"></td>
+                </tr>
+                <tr>
+                    <th>Port:</th>
+                    <td><input type="text" name="port" value="6565"></td>
+                </tr>
+                <tr>
+                    <th>Username:</th>
+                    <td><input type="text" name="username" value="test"></td>
+                </tr>
+                <tr>
+                    <th>Password:</th>
+                    <td><input type="password" name="password" value="test"></td>
+                </tr>
+            </table>
+        </div>
+        <div class="comments">
+            <div id="connection-log">
+            </div>
         </div>
     </div>
 </div>
