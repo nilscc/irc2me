@@ -163,7 +163,7 @@ evalIRCMsg ns (t,msg)
  where
 
   epoch :: Int64
-  epoch = floor $ utcTimeToPOSIXSeconds t
+  epoch = floor $ utcTimeToPOSIXSeconds t * 1000
 
   (cm,params) = msg ^. chatMessage &~ do
 
