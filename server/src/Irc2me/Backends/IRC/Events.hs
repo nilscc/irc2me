@@ -17,7 +17,7 @@ import Control.Lens
 import Control.Concurrent.Broadcast
 import Control.Concurrent.Event
 
-import Irc2me.Events
+import Irc2me.Events.Types
 import Irc2me.Backends.IRC.Helper
 import Irc2me.Database.Tables.Accounts
 
@@ -27,11 +27,12 @@ import Irc2me.Database.Tables.Accounts
 manageIrcConnections :: MonadIO m => IrcConnections -> EventRW m ()
 manageIrcConnections = fix $ \loop irc -> do
 
+{-
   AccountEvent aid ev <- getEvent
   case ev of
 
     -- new client connected
-    ClientConnected sendMessage -> do
+    Ev_ClientConnected sendMsg -> do
 
       logM $ "Subscribe client (Account #" ++ show (aid ^. accountId) ++ ") to IRC networks"
 
@@ -39,9 +40,8 @@ manageIrcConnections = fix $ \loop irc -> do
       F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc -> do
 
         -- subscribe client to broadcast
-        liftIO $ forkIO $ subscribe bc sendMessage
+        liftIO $ forkIO $ subscribe bc sendMsg
 
-    {-
     SendMessage nid msg
 
         -- look up account
@@ -54,8 +54,8 @@ manageIrcConnections = fix $ \loop irc -> do
         BC.sendIrcMessage bc msg
 
     _ -> return ()
-    -}
 
+  -}
   loop irc
  where
   logM msg = liftIO $ putStrLn $ "[IRC] " ++ msg

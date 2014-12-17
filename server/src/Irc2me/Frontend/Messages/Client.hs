@@ -7,6 +7,8 @@ module Irc2me.Frontend.Messages.Client where
 
 import GHC.Generics (Generic)
 
+import Data.Text
+
 -- protobuf
 import Data.ProtocolBuffers
 import Data.ProtocolBuffers.Orphans ()
@@ -16,19 +18,20 @@ import Data.ProtocolBuffers.TH
 import Irc2me.Frontend.Messages.Helper
 import Irc2me.Frontend.Messages.Network
 import Irc2me.Frontend.Messages.System
+import Irc2me.Frontend.Messages.ChatMessage as ChatMessage
 
 data ClientMessage = ClientMessage
 
     -- system
-  { _clientResponseID       :: Optional 3  (Value ID_T)
-  , _clientSystemMsg        :: Optional 5  (Enumeration SystemMsg)
+  { _clResponseID       :: Optional 3  (Value ID_T)
+  , _clSystemMsg        :: Optional 5  (Enumeration SystemMsg)
 
     -- APIs
-  , _clientGET              :: Optional 10 (Message GET)
-  , _clientSEND             :: Optional 10 (Message SEND)
-  , _clientPUT              :: Optional 10 (Message PUT)
-  , _clientDELETE           :: Optional 10 (Message DELETE)
-  , _clientUPDATE           :: Optional 10 (Message UPDATE)
+  , _clGET              :: Optional 10 (Message GET)
+  , _clSendMessage      :: Optional 10 (Message SendMessage)
+  , _clPUT              :: Optional 10 (Message PUT)
+  , _clDELETE           :: Optional 10 (Message DELETE)
+  , _clUPDATE           :: Optional 10 (Message UPDATE)
 
   }
   deriving (Eq, Show, Generic)
@@ -50,21 +53,19 @@ instance Decode GET
 ------------------------------------------------------------------------------
 -- SEND API
 
-data SEND = SEND
-  { -- _sendPrivateMessages :: Repeated 1 (Message PrivateMessage)
+data SendMessage = SendMessage
+  { _sendType            :: Optional 1  (Enumeration ChatMessage.Type)
+  , _sendTypeOther       :: Optional 2  (Value Text)
+
+  , _sendNetworkID       :: Optional 3  (Value ID_T)
+
+  , _sendParams          :: Optional 15 (Value Text)
+  , _sendContent         :: Optional 20 (Value Text)
   }
   deriving (Eq, Show, Generic)
 
-instance Encode SEND
-instance Decode SEND
-
-data PrivateMessage = PrivateMessage
-  { -- _privateMessage       :: Optional 1 (Message ChatMessage)
-  }
-  deriving (Eq, Show, Generic)
-
-instance Encode PrivateMessage
-instance Decode PrivateMessage
+instance Encode SendMessage
+instance Decode SendMessage
 
 ------------------------------------------------------------------------------
 -- PUT API
@@ -106,8 +107,7 @@ makeFieldLenses ''ClientMessage
 
 makeFieldLenses ''GET
 
-makeFieldLenses ''SEND
-makeFieldLenses ''PrivateMessage
+makeFieldLenses ''SendMessage
 
 makeFieldLenses ''PUT
 

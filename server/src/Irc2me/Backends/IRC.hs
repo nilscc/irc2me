@@ -5,10 +5,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Irc2me.Backends.IRC
-  ( runIrcBackend, runIrcBackend'
+  ( runIrcBackend
   ) where
-
-import Control.Concurrent
 
 import Control.Monad
 import Control.Monad.Except
@@ -37,7 +35,7 @@ import Data.Text.Lens
 
 -- local
 import Control.Concurrent.Event
-import Irc2me.Events
+import Irc2me.Events.Types
 
 import Irc2me.Frontend.Messages        as M hiding (_networkId)
 -- import Irc2me.Frontend.Messages.Helper as M
@@ -47,22 +45,17 @@ import Irc2me.Database.Tables.Accounts  as DB
 import Irc2me.Database.Tables.Networks  as DB
 
 import Irc2me.Backends.IRC.Helper
-import Irc2me.Backends.IRC.NetworkState
-import Irc2me.Backends.IRC.Broadcast as BC
-import Irc2me.Backends.IRC.Events
+import Irc2me.Backends.IRC.Connection as C
 
-runIrcBackend :: MonadIO m => EventT mode AccountEvent  m Bool
+runIrcBackend
+  :: (MonadIO m, MonadEventW m AccountEvent)
+  => m Bool
 runIrcBackend = do
-  eq <- getEventQueue
-  runIrcBackend' eq
-
-runIrcBackend' :: MonadIO m => EventQueue WO AccountEvent -> m Bool
-runIrcBackend' eq = do
   mcs <- runExceptT $ reconnectAll Map.empty
   case mcs of
-    Right cs -> do
-      _  <- liftIO $ forkIO $ runEventTRW eq $
-        manageIrcConnections cs
+    Right _cs -> do -- TODO
+      --_  <- liftIO $ forkIO $ runEventTRW eq $
+        --manageIrcConnections cs
       return True
     Left err -> do
       liftIO $ hPutStrLn stderr $
@@ -73,10 +66,12 @@ runIrcBackend' eq = do
 -- Starting up
 
 reconnectAll
-  :: (MonadIO m, MonadError SqlError m)
+  :: (MonadIO m, MonadError SqlError m, MonadEventW m AccountEvent)
   => IrcConnections
-  -> m IrcConnections
+  -> m ()
 reconnectAll con = withCon con $ do
+
+  eq <- getEventQueue
 
   accs <- runQuery selectAccounts
   for accs $ \accid -> do
@@ -99,14 +94,12 @@ reconnectAll con = withCon con $ do
           -- query network identity from DB
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
 
-          -- init network state
-          networkState <- newNetworkState accid netid ident
-          let converter = evalIRCMsg networkState
+          -- connect to IRC and raise events for all incoming messages
+          mc'  <- liftIO $ ircConnect server ident $
+                             raiseChatMessageEvent eq accid netid
 
-          -- start broadcasting
-          mbc'  <- liftIO $ startIrcBroadcast server ident converter
-          case mbc' of
-            Just bc -> do
+          case mc' of
+            Just c -> do
 
               log' $ "Connected to "
                 ++ (server ^. serverHost . _Just . _Text)
@@ -117,11 +110,14 @@ reconnectAll con = withCon con $ do
                 ++ ")"
 
               -- store new broadcast
-              at accid . non' _Empty . at netid ?= bc
+              --at accid . non' _Empty . at netid ?= bc
+
+              -- notify event handler of new connection
+              lift $ lift $ raiseEvent $ AccountEvent accid $
+                NewIrcConnectionEvent netid c
 
             Nothing -> do
               log' $ "Failed to connect to Network " ++ show (_networkId netid)
-
  where
   for :: Monad m => [a] -> (a -> MaybeT m ()) -> m ()
   for   l m = do
@@ -129,11 +125,26 @@ reconnectAll con = withCon con $ do
     return ()
 
   require m = maybe mzero return =<< m
-  withCon c = execStateT `flip` c
+  withCon c = evalStateT `flip` c
 
 --------------------------------------------------------------------------------
 -- IRC message evaluation & network state
 
+raiseChatMessageEvent :: EventQueue WO AccountEvent -> AccountID -> NetworkID -> (UTCTime, IRCMsg) -> IO ()
+raiseChatMessageEvent eq aid nid (t,msg) =
+  writeEventIO eq $ AccountEvent aid $ ChatMessageEvent nid params cm
+ where
+
+  epoch :: Int64
+  epoch = floor $ utcTimeToPOSIXSeconds t * 1000
+
+  (cm,params) = msg ^. chatMessage &~ do
+
+    -- add timestamp
+    _1 %= (messageTimestamp .~ Just epoch)
+
+
+{-
 evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> IO (Maybe ServerMessage)
 evalIRCMsg ns (t,msg)
 
@@ -159,17 +170,9 @@ evalIRCMsg ns (t,msg)
   = do -- broadcast everything else as 'private' network message:
        return $ Just $ serverMessage $ network &~ do
          networkMessages .= [ cm ]
+-}
 
- where
-
-  epoch :: Int64
-  epoch = floor $ utcTimeToPOSIXSeconds t * 1000
-
-  (cm,params) = msg ^. chatMessage &~ do
-
-    -- add timestamp
-    _1 %= (messageTimestamp .~ Just epoch)
-
+{-
   -- ServerMessage default 'template'
   serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
 
@@ -177,3 +180,4 @@ evalIRCMsg ns (t,msg)
   network = emptyNetwork &~ do
 
     M.networkId .= Just (ns ^. nsNetworkID . DB.networkId & fromIntegral)
+-}

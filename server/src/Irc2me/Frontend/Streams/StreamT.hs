@@ -9,7 +9,7 @@
 
 module Irc2me.Frontend.Streams.StreamT
   ( -- * Streams
-    Stream, StreamT
+    Stream, StreamT(..)
   , Chunks
   , throwS, showS
   , choice
@@ -32,7 +32,7 @@ import Data.ByteString (ByteString)
 import Data.List
 import Data.Monoid
 
-import Irc2me.Events
+import Irc2me.Events.Types
 import Irc2me.Frontend.Connection.Types
 
 --------------------------------------------------------------------------------
@@ -114,10 +114,11 @@ showS w et = do
     Left  e -> throwS w (show e)
     Right a -> return a
 
-sendChunk :: MonadIO m => ByteString -> StreamT e m ()
-sendChunk bs = StreamT $ \(con,c) -> do
+sendChunk
+  :: (MonadIO m, ClientConnection con)
+  => con -> ByteString -> m ()
+sendChunk con bs = do
   liftIO $ sendToClient con bs
-  return (c,())
 
 withClientConnection
   :: (Monad m)

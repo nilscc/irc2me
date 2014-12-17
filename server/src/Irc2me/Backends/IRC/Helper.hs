@@ -1,5 +1,6 @@
 module Irc2me.Backends.IRC.Helper where
 
+import Control.Concurrent
 import Data.Time
 
 import Data.Map (Map)
@@ -12,15 +13,15 @@ import Data.Map (Map)
 import Network.IRC.ByteString.Parser as IRC
 
 -- local
-import Control.Concurrent.Broadcast
-
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
-import Irc2me.Frontend.Messages
 
-type IrcConnections = Map AccountID (Map NetworkID NetworkBroadcast)
+data IrcConnection = IrcConnection
+  { broadcastThread :: ThreadId
+  }
+  deriving (Eq, Show)
 
-type NetworkBroadcast = (Broadcast ServerMessage)
+type IrcConnections = Map AccountID (Map NetworkID IrcConnection)
 
 ------------------------------------------------------------------------------
 -- Testing

@@ -22,12 +22,13 @@ module Control.Concurrent.Event
 
     -- ** STM functions
   , readEvent, readEventIO
-  , writeEvent
+  , writeEvent, writeEventIO
   ) where
 
 import Control.Applicative
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.Maybe
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Monad.Cont
@@ -132,6 +133,14 @@ instance (Monad m, MonadEventW m e) => MonadEventW (ReaderT r m) e where
   raiseEvent e = lift $ raiseEvent e
   getEventQueue = lift getEventQueue
 
+instance (Monad m, MonadEventW m e) => MonadEventW (StateT r m) e where
+  raiseEvent e = lift $ raiseEvent e
+  getEventQueue = lift getEventQueue
+
+instance (Monad m, MonadEventW m e) => MonadEventW (MaybeT m) e where
+  raiseEvent e = lift $ raiseEvent e
+  getEventQueue = lift getEventQueue
+
 -- | Event monad with read access
 class MonadEventR m e where
   getEvent :: m e
@@ -170,8 +179,11 @@ withEvents' go = fix $ \loop -> do
 writeEvent :: EventQueue mode event -> event -> STM ()
 writeEvent (EventQueue eq) = writeTChan eq
 
+writeEventIO :: EventQueue mode event -> event -> IO ()
+writeEventIO eq = atomically . writeEvent eq
+
 readEvent :: EventQueue RW event -> STM event
 readEvent (EventQueue rw) = readTChan rw
 
 readEventIO :: EventQueue RW event -> IO event
-readEventIO = liftIO . atomically . readEvent
+readEventIO = atomically . readEvent

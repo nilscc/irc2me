@@ -1,19 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
 
-module Irc2me.Backends.IRC.Broadcast
-  ( startIrcBroadcast
+module Irc2me.Backends.IRC.Connection
+  ( ircConnect
   , UTCTime, IRCMsg
   ) where
 
-import Control.Applicative
+import Control.Concurrent
 
 import Network
 
 import System.IO
-
--- pipes
-import Pipes
 
 -- time
 import Data.Time
@@ -26,9 +23,6 @@ import Control.Lens hiding (Identity)
 import Data.Text.Lens
 
 -- local
-import Control.Concurrent.Broadcast
-
---import Network.IRC.Message.Codes
 import Network.IRC.Connection
 
 import Irc2me.Backends.IRC.Helper
@@ -38,13 +32,12 @@ import Irc2me.Frontend.Messages
 ------------------------------------------------------------------------------
 -- IRC broadcasting
 
-startIrcBroadcast
+ircConnect
   :: Server
   -> Identity
-  -> ((UTCTime, IRCMsg) -> IO (Maybe msg))  -- ^ Converter/evalutor for incoming messages (before
-                      -- broadcast)
-  -> IO (Maybe (Broadcast msg))
-startIrcBroadcast server ident convert
+  -> ((UTCTime, IRCMsg) -> IO ())
+  -> IO (Maybe IrcConnection)
+ircConnect server ident broadcast
 
     -- server
   | Just hostname <- server ^? serverHost . _Just . _Text
@@ -73,21 +66,23 @@ startIrcBroadcast server ident convert
       Right con -> do
 
         -- register user
-        liftIO $ sendIrc con $ ircMsg "USER" [ nick, "*", "*", username ] ""
-        liftIO $ sendIrc con $ ircMsg "NICK" [ nick ] ""
+        sendIrc con $ ircMsg "USER" [ nick, "*", "*", username ] ""
+        sendIrc con $ ircMsg "NICK" [ nick ] ""
 
-        -- create new broadcast
-        Just <$> startBroadcasting' (ircBroadcast con)
-                                    (stopIrcBroadcast con Nothing)
+        tid <- forkIO $ handleIncoming con
 
-  | otherwise = return Nothing
+        return $ Just $ IrcConnection
+          { broadcastThread = tid
+          }
+
+  | otherwise = do
+    hPutStrLn stderr $ "Could not start IRC broadcast"
+    return Nothing
 
  where
-  ircBroadcast con = do
-
-    -- start broadcasting messages
-    bc <- getBroadcastFunction
-    mce <- lift $ handleIrcMessages con $ \tmsg@(_,msg) -> do
+  -- handle incoming messages
+  handleIncoming con = do
+    mce <- handleIrcMessages con $ \tmsg@(_,msg) -> do
 
       -- output for debugging purposes
       putStrLn $ testFormat tmsg
@@ -95,28 +90,11 @@ startIrcBroadcast server ident convert
       if msgCmd msg == "PING" then
         sendIrc con $ ircMsg "PONG" [] ""
        else
-        -- broadcast
-        maybe (return ()) bc =<< convert tmsg
+        broadcast tmsg
 
     -- handle closed connections
     case mce of
       Nothing -> return ()
-      Just ce -> liftIO $ stopIrcBroadcast con (Just ce)
-
-stopIrcBroadcast
-  :: Connection m
-  -> Maybe (ConnectionException IO)
-  -> IO ()
-stopIrcBroadcast con_ ce = do
-
-  -- 'unload' any (left over) producers
-  let con = con_ { ircMessages = return ce }
-
-  case ce of
-    Just e  -> hPutStr stderr $ "Connection error: " ++ show e
-    Nothing ->
-
-      -- gracefully quit (no connection error!)
-      sendIrc con (ircMsg "QUIT" [] "Goodbye.")
-
-  closeConnection con
+      Just ce -> do
+        hPutStrLn stderr $ "Connection error: " ++ show ce
+        closeConnection con

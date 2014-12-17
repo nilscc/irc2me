@@ -1,17 +1,21 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module Irc2me.Frontend.Streams.Helper where
 
 import Control.Concurrent.Event
 import Control.Lens
 import Control.Monad.Reader
+import Control.Monad.Except
 
-import Data.Foldable
-import Data.Maybe
+--import Data.Foldable
+--import Data.Maybe
 import Data.Monoid
 import Data.ProtocolBuffers
 
@@ -21,7 +25,8 @@ import Data.ProtocolBuffers.Internal
 import qualified Data.ByteString as B
 
 import Irc2me.Database.Tables.Accounts
-import Irc2me.Events
+import Irc2me.Events.Types
+import Irc2me.Frontend.Connection.Types
 import Irc2me.Frontend.Messages.Client
 import Irc2me.Frontend.Messages.Server
 import Irc2me.Frontend.Streams.StreamT
@@ -63,10 +68,12 @@ getMessage = withChunks $ \chunks ->
         return ([], msg)
       _ -> throwS "getMessage" "Unexpected end of input."
 
-sendMessage :: Encode a => a -> Stream ()
-sendMessage msg = do
+sendMessage
+  :: (MonadIO m, ClientConnection con, Encode a)
+  => con -> a -> m ()
+sendMessage con msg = do
   let encoded = runPut $ encodeMessage msg
-  sendChunk $ runPut $ putVarintPrefixedBS encoded
+  sendChunk con $ runPut $ putVarintPrefixedBS encoded
 
 --------------------------------------------------------------------------------
 -- Server response state
@@ -76,97 +83,46 @@ data ServerReaderState = ServerReaderState
   , clientMessage     :: ClientMessage
   }
 
-type ServerResponseT
+type ServerResponseT r
   = StreamT (First String)
-            (ReaderT ServerReaderState
+            (ReaderT r
                      (EventT WO AccountEvent IO))
-type ServerResponse  = ServerResponseT ServerMessage
 
-getServerResponse
-  :: ServerReaderState -> ServerResponse -> Stream ServerMessage
-getServerResponse state resp =
-  liftMonadTransformer (runReaderT `flip` state) resp
+newtype AsyncResponse m = AsyncResponse { sendAsyncMessage :: ServerMessage -> m () }
 
-withAccount :: (AccountID -> ServerResponseT a) -> ServerResponseT a
-withAccount f = do
-  macc <- lift $ asks connectionAccount
-  case macc of
-    Nothing -> throwS "withAccount" "Login required"
-    Just acc -> f acc
+type ServerResponse = ServerResponseT ClientMessage (Either ServerMessage (AsyncResponse IO))
 
-getClientMessage :: ServerResponseT ClientMessage
-getClientMessage = lift $ asks clientMessage
+class HasOptionalMessageField a b | a -> b where
+  hasMessageField :: Getter r a -> ServerResponseT r b
 
-messageField
-  :: Getter ClientMessage a
-  -> ServerResponseT a
-messageField lns = do
-  msg <- getClientMessage
-  return $ msg ^. lns
+instance HasOptionalMessageField (Maybe a) a where
+  hasMessageField g = maybe mzero return =<< lift (asks (^. g))
 
-guardMessageField
-  :: Getter ClientMessage (Maybe a)
-  -> ServerResponseT ()
-guardMessageField lns = do
-  msg <- getClientMessage
-  guard $ isJust $ msg ^. lns
+instance HasOptionalMessageField [a] [a] where
+  hasMessageField g = do
+    l <- lift $ asks (^. g)
+    guard $ not $ null l
+    return l
 
-guardMessageFieldValue
-  :: Eq a
-  => Getter ClientMessage a
-  -> a
-  -> ServerResponseT ()
-guardMessageFieldValue lns val = do
-  msg <- getClientMessage
-  guard $ (msg ^. lns) == val
+withResponseT
+  :: (b -> a)
+  -> ServerResponseT a s
+  -> ServerResponseT b s
+withResponseT f (StreamT st) = StreamT $ \s ->
+  mapExceptT (withReaderT f) (st s)
 
-requireMessageField
-  :: Getter ClientMessage (Maybe t)
-  -> ServerResponseT t
-requireMessageField lns = do
-  msg <- getClientMessage
-  case msg ^. lns of
-    Just t  -> return t
-    Nothing -> mzero
+withMessageField
+  :: HasOptionalMessageField a b
+  => Getter r a
+  -> (b -> ServerResponseT b s)
+  -> ServerResponseT r s
+withMessageField g f = do
+  b <- hasMessageField g
+  withResponseT (const b) (f b)
 
-requireMessageFieldValue
-  :: Eq t
-  => Getter ClientMessage (Maybe t)
-  -> t
-  -> ServerResponseT ()
-requireMessageFieldValue lns val = do
-  msg <- getClientMessage
-  case msg ^. lns of
-    Just t | t == val -> return ()
-    _                 -> mzero
-
-------------------------------------------------------------------------------
--- Folds
-
-foldOn, guardFoldOn
-  :: Foldable f
-  => Getter ClientMessage (f a)
-  -> Fold a b
-  -> ServerResponseT [b]
-
-foldOn lns fld = do
-  msg <- getClientMessage
-  return $ (msg ^. lns) ^.. folded . fld
-
-guardFoldOn lns fld = do
-  lis <- foldOn lns fld
-  guard $ not $ null lis
-  return lis
-
-foldROn, guardFoldROn
-  :: Foldable f
-  => Getter ClientMessage (f a)
-  -> ReifiedFold a b
-  -> ServerResponseT [b]
-
-foldROn lns rfld = foldOn lns (runFold rfld)
-
-guardFoldROn lns rfld = do
-  lis <- foldROn lns rfld
-  guard $ not $ null lis
-  return lis
+withMessageField_
+  :: HasOptionalMessageField a b
+  => Getter r a
+  -> ServerResponseT b s
+  -> ServerResponseT r s
+withMessageField_ g st = withMessageField g (const st)

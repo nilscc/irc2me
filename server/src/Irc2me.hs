@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 
-module Irc2me.Frontend.Connection where
+module Irc2me where
 
 import Control.Concurrent
 import Control.Concurrent.Event
@@ -15,7 +15,7 @@ import qualified Network.Socket as Socket
 
 import Irc2me.Backends
 import Irc2me.Events
-import Irc2me.Frontend.Streams
+import Irc2me.Frontend
 
 --------------------------------------------------------------------------------
 -- Handling incoming messages
@@ -35,22 +35,19 @@ runServer
   :: ServerConfig
   -> IO ()
 runServer conf = do
+
+  -- start event loop
   eq <- newEventQueue
-  runServer' conf eq
+  void $ forkIO $ runEventTRW eq $
+    forever handleEvents
 
-runServer'
-  :: ServerConfig
-  -> EventQueue WO AccountEvent
-  -> IO ()
-runServer' conf eq = do
-
-  -- backends
+  -- start backends
   putStrLn "Starting backends"
 
-  success <- runBackends' eq
+  success <- runEventTWO eq runBackends
   unless success $ exitFailure
 
-  -- frontend
+  -- start frontend, accept client connections
   putStrLn $ "Starting server on " ++ show (serverPort conf)
 
   socket <- listenOn $ PortNumber (serverPort conf)
@@ -59,11 +56,6 @@ runServer' conf eq = do
 
     (h, hostname, _) <- accept socket
 
-    forkIO $ do
-
+    void $ forkIO $ do
       putStrLn $ "[" ++ hostname ++ "] New connection."
-
-      res <- runStream h eq serverStream
-      case res of
-        Right () -> return ()
-        Left err -> putStrLn $ "[" ++ hostname ++ "] " ++ err
+      runFrontend h hostname eq
