@@ -1,14 +1,9 @@
 body
 {
-    font-size: 12pt;
-    font-family: "Roboto", sans-serif;
-
-    background-color: rgba(0,0,0,0.05);
-
-    margin: 0;
-    padding: 0 0 16pt 0;
-
-    overflow: auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
 .button
@@ -30,10 +25,33 @@ input[type="password"]
     font-weight: bold;
     text-align: center;
     background-color: white;
-    margin: 0 0 16pt 0;
+    margin: 0;
     padding: 8pt 0 8pt;
     border-top: 1pt solid rgba(0,0,0,0.2);
     border-bottom: 1pt solid rgba(0,0,0,0.2);
+}
+
+.main-wrapper
+{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-wrapper > .card
+{
+    min-width: 300pt;
+    width: 40%;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.main-wrapper > .card > .comments
+{
+    flex: 1;
+    overflow: auto;
+    min-height: 20pt;
 }
 
 /*
@@ -59,6 +77,12 @@ input[type="password"]
 #login-form td input
 {
     width: 100pt;
+}
+
+#login-form input:disabled
+{
+    color: rgba(0,0,0,0.6);
+    -webkit-user-select: none;
 }
 
 #login-form th
@@ -95,10 +119,6 @@ input[type="password"]
 
 footer
 {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
     padding: 8pt 16pt 8pt;
     background: white;
     border-top: 1pt solid rgba(0,0,0,0.2);

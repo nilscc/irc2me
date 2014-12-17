@@ -11,9 +11,10 @@ module Irc2me.Frontend.Streams.StreamT
   ( -- * Streams
     Stream, StreamT(..)
   , Chunks
-  , throwS, showS
+  , throwS, catchS, showS
   , choice
   , liftMonadTransformer
+  , mapStreamT
 
     -- ** Connections
   , runStream
@@ -104,6 +105,14 @@ throwS
   -> StreamT (First String) m a
 throwS f e = StreamT $ \_ -> throwError (First $ Just $ "[" ++ f ++ "] " ++ e)
 
+catchS
+  :: Monad m
+  => StreamT (First String) m a
+  -> (Maybe String -> StreamT (First String) m a)
+  -> StreamT (First String) m a
+catchS g c = StreamT $ \s -> unStreamT g s `catchError` \(First a) ->
+  unStreamT (c a) s
+
 -- | Run an `ExceptT` monad in `StreamT` and rethrow the exception as `String`
 showS
   :: (Show e, Functor m, Monad m)
@@ -158,12 +167,19 @@ choice :: (Alternative m, Monad m, Monoid e) => [StreamT e m a] -> StreamT e m a
 choice = foldl' (<|>) empty
 
 liftMonadTransformer
-  :: (MonadTrans t, Monad m)
+  :: (MonadTrans t, Monad m, Monad (t m))
   => (t m (Either e (Chunks, a)) -> m (Either e (Chunks, a)))
   -> StreamT e (t m) a
   -> StreamT e m a
-liftMonadTransformer transf streamt = StreamT $ \s -> do
-  res <- lift $ transf $ runExceptT $ unStreamT streamt s
+liftMonadTransformer = mapStreamT
+
+mapStreamT
+  :: (Monad m, Monad n)
+  => (m (Either e (Chunks, a)) -> n (Either e (Chunks, a)))
+  -> StreamT e m a
+  -> StreamT e n a
+mapStreamT transf m = StreamT $ \s -> do
+  res <- lift $ transf $ runExceptT $ unStreamT m s
   case res of
     Left e -> throwError e
     Right a -> return a

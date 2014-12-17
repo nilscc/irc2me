@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <file>widgets/inputprompt.css</file>
-    </qresource>
-</RCC>

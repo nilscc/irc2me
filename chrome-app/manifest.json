@@ -6,7 +6,12 @@
 
     "permissions":
         [ "storage"
+        , "http://*/"
+        , "https://*/"
         ],
+
+    "optional_permissions":
+        [ ],
 
     // enable TCP sockets
     "sockets": {

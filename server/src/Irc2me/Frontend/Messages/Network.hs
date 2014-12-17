@@ -55,6 +55,7 @@ data Channel = Channel
   , _channelName      :: Optional 2 (Value Text)
   , _channelStatus    :: Optional 3 (Enumeration ChannelStatus)
   , _channelMessages  :: Repeated 10 (Message ChatMessage)
+  , _channelUsers     :: Repeated 20 (Message User)
   }
   deriving (Eq, Show, Generic)
 
@@ -67,6 +68,7 @@ emptyChannel = Channel
   , _channelName = putField Nothing
   , _channelStatus = putField Nothing
   , _channelMessages = putField []
+  , _channelUsers = putField []
   }
 
 

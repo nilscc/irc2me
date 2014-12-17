@@ -132,16 +132,16 @@ reconnectAll con = withCon con $ do
 
 raiseChatMessageEvent :: EventQueue WO AccountEvent -> AccountID -> NetworkID -> (UTCTime, IRCMsg) -> IO ()
 raiseChatMessageEvent eq aid nid (t,msg) =
-  writeEventIO eq $ AccountEvent aid $ ChatMessageEvent nid params cm
+  writeEventIO eq $ AccountEvent aid $ ChatMessageEvent nid cm
  where
 
   epoch :: Int64
   epoch = floor $ utcTimeToPOSIXSeconds t * 1000
 
-  (cm,params) = msg ^. chatMessage &~ do
+  cm = msg ^. chatMessage &~ do
 
     -- add timestamp
-    _1 %= (messageTimestamp .~ Just epoch)
+    messageTimestamp .= Just epoch
 
 
 {-

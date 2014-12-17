@@ -13,32 +13,16 @@ irc2me.listen();
  *
  */
 
-function loadApp() {
-
-    /*
-     * UI
-     *
-     */
-
-    uistate.addSystemLog({ message: "Application started." });
-
-    chrome.app.window.create("pages/connect.html", {
-        id: "connect",
-        frame: "chrome",
-        innerBounds: {
-            width: 500,
-            height: 500,
-        },
-        resizable: false,
-    });
-}
-
 chrome.app.runtime.onLaunched.addListener(function () {
 
     irc2me.init(function () {
 
-        // start application
-        loadApp();
+        if (irc2me.isConnected()) {
+            uistate.MainWindow.open();
+        }
+        else {
+            uistate.ConnectionWindow.open();
+        }
 
     });
 });
@@ -47,6 +31,12 @@ chrome.app.runtime.onLaunched.addListener(function () {
  * Other runtime events
  *
  */
+
+chrome.runtime.onStartup.addListener(function () {
+
+    uistate.addSystemLog({ message: "Application started." });
+
+});
 
 chrome.runtime.onSuspend.addListener(function () {
 

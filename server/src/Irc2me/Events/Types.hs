@@ -20,7 +20,7 @@ data Event
   = ClientConnectedEvent                (ServerMessage -> IO ())
   | ClientMessageEvent    ClientMessage (ServerMessage -> IO ())
   | NewIrcConnectionEvent NetworkID IrcConnection
-  | ChatMessageEvent      NetworkID Parameters ChatMessage
+  | ChatMessageEvent      NetworkID ChatMessage
   deriving (Show)
 
 instance Show (ServerMessage -> IO ()) where

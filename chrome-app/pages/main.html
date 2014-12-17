@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+
+<title>irc2me</title>
+
+<!-- dependencies -->
+<script type="text/javascript" src="../libs/jquery-2.1.1.min.js"></script>
+<script type="text/javascript" src="../libs/jquery-regex-filter.js"></script>
+<script type="text/javascript" src="../libs/jquery-ajax-blob-arraybuffer.js"></script>
+<script type="text/javascript" src="../libs/mustache.min.js"></script>
+<script type="text/javascript" src="../libs/Long.min.js"></script>
+<script type="text/javascript" src="../libs/Autolinker.min.js"></script>
+
+<script type="text/javascript" src="../src/ChromeMessage.js"></script>
+<script type="text/javascript" src="../src/Irc2me.js"></script>
+<script type="text/javascript" src="../src/UIState.js"></script>
+
+<!-- content scripts -->
+<script type="text/javascript" src="helper.js"></script>
+<script type="text/javascript" src="main.js"></script>
+
+<!-- style sheets -->
+<link rel="stylesheet" type="text/css" href="../styles/Roboto.css">
+<link rel="stylesheet" type="text/css" href="../styles/cards.css">
+<link rel="stylesheet" type="text/css" href="../styles/general.css">
+<link rel="stylesheet" type="text/css" href="main.css">
+
+<!-- templates -->
+
+<script type="text/x-handlebars-template" id="message-template">
+    {{#messages}}
+        <div class="message {{classes}}">
+            <span class="timestamp">{{timestamp}}</span>
+            {{#user}}
+                <span class="nickname {{flag}}"
+                    data-username="{{name}}"
+                    data-nickname="{{nick}}"
+                    data-host="{{host}}">{{nick}}</span>
+            {{/user}}
+            {{#server}}
+                <span class="servermessage"
+                    data-servername="{{server}}">{{server}}</span>
+            {{/server}}
+            {{#join}}
+                <span class="join">has joined</span>
+            {{/join}}
+            {{#part}}
+                <span class="part">has left</span>
+            {{/part}}
+            {{#quit}}
+                <span class="quit">has quit</span>
+            {{/quit}}
+            {{#content}}
+                <span class="text">{{{content}}}</span>
+            {{/content}}
+        </div>
+    {{/messages}}
+</script>
+
+<script type="text/x-handlebars-template" id="network-list-template">
+    {{#network}}
+        <ul class="network" data-network_id="{{network.id}}" data-network="{{network.name}}">
+        </ul>
+    {{/network}}
+</script>
+
+<script type="text/x-handlebars-template" id="network-channel-list-item-template">
+    {{#channel}}
+        <li class="channel" data-channel="{{channel.name}}">{{channel.name}}</li>
+    {{/channel}}
+</script>
+
+<script type="text/x-handlebars-template" id="user-list-template">
+    <ul class="users">
+        {{#operators}}
+            <li class="operator" data-nickname="{{nick}}">{{nick}}</li>
+        {{/operators}}
+        {{#voice}}
+            <li class="voice" data-nickname="{{nick}}">{{nick}}</li>
+        {{/voice}}
+        {{#users}}
+            <li class="user" data-nickname="{{nick}}">{{nick}}</li>
+        {{/users}}
+    </ul>
+</script>
+<!-- main body -->
+
+<div class="horizontal-flex">
+
+    <div class="network-list card">
+        <div class="group-title">Channel</div>
+    </div>
+
+    <div class="main-view card">
+        <div class="vertical-flex">
+            <div class="group-title">
+                <span class="channel-name">&nbsp;</span>
+                <span class="motd"></span>
+            </div>
+            <div id="message-list">
+            </div>
+            <div id="input-prompt">
+                <span class="nickname">irc2me</span>
+                <input type="text" name="input-prompt">
+            </div>
+        </div>
+    </div>
+
+    <div class="user-list-view card">
+        <div class="group-title">User</div>
+        <div id="user-list"></div>
+    </div>
+</div>
