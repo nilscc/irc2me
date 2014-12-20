@@ -166,33 +166,17 @@ message ClientMsg
      *
      */
 
-    message SEND
+    message SendMessage
     {
-        message PrivateMessage
-        {
-            optional Network.Message message      = 1;
+        optional Network.Message.Type type          = 1;
+        optional string               type_raw      = 2;
+        optional int64                network_id    = 3;
 
-            // send message to a channel with a known ID
-            optional int64  to_channel_id = 10;
-
-            // send message to a user nick or channel name
-            optional string to_name       = 11;
-        };
-
-        repeated PrivateMessage messages = 1;
-
-        /* Commands like:
-         *
-         *   /nick ...
-         *   /msg user bla
-         *   /join ...
-         *
-         * etc. (without the leading '/')
-         */
-        repeated string commands = 2;
+        repeated string               params        = 15;
+        optional string               content       = 20;
     };
 
-    optional SEND send = 20;
+    optional SendMessage send = 20;
 
     /*
      * STORE API

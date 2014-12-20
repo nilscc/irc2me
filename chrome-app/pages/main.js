@@ -3,6 +3,7 @@
  *
  */
 
+/*
 Handlebars.registerHelper('formatTimestamp', function (timestamp) {
     return (new Date(timestamp)).toLocaleTimeString();
 });
@@ -15,6 +16,7 @@ Handlebars.registerHelper('userflagClass', function(userflag) {
         default:    { return ""; }
     }
 });
+*/
 
 /*
  * Main page class
@@ -27,9 +29,19 @@ function MainPage () {
 }
 
 MainPage.prototype.listen = function () {
+    var self = this;
+
     Irc2me.Signals.disconnected.addListener(function () {
         UIState.ConnectionWindow.open();
         UIState.MainWindow.close();
+    });
+
+    Irc2me.Signals.incomingMessage.addListener(function (msg) {
+        // loop over networks
+        for (var n = 0; n < msg.networks.length; n++) {
+            var network = msg.networks[n];
+            self.Chatview.append(network.messages);
+        }
     });
 }
 
@@ -39,19 +51,36 @@ MainPage.prototype.listen = function () {
  */
 
 MainPage.prototype.Chatview = {
-    messageTemplate: Handlebars.compile( $("#usermessage-template").html() ),
 };
 
 MainPage.prototype.Chatview.load = function (channel /* optional */) {
-
+    var self = this;
 };
 
 MainPage.prototype.Chatview.append = function (messages) {
     var self = this;
 
-    $("#message-list").append(
-        self.messageTemplate({ messages: messages });
-    );
+    //console.log(Must
+
+    var src = $("#message-template").html();
+
+    for (var i = 0; i < messages.length; i++) {
+        var msg = messages[i];
+
+        var epoch = dcodeIO.Long.prototype.toNumber.call(msg.timestamp);
+        var date  = new Date(epoch);
+
+        var compiled_template = Mustache.to_html(src, {
+            timestamp: date.toLocaleTimeString(),
+            userflag: "",
+            nickname: msg.user.nick,
+            username: msg.user.name,
+            host: msg.user.host,
+            content: msg.content,
+        });
+
+        $("#message-list").append(compiled_template);
+    }
 }
 
 /*

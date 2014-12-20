@@ -86,14 +86,14 @@ body
     content: " – ";
 }
 
-.main-view .message-list
+.main-view #message-list
 {
     flex: 1;
     padding: 8pt;
     overflow: auto;
 }
 
-.main-view .message-list .message
+.main-view #message-list .message
 {
     -webkit-user-select: auto;
     padding-left: 1em;
@@ -102,10 +102,10 @@ body
     margin-bottom: 2pt;
 }
 
-.main-view .message-list .message .nickname::before { content: "<"; }
-.main-view .message-list .message .nickname::after  { content: ">"; }
+.main-view #message-list .message .nickname::before { content: "<"; }
+.main-view #message-list .message .nickname::after  { content: ">"; }
 
-.main-view .message-list .message .timestamp
+.main-view #message-list .message .timestamp
 {
     color: rgba(0,0,0,0.6);
     float: right;
@@ -113,7 +113,7 @@ body
     padding: 0 4pt 0;
 }
 
-.main-view .message-list .message .nickname
+.main-view #message-list .message .nickname
 {
     margin: 0 2pt 0;
 }

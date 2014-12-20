@@ -5,7 +5,8 @@
 
 <!-- dependencies -->
 <script type="text/javascript" src="../libs/jquery-2.1.1.min.js"></script>
-<script type="text/javascript" src="../libs/handlebars-v2.0.0.js"></script>
+<script type="text/javascript" src="../libs/mustache.min.js"></script>
+<script type="text/javascript" src="../libs/Long.min.js"></script>
 
 <script type="text/javascript" src="../src/ChromeMessage.js"></script>
 <script type="text/javascript" src="../src/Irc2me.js"></script>
@@ -23,18 +24,15 @@
 
 <!-- templates -->
 
-<script type="text/x-handlebars-template" id="usermessage-template">
-    {{#each messages}}
+<script type="text/x-handlebars-template" id="message-template">
     <div class="message">
-        <span class="timestamp">{{formatTimestamp timestamp}}</span>
-        {{#if user}}
-            <span class="nickname {{userflagClass user.flag}}">{{user.nick}}</span>
-        {{else}}
-            <span class="servername">{{server}}</span>
-        {{/if}}
+        <span class="timestamp">{{timestamp}}</span>
+            <span class="nickname {{userflag}}"
+                data-username="{{username}}"
+                data-nickname="{{nickname}}"
+                data-host="{{host}}">{{nickname}}</span>
         <span class="text">{{content}}</span>
     </div>
-    {{/each}}
 </script>
 
 <!-- main body -->
@@ -50,23 +48,13 @@
     <div class="main-view card">
         <div class="vertical-flex">
             <div class="group-title">
-                <span class="channel-name">##norsk</span>
-                <span class="motd">A channel for people who want to speak and/or lift Norwegian. Please be patient, we might be afk or busy. Localtime in Oslo: <a href="http://goo.gl/3VsHM" target="_blank">http://goo.gl/3VsHM</a></span>
+                <span class="channel-name">&nbsp;</span>
+                <span class="motd"></span>
             </div>
-            <div class="message-list">
-                <div class="message">
-                    <span class="timestamp">19:35</span>
-                    <span class="nickname">McManiaC</span>
-                    <span class="text">bla bla bla</span>
-                </div>
-                <div class="message">
-                    <span class="timestamp">19:35</span>
-                    <span class="nickname">McManiaC</span>
-                    <span class="text">Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.</span>
-                </div>
+            <div id="message-list">
             </div>
             <div class="input-prompt">
-                <span class="nickname">McManiaC</span>
+                <span class="nickname">irc2me</span>
                 <input type="text" name="input-prompt">
             </div>
         </div>
