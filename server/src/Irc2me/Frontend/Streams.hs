@@ -11,10 +11,10 @@ import Control.Concurrent.Event
 import Control.Lens.Operators
 import Control.Monad
 
-import Irc2me.Events
+import Irc2me.Events as Events
 import Irc2me.Frontend.Messages
-import Irc2me.Frontend.Streams.StreamT
-import Irc2me.Frontend.Streams.Helper
+import Irc2me.Frontend.Streams.StreamT as Stream
+import Irc2me.Frontend.Streams.Helper  as Stream
 
 -- specific streams
 import Irc2me.Frontend.Streams.Authenticate
@@ -26,7 +26,7 @@ serverStream = do
 
   account <- authenticate <|> throwUnauthorized
 
-  sendMessage responseOkMessage
+  Stream.sendMessage responseOkMessage
 
   withClientConnection $ \con ->
     raiseEvent $ clientConnected account con
@@ -39,12 +39,10 @@ serverStream = do
                                   , clientMessage     = msg }
 
     response <- getServerResponse state $ do
-                  choice [ systemStream
-                         , ircStream
-                         , throwS "serverStream" $ "Not implemented: " ++ show msg
+                  choice [ throwS "serverStream" $ "Not implemented: " ++ show msg
                          ]
 
-    sendMessage $ addResponseId msg response
+    Stream.sendMessage $ addResponseId msg response
 
  where
   addResponseId msg response =

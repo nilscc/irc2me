@@ -119,7 +119,8 @@ connect tls hostname port = runExceptT $ do
     TLS -> do
 
       -- start TLS handshake
-      mp <- lift $ fromTLS h (clientParams hostname)
+      cpams <- liftIO $ initClientParams hostname
+      mp <- lift $ fromTLS h cpams
       case mp of
         Right (p, ctxt) -> return $ toTLSConnection ctxt $ continueWith p
         Left (Left  e) -> throwError $ TLSException' e
@@ -161,7 +162,8 @@ runStarttls hostname h = do
   (success,msgs) <- starttlsLoop (fromHandle h) []
 
   if success then do
-    mp <- lift $ fromTLS h (clientParams hostname)
+    cpams <- liftIO $ initClientParams hostname
+    mp <- lift $ fromTLS h cpams
     case mp of
       Right (p, ctxt) ->
         return $ toTLSConnection ctxt $ mapM_ yield msgs >> continueWith p
@@ -170,6 +172,28 @@ runStarttls hostname h = do
    else
     throwError STARTTLSFailed
 
+-- | After sending STARTTLS wait for '670' response on the encrypted connection
+starttlsLoop
+  :: MonadIO m
+  => Producer ByteString m e
+  -> [(UTCTime, IRCMsg)]
+  -> m (Bool, [(UTCTime, IRCMsg)])
+starttlsLoop prod msgs = do
+  (r, prod') <- Pipes.runStateT (Pipes.parse ircLine) prod
+  case r of
+    Just (Right msg)
+
+      -- STARTTLS accepted
+      | msg `hasCommand` "670" -> return (True, msgs)
+
+      -- forward NOTICE messages
+      | msg `hasCommand` "NOTICE" -> do
+        now <- liftIO $ getCurrentTime
+        starttlsLoop prod' (msgs ++[(now, msg)])
+
+    _ -> return (False, msgs)
+
+-- | Wait for CAP messages with server's capabilities
 capLoop
   :: MonadIO m
   => Producer ByteString m e
@@ -196,26 +220,6 @@ capLoop prod msgs = do
         return (prod', Nothing, msgs ++ [(now,msg)])
 
     _ -> return (prod', Nothing, msgs)
-
-starttlsLoop
-  :: MonadIO m
-  => Producer ByteString m e
-  -> [(UTCTime, IRCMsg)]
-  -> m (Bool, [(UTCTime, IRCMsg)])
-starttlsLoop prod msgs = do
-  (r, prod') <- Pipes.runStateT (Pipes.parse ircLine) prod
-  case r of
-    Just (Right msg)
-
-      -- STARTTLS accepted
-      | msg `hasCommand` "670" -> return (True, msgs)
-
-      -- forward NOTICE messages
-      | msg `hasCommand` "NOTICE" -> do
-        now <- liftIO $ getCurrentTime
-        starttlsLoop prod' (msgs ++[(now, msg)])
-
-    _ -> return (False, msgs)
 
 
 ------------------------------------------------------------------------------
@@ -289,7 +293,7 @@ continueWith p = do
 sendIrc :: Connection m -> IRCMsg -> IO ()
 sendIrc con msg = mkSafe $ case con of
   PlaintextConnection _ h -> B8.hPutStrLn h bs
-  TLSConnection       _ c -> sendData     c $ BL.fromStrict bs
+  TLSConnection       _ c -> sendData c $ BL.fromStrict bs
  where
   mkSafe io = io `catch` (\(_ :: IOException) -> return ())
   bs = fromIRCMsg msg

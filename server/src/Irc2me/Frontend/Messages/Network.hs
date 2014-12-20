@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 
-module Irc2me.Frontend.Messages.IrcNetwork where
+module Irc2me.Frontend.Messages.Network where
 
 import Data.Text (Text)
 import Data.Int
@@ -15,24 +15,25 @@ import Data.ProtocolBuffers.TH
 
 --local
 import Irc2me.Frontend.Messages.Helper
-import Irc2me.Frontend.Messages.IrcMessage
+import Irc2me.Frontend.Messages.Identity
+import Irc2me.Frontend.Messages.ChatMessage
 
 --
 -- IRC server
 --
 
-data IrcServer = IrcServer
+data Server = Server
   { _serverHost       :: Optional 1  (Value Text)
   , _serverPort       :: Optional 2  (Value Int32)
   , _serverUseTLS     :: Optional 10 (Value Bool)
   }
   deriving (Eq, Show, Generic)
 
-instance Encode IrcServer
-instance Decode IrcServer
+instance Encode Server
+instance Decode Server
 
-emptyIrcServer :: IrcServer
-emptyIrcServer = IrcServer
+emptyServer :: Server
+emptyServer = Server
   { _serverHost = putField Nothing
   , _serverPort = putField Nothing
   , _serverUseTLS = putField Nothing
@@ -43,27 +44,29 @@ emptyIrcServer = IrcServer
 --
 
 data ChannelStatus
-  = ChannelOffline
-  | ChannelOnline
-  | ChannelNewMessages
-  | ChannelNewNotifications
+  = OFFLINE
+  | ONLINE
+  | NEWMESSAGES
+  | NEWNOTIFICATIONS
   deriving (Eq, Show, Enum)
 
-data IrcChannel = IrcChannel
+data Channel = Channel
   { _channelId        :: Optional 1 (Value ID_T)
   , _channelName      :: Optional 2 (Value Text)
   , _channelStatus    :: Optional 3 (Enumeration ChannelStatus)
+  , _channelMessages  :: Repeated 10 (Message ChatMessage)
   }
   deriving (Eq, Show, Generic)
 
-instance Encode IrcChannel
-instance Decode IrcChannel
+instance Encode Channel
+instance Decode Channel
 
-emptyIrcChannel :: IrcChannel
-emptyIrcChannel = IrcChannel
+emptyChannel :: Channel
+emptyChannel = Channel
   { _channelId = putField Nothing
   , _channelName = putField Nothing
   , _channelStatus = putField Nothing
+  , _channelMessages = putField []
   }
 
 
@@ -71,7 +74,7 @@ emptyIrcChannel = IrcChannel
 -- IRC network message
 --
 
-data IrcNetwork = IrcNetwork
+data Network = Network
   { _networkId        :: Optional 1  (Value ID_T)
 
     -- status
@@ -80,24 +83,24 @@ data IrcNetwork = IrcNetwork
     -- network settings
   , _networkName      :: Optional 10 (Value Text)
   , _networkReconnect :: Optional 11 (Value Bool)
-  , _networkIdentity  :: Optional 12 (Value ID_T)
+  , _networkIdentity  :: Optional 12 (Message Identity)
 
     -- network servers
-  , _networkServers   :: Repeated 20 (Message IrcServer)
+  , _networkServers   :: Repeated 20 (Message Server)
 
     -- channels
-  , _networkChannels  :: Repeated 30 (Message IrcChannel)
+  , _networkChannels  :: Repeated 30 (Message Channel)
 
     -- network messages
-  , _networkMessages  :: Repeated 40 (Message IrcMessage)
+  , _networkMessages  :: Repeated 40 (Message ChatMessage)
   }
   deriving (Eq, Show, Generic)
 
-instance Encode IrcNetwork
-instance Decode IrcNetwork
+instance Encode Network
+instance Decode Network
 
-emptyIrcNetwork :: IrcNetwork
-emptyIrcNetwork = IrcNetwork
+emptyNetwork :: Network
+emptyNetwork = Network
   { _networkId        = putField Nothing
   , _networkName      = putField Nothing
   , _networkOnline    = putField Nothing
@@ -109,7 +112,8 @@ emptyIrcNetwork = IrcNetwork
   }
 
 ------------------------------------------------------------------------------
--- Lanes
+-- Lenses
 
-makeFieldLenses ''IrcServer
-makeFieldLenses ''IrcNetwork
+makeFieldLenses ''Server
+makeFieldLenses ''Channel
+makeFieldLenses ''Network

@@ -18,7 +18,7 @@ import Data.ProtocolBuffers.TH
 
 -- local
 import Irc2me.Frontend.Messages.Helper
-import Irc2me.Frontend.Messages.IrcNetwork
+import Irc2me.Frontend.Messages.Network
 import Irc2me.Frontend.Messages.System
 
 data ResponseCode
@@ -35,7 +35,7 @@ data ServerMessage = ServerMessage
   , _responseMsg      :: Optional 15 (Value Text)
 
     -- networks
-  , _serverNetworks   :: Repeated 50 (Message IrcNetwork)
+  , _serverNetworks   :: Repeated 50 (Message Network)
   }
   deriving (Show, Generic)
 

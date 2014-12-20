@@ -8,7 +8,7 @@ import Data.ByteString (ByteString)
 import Data.List
 
 -- lens
-import Control.Lens
+import Control.Lens hiding (Identity)
 import Data.Text.Lens
 
 -- scrypt
@@ -20,7 +20,7 @@ import Database.HDBC
 -- local
 import Irc2me.Database.Query
 import Irc2me.Frontend.Messages.Helper
-import Irc2me.Frontend.Messages.IrcIdentity
+import Irc2me.Frontend.Messages.Identity
 
 -- ID type
 
@@ -103,10 +103,10 @@ identityTable = "account_identities"
 identitySELECT :: String
 identitySELECT = "SELECT " ++ intercalate ", " identityFields ++ " FROM " ++ identityTable
 
-toIrcIdentity :: Converter IrcIdentity
-toIrcIdentity s = case s of
+toIdentity :: Converter Identity
+toIdentity s = case s of
   [SqlInteger i, SqlByteString u, SqlByteString r, SqlByteString n, na] -> Just $
-    emptyIrcIdentity &~ do
+    emptyIdentity &~ do
       identityId       .= Just (fromIntegral i)
       identityName     .= Just (u ^. encoded)
       identityRealname .= Just (r ^. encoded)
@@ -116,16 +116,16 @@ toIrcIdentity s = case s of
 
 -- queries
 
-selectIdentities :: AccountID -> Query [IrcIdentity]
+selectIdentities :: AccountID -> Query [Identity]
 selectIdentities (AccountID a) = Query
   (identitySELECT ++ " WHERE account = ? ORDER BY nick")
   [toSql a]
-  (convertList toIrcIdentity)
+  (convertList toIdentity)
 
 -- updates
 
-addIrcIdentity :: AccountID -> IrcIdentity -> Update (Maybe ID)
-addIrcIdentity (AccountID a) ident = UpdateReturning
+addIdentity :: AccountID -> Identity -> Update (Maybe ID)
+addIdentity (AccountID a) ident = UpdateReturning
   "INSERT INTO account_identities (account, username, realname, nick, nick_alt) \
   \     VALUES                    (?      , ?       , ?       , ?   , ?       ) \
   \  RETURNING id"
@@ -137,16 +137,16 @@ addIrcIdentity (AccountID a) ident = UpdateReturning
   ]
   (convertOne toID)
 
-deleteIrcIdentity :: AccountID -> ID -> Update Bool
-deleteIrcIdentity (AccountID a) i = Update
+deleteIdentity :: AccountID -> ID -> Update Bool
+deleteIdentity (AccountID a) i = Update
   "DELETE FROM account_identities WHERE account = ? AND id = ?"
   [ toSql a
   , toSql i
   ]
   (== 1)
 
-setIrcIdentity :: AccountID -> IrcIdentity -> Update Bool
-setIrcIdentity (AccountID a) ident = Update
+setIdentity :: AccountID -> Identity -> Update Bool
+setIdentity (AccountID a) ident = Update
   "UPDATE account_identities \
   \   SET username = ?, realname = ?, nick = ?, nick_alt = ?  \
   \ WHERE account = ? AND id = ?"

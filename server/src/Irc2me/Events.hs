@@ -1,31 +1,33 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+
+{-# OPTIONS -fno-warn-orphans #-} -- for Show instance of SendServerMessage
 
 module Irc2me.Events where
 
-import Control.Lens
+-- pipes
 import Pipes
+
+-- local
 import Control.Concurrent.Event
-import Data.Time
 
 import Irc2me.Frontend.Pipes
 import Irc2me.Frontend.Messages
 import Irc2me.Frontend.Connection.Types
 import Irc2me.Database.Tables.Accounts
-import Irc2me.Database.Tables.Networks
 
 data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }
   deriving (Show)
 
 data Event
-  = ClientConnected IrcHandler
-  | SendIrcMessage  NetworkID IrcMessage
+  = ClientConnected SendServerMessage
+  -- | SendMessage  NetworkID IrcMessage
   deriving (Show)
 
-newtype IrcHandler
-  = IrcHandler { runIrcHandler :: NetworkID -> (UTCTime, IrcMessage) -> IO () }
+type SendServerMessage = (ServerMessage -> IO ())
 
-instance Show IrcHandler where
-  show _ = "IrcHandler{ (UTCTime, IrcMessage) -> IO () }"
+instance Show (ServerMessage -> IO ()) where
+  show _ = "(ServerMessage -> IO ())"
 
 type EventRW m = EventT RW AccountEvent m
 type EventWO m = EventT WO AccountEvent m
@@ -38,17 +40,13 @@ clientConnected
   => AccountID
   -> c
   -> AccountEvent
-clientConnected aid c = AccountEvent aid $ ClientConnected $
-  IrcHandler $ \(NetworkID nid) (_t,msg) -> do
+clientConnected aid c = AccountEvent aid $ ClientConnected $ \serverMsg -> do
 
-    let network = emptyIrcNetwork & networkId .~ Just (fromIntegral nid)
-                                  & networkMessages .~ [msg]
+    -- send message
+    runEffect $ yield serverMsg >-> encodeMsg >-> send
 
-        msg' = emptyServerMessage & serverNetworks .~ [network]
-
-    runEffect $ yield msg' >-> encodeMsg >-> send
  where
   send = await >>= lift . sendToClient c
 
-sendIrcMessage :: AccountID -> NetworkID -> IrcMessage -> AccountEvent
-sendIrcMessage aid nid msg = AccountEvent aid $ SendIrcMessage nid msg
+--sendMessage :: AccountID -> NetworkID -> ChatMessage -> AccountEvent
+--sendMessage aid nid msg = AccountEvent aid $ SendMessage nid msg

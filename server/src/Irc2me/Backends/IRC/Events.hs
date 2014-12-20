@@ -4,7 +4,6 @@ import Control.Concurrent
 import Control.Monad.Trans
 
 import Data.Function
-import Data.Time
 import qualified Data.Foldable as F
 
 -- containers
@@ -14,12 +13,12 @@ import qualified Data.Map as Map
 import Control.Lens
 
 -- local
+
+import Control.Concurrent.Broadcast
 import Control.Concurrent.Event
+
 import Irc2me.Events
-
-import Irc2me.Backends.IRC.Broadcast as BC
 import Irc2me.Backends.IRC.Helper
-
 import Irc2me.Database.Tables.Accounts
 
 --------------------------------------------------------------------------------
@@ -27,15 +26,23 @@ import Irc2me.Database.Tables.Accounts
 
 manageIrcConnections :: MonadIO m => IrcConnections -> EventRW m ()
 manageIrcConnections = fix $ \loop irc -> do
+
   AccountEvent aid ev <- getEvent
   case ev of
 
-    ClientConnected (IrcHandler h) -> do
-      logM $ "Subscribe client (Account #" ++ show (aid ^. accountId) ++ ") to IRC networks"
-      F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc ->
-        liftIO $ forkIO $ subscribe bc h
+    -- new client connected
+    ClientConnected sendMessage -> do
 
-    SendIrcMessage nid msg
+      logM $ "Subscribe client (Account #" ++ show (aid ^. accountId) ++ ") to IRC networks"
+
+      -- lookup all broadcasts for account
+      F.forM_ (Map.findWithDefault Map.empty aid irc) $ \bc -> do
+
+        -- subscribe client to broadcast
+        liftIO $ forkIO $ subscribe bc sendMessage
+
+    {-
+    SendMessage nid msg
 
         -- look up account
       | Just nw <- Map.lookup aid irc
@@ -47,6 +54,7 @@ manageIrcConnections = fix $ \loop irc -> do
         BC.sendIrcMessage bc msg
 
     _ -> return ()
+    -}
 
   loop irc
  where

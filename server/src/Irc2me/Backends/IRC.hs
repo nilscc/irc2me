@@ -2,19 +2,28 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module Irc2me.Backends.IRC where
+module Irc2me.Backends.IRC
+  ( runIrcBackend, runIrcBackend'
+  ) where
 
 import Control.Concurrent
-import Control.Concurrent.Event
-import Irc2me.Frontend.Messages hiding (_networkId)
 
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
+import Data.Int
+
 import System.IO
+
+-- time
+import Data.Time.Clock.POSIX
+
+-- irc-bytestring
+import Network.IRC.ByteString.Parser as IRC
 
 -- containers
 import qualified Data.Map as Map
@@ -27,13 +36,18 @@ import Control.Lens
 import Data.Text.Lens
 
 -- local
+import Control.Concurrent.Event
 import Irc2me.Events
 
-import Irc2me.Database.Query
-import Irc2me.Database.Tables.Accounts
-import Irc2me.Database.Tables.Networks
+import Irc2me.Frontend.Messages        as M hiding (_networkId)
+-- import Irc2me.Frontend.Messages.Helper as M
+
+import Irc2me.Database.Query            as DB
+import Irc2me.Database.Tables.Accounts  as DB
+import Irc2me.Database.Tables.Networks  as DB
 
 import Irc2me.Backends.IRC.Helper
+import Irc2me.Backends.IRC.NetworkState
 import Irc2me.Backends.IRC.Broadcast as BC
 import Irc2me.Backends.IRC.Events
 
@@ -82,8 +96,15 @@ reconnectAll con = withCon con $ do
         -- reconnect network
         Nothing -> do
 
+          -- query network identity from DB
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
-          mbc'  <- liftIO $ startBroadcasting ident (netid,server)
+
+          -- init network state
+          networkState <- newNetworkState accid netid ident
+          let converter = evalIRCMsg networkState
+
+          -- start broadcasting
+          mbc'  <- liftIO $ startIrcBroadcast server ident converter
           case mbc' of
             Just bc -> do
 
@@ -94,9 +115,6 @@ reconnectAll con = withCon con $ do
                 ++ " ("
                 ++ (if server ^. serverUseTLS . non False then "using TLS" else "plaintext")
                 ++ ")"
-
-              _ <- liftIO $ forkIO $ subscribe bc $ \_nid tmsg ->
-                putStrLn $ "[IRC] " ++ testFormat tmsg
 
               -- store new broadcast
               at accid . non' _Empty . at netid ?= bc
@@ -112,3 +130,50 @@ reconnectAll con = withCon con $ do
 
   require m = maybe mzero return =<< m
   withCon c = execStateT `flip` c
+
+--------------------------------------------------------------------------------
+-- IRC message evaluation & network state
+
+evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> IO (Maybe ServerMessage)
+evalIRCMsg ns (t,msg)
+
+  | Just _ty  <- cm ^. messageType -- known type
+  , [to']     <- params            -- one recipient
+
+  = do ident <- getNetworkIdentitiy ns
+
+       -- build broadcast message
+       return $ Just $ serverMessage $ network &~ do
+
+         -- figure out where messages goes to
+         if ident ^. identityNick == Just to' then
+           networkMessages .= [ cm ]
+          else
+           networkChannels .=
+             [ emptyChannel &~ do
+                 channelName     .= Just to'
+                 channelMessages .= [ cm ]
+             ]
+
+  | otherwise
+  = do -- broadcast everything else as 'private' network message:
+       return $ Just $ serverMessage $ network &~ do
+         networkMessages .= [ cm ]
+
+ where
+
+  epoch :: Int64
+  epoch = floor $ utcTimeToPOSIXSeconds t * 1000
+
+  (cm,params) = msg ^. chatMessage &~ do
+
+    -- add timestamp
+    _1 %= (messageTimestamp .~ Just epoch)
+
+  -- ServerMessage default 'template'
+  serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
+
+  -- network template
+  network = emptyNetwork &~ do
+
+    M.networkId .= Just (ns ^. nsNetworkID . DB.networkId & fromIntegral)

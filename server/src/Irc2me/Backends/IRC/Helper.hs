@@ -1,44 +1,51 @@
 module Irc2me.Backends.IRC.Helper where
 
-import Control.Applicative
 import Data.Time
-import Data.List
 
 import Data.Map (Map)
 
 -- lens
-import Control.Lens
-import Data.Text.Lens
+--import Control.Lens
+--import Data.Text.Lens
+
+-- irc-bytestring
+import Network.IRC.ByteString.Parser as IRC
 
 -- local
-import Irc2me.Backends.IRC.Broadcast
-import Irc2me.Database.Tables.Accounts
-import Irc2me.Frontend.Messages.IrcMessage
+import Control.Concurrent.Broadcast
 
-type IrcConnections = Map AccountID (Map NetworkID IrcBroadcast)
+import Irc2me.Database.Tables.Accounts
+import Irc2me.Database.Tables.Networks
+import Irc2me.Frontend.Messages
+
+type IrcConnections = Map AccountID (Map NetworkID NetworkBroadcast)
+
+type NetworkBroadcast = (Broadcast ServerMessage)
 
 ------------------------------------------------------------------------------
 -- Testing
 
-testFormat :: (UTCTime, IrcMessage) -> String
-testFormat (t, msg) =
+testFormat :: (UTCTime, IRCMsg) -> String
+testFormat (t, msg) = "[" ++ show t ++ "] " ++ show msg
 
+{-
   let time = show t -- formatTime defaultTimeLocale "%T" t
 
-      cmd = (    msg ^? ircMessageType    . _Just . re _Show
-             <|> msg ^? ircMessageTypeRaw . _Just . _Text
+      cmd = (    msg ^? messageType      . _Just . re _Show
+             <|> msg ^? messageTypeOther . _Just . _Text
             ) ^. non "?"
 
-      who = (    msg ^? ircFromUser   . _Just . userNick . _Text
-             <|> msg ^? ircFromServer . _Just . _Text
+      who = (    msg ^? messageFromUser   . _Just . userNick . _Text
+             <|> msg ^? messageFromServer . _Just . _Text
             ) ^. non "-"
 
-      par = msg ^. ircTo ^.. traversed . _Text & intercalate ", "
+      par = params ^.. traversed . _Text & intercalate ", "
 
-      cnt = (msg ^? ircContent . _Just . _Text) ^. non ""
+      cnt = (msg ^? messageContent . _Just . _Text) ^. non ""
 
   in "["  ++ time ++ "]"
   ++ " "  ++ cmd
   ++ " <" ++ who ++ ">"
   ++ " [" ++ par ++ "]"
   ++ " "  ++ cnt
+-}
