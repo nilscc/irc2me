@@ -1,6 +1,8 @@
 module Main where
 
+import Network
 import Irc2me.Frontend.Connection
 
 main :: IO ()
-main = runServer defaultServerConfig
+main = withSocketsDo $
+  runServer defaultServerConfig

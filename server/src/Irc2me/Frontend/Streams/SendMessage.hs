@@ -6,7 +6,6 @@ import Control.Applicative
 import Control.Lens
 
 -- local
-import Control.Concurrent.Event
 import Irc2me.Events as Event
 
 import Irc2me.Database.Tables.Networks
@@ -18,8 +17,8 @@ import Irc2me.Frontend.Messages.ChatMessage
 import Irc2me.Frontend.Messages.Client
 import Irc2me.Frontend.Messages.Server
 
-sendMessage :: ServerResponse
-sendMessage = do
+sendMessageResponse :: ServerResponse
+sendMessageResponse = do
 
   send <- requireMessageField clientSendMessage
 

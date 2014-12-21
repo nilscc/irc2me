@@ -8,9 +8,13 @@ module Irc2me.Frontend.Streams
 
 import Control.Applicative
 import Control.Concurrent.Event
-import Control.Lens.Operators
 import Control.Monad
 
+-- lens
+import Control.Lens
+import Data.Text.Lens
+
+-- local
 import Irc2me.Events as Events
 import Irc2me.Frontend.Messages
 import Irc2me.Frontend.Streams.StreamT as Stream
@@ -18,8 +22,7 @@ import Irc2me.Frontend.Streams.Helper  as Stream
 
 -- specific streams
 import Irc2me.Frontend.Streams.Authenticate
-import Irc2me.Frontend.Streams.Irc
-import Irc2me.Frontend.Streams.System
+import Irc2me.Frontend.Streams.SendMessage
 
 serverStream :: Stream ()
 serverStream = do
@@ -38,8 +41,8 @@ serverStream = do
     let state = ServerReaderState { connectionAccount = Just account
                                   , responseContext   = msg }
 
-    response <- getServerResponse state $ do
-                  choice [ throwS "serverStream" $ "Not implemented: " ++ show msg
+    response <- getServerResponse state $ handleThrowS $ do
+                  choice [ sendMessageResponse
                          ]
 
     Stream.sendMessage $ addResponseId msg response
@@ -47,3 +50,6 @@ serverStream = do
  where
   addResponseId msg response =
     response & serverResponseID .~ (msg ^. clientResponseID)
+
+  handleThrowS st = catchS st $ \e ->
+    return $ responseErrorMessage (e ^? _Just . re _Text)

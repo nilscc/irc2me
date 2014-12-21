@@ -11,7 +11,7 @@ module Irc2me.Frontend.Streams.StreamT
   ( -- * Streams
     Stream, StreamT
   , Chunks
-  , throwS, showS
+  , throwS, catchS, showS
   , choice
   , liftMonadTransformer
   , mapStreamT
@@ -104,6 +104,14 @@ throwS
   -> String -- ^ error message
   -> StreamT (First String) m a
 throwS f e = StreamT $ \_ -> throwError (First $ Just $ "[" ++ f ++ "] " ++ e)
+
+catchS
+  :: Monad m
+  => StreamT (First String) m a
+  -> (Maybe String -> StreamT (First String) m a)
+  -> StreamT (First String) m a
+catchS g c = StreamT $ \s -> unStreamT g s `catchError` \(First a) ->
+  unStreamT (c a) s
 
 -- | Run an `ExceptT` monad in `StreamT` and rethrow the exception as `String`
 showS
