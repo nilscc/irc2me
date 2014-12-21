@@ -106,7 +106,7 @@ reconnectAll con = withCon con $ do
           -- start broadcasting
           mbc'  <- liftIO $ startIrcBroadcast server ident converter
           case mbc' of
-            Just bc -> do
+            Just (con',bc) -> do
 
               log' $ "Connected to "
                 ++ (server ^. serverHost . _Just . _Text)
@@ -117,7 +117,7 @@ reconnectAll con = withCon con $ do
                 ++ ")"
 
               -- store new broadcast
-              at accid . non' _Empty . at netid ?= bc
+              at accid . non' _Empty . at netid ?= NetworkConnection bc con'
 
             Nothing -> do
               log' $ "Failed to connect to Network " ++ show (_networkId netid)
@@ -137,8 +137,8 @@ reconnectAll con = withCon con $ do
 evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> IO (Maybe ServerMessage)
 evalIRCMsg ns (t,msg)
 
-  | Just _ty  <- cm ^. messageType -- known type
-  , [to']     <- params            -- one recipient
+  | Just _ty  <- cm ^. messageType    -- known type
+  , [to']     <- cm ^. messageParams  -- one recipient
 
   = do ident <- getNetworkIdentitiy ns
 
@@ -165,10 +165,9 @@ evalIRCMsg ns (t,msg)
   epoch :: Int64
   epoch = floor $ utcTimeToPOSIXSeconds t * 1000
 
-  (cm,params) = msg ^. chatMessage &~ do
-
+  cm = (msg ^. chatMessage) &
     -- add timestamp
-    _1 %= (messageTimestamp .~ Just epoch)
+    messageTimestamp .~ Just epoch
 
   -- ServerMessage default 'template'
   serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]

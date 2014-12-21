@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Irc2me.Backends.IRC.Broadcast
   ( startIrcBroadcast
@@ -43,7 +44,7 @@ startIrcBroadcast
   -> Identity
   -> ((UTCTime, IRCMsg) -> IO (Maybe msg))  -- ^ Converter/evalutor for incoming messages (before
                       -- broadcast)
-  -> IO (Maybe (Broadcast msg))
+  -> IO (Maybe (Connection IO, Broadcast msg))
 startIrcBroadcast server ident convert
 
     -- server
@@ -77,8 +78,8 @@ startIrcBroadcast server ident convert
         liftIO $ sendIrc con $ ircMsg "NICK" [ nick ] ""
 
         -- create new broadcast
-        Just <$> startBroadcasting' (ircBroadcast con)
-                                    (stopIrcBroadcast con Nothing)
+        (Just . (con,)) <$> startBroadcasting' (ircBroadcast con)
+                                               (stopIrcBroadcast con Nothing)
 
   | otherwise = return Nothing
 

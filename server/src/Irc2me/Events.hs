@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 {-# OPTIONS -fno-warn-orphans #-} -- for Show instance of SendServerMessage
 
@@ -15,13 +16,14 @@ import Irc2me.Frontend.Pipes
 import Irc2me.Frontend.Messages
 import Irc2me.Frontend.Connection.Types
 import Irc2me.Database.Tables.Accounts
+import Irc2me.Database.Tables.Networks
 
 data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }
   deriving (Show)
 
 data Event
   = ClientConnected SendServerMessage
-  -- | SendMessage  NetworkID IrcMessage
+  | SendMessage NetworkID ChatMessage
   deriving (Show)
 
 type SendServerMessage = (ServerMessage -> IO ())
@@ -48,5 +50,8 @@ clientConnected aid c = AccountEvent aid $ ClientConnected $ \serverMsg -> do
  where
   send = await >>= lift . sendToClient c
 
---sendMessage :: AccountID -> NetworkID -> ChatMessage -> AccountEvent
---sendMessage aid nid msg = AccountEvent aid $ SendMessage nid msg
+sendMessage
+  :: MonadEventW m AccountEvent
+  => AccountID -> NetworkID -> ChatMessage -> m ()
+sendMessage aid nid msg = raiseEvent $ AccountEvent aid $
+  Irc2me.Events.SendMessage nid msg
