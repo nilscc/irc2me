@@ -14,6 +14,7 @@ module Irc2me.Frontend.Streams.StreamT
   , throwS, showS
   , choice
   , liftMonadTransformer
+  , mapStreamT
 
     -- ** Connections
   , runStream
@@ -157,12 +158,19 @@ choice :: (Alternative m, Monad m, Monoid e) => [StreamT e m a] -> StreamT e m a
 choice = foldl' (<|>) empty
 
 liftMonadTransformer
-  :: (MonadTrans t, Monad m)
+  :: (MonadTrans t, Monad m, Monad (t m))
   => (t m (Either e (Chunks, a)) -> m (Either e (Chunks, a)))
   -> StreamT e (t m) a
   -> StreamT e m a
-liftMonadTransformer transf streamt = StreamT $ \s -> do
-  res <- lift $ transf $ runExceptT $ unStreamT streamt s
+liftMonadTransformer = mapStreamT
+
+mapStreamT
+  :: (Monad m, Monad n)
+  => (m (Either e (Chunks, a)) -> n (Either e (Chunks, a)))
+  -> StreamT e m a
+  -> StreamT e n a
+mapStreamT transf m = StreamT $ \s -> do
+  res <- lift $ transf $ runExceptT $ unStreamT m s
   case res of
     Left e -> throwError e
     Right a -> return a

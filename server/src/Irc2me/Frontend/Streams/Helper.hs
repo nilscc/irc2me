@@ -71,71 +71,88 @@ sendMessage msg = do
 --------------------------------------------------------------------------------
 -- Server response state
 
-data ServerReaderState = ServerReaderState
+data ServerReaderState ctxt = ServerReaderState
   { connectionAccount :: Maybe AccountID
-  , clientMessage     :: ClientMessage
+  , responseContext   :: ctxt
   }
 
-type ServerResponseT
+type ServerResponseT ctxt
   = StreamT (First String)
-            (ReaderT ServerReaderState
+            (ReaderT (ServerReaderState ctxt)
                      (EventT WO AccountEvent IO))
-type ServerResponse  = ServerResponseT ServerMessage
+
+type ServerResponse = ServerResponseT ClientMessage ServerMessage
 
 getServerResponse
-  :: ServerReaderState -> ServerResponse -> Stream ServerMessage
+  :: ServerReaderState ClientMessage
+  -> ServerResponse
+  -> Stream ServerMessage
 getServerResponse state resp =
   liftMonadTransformer (runReaderT `flip` state) resp
 
-withAccount :: (AccountID -> ServerResponseT a) -> ServerResponseT a
+withAccount :: (AccountID -> ServerResponseT ctxt a) -> ServerResponseT ctxt a
 withAccount f = do
   macc <- lift $ asks connectionAccount
   case macc of
     Nothing -> throwS "withAccount" "Login required"
     Just acc -> f acc
 
-getClientMessage :: ServerResponseT ClientMessage
-getClientMessage = lift $ asks clientMessage
+withResponseContext
+  :: (ctxt' -> ctxt)
+  -> ServerResponseT ctxt  a
+  -> ServerResponseT ctxt' a
+withResponseContext f = mapStreamT $
+  withReaderT (\rs -> rs { responseContext = f (responseContext rs) })
+
+setResponseContext :: ctxt -> ServerResponseT ctxt a -> ServerResponseT ctxt' a
+setResponseContext ctxt = mapStreamT $
+  withReaderT (\rs -> rs { responseContext = ctxt})
+
+getResponseContext :: ServerResponseT ctxt ctxt
+getResponseContext = lift $ asks responseContext
+
+getClientMessage :: ServerResponseT ClientMessage ClientMessage
+getClientMessage = getResponseContext
 
 messageField
-  :: Getter ClientMessage a
-  -> ServerResponseT a
+  :: Getter ctxt a
+  -> ServerResponseT ctxt a
 messageField lns = do
-  msg <- getClientMessage
+  msg <- getResponseContext
   return $ msg ^. lns
 
 guardMessageField
-  :: Getter ClientMessage (Maybe a)
-  -> ServerResponseT ()
+  :: Getter ctxt (Maybe a)
+  -> ServerResponseT ctxt ()
 guardMessageField lns = do
-  msg <- getClientMessage
+  msg <- getResponseContext
   guard $ isJust $ msg ^. lns
 
 guardMessageFieldValue
   :: Eq a
-  => Getter ClientMessage a
+  => Getter ctxt a
   -> a
-  -> ServerResponseT ()
+  -> ServerResponseT ctxt ()
 guardMessageFieldValue lns val = do
-  msg <- getClientMessage
+  msg <- getResponseContext
   guard $ (msg ^. lns) == val
 
 requireMessageField
-  :: Getter ClientMessage (Maybe t)
-  -> ServerResponseT t
+  :: Getter ctxt (Maybe t)
+  -> ServerResponseT ctxt t
 requireMessageField lns = do
-  msg <- getClientMessage
+  msg <- getResponseContext
   case msg ^. lns of
     Just t  -> return t
     Nothing -> mzero
 
 requireMessageFieldValue
   :: Eq t
-  => Getter ClientMessage (Maybe t)
+  => Getter ctxt (Maybe t)
   -> t
-  -> ServerResponseT ()
+  -> ServerResponseT ctxt ()
 requireMessageFieldValue lns val = do
-  msg <- getClientMessage
+  msg <- getResponseContext
   case msg ^. lns of
     Just t | t == val -> return ()
     _                 -> mzero
@@ -145,12 +162,12 @@ requireMessageFieldValue lns val = do
 
 foldOn, guardFoldOn
   :: Foldable f
-  => Getter ClientMessage (f a)
+  => Getter ctxt (f a)
   -> Fold a b
-  -> ServerResponseT [b]
+  -> ServerResponseT ctxt [b]
 
 foldOn lns fld = do
-  msg <- getClientMessage
+  msg <- getResponseContext
   return $ (msg ^. lns) ^.. folded . fld
 
 guardFoldOn lns fld = do
@@ -160,9 +177,9 @@ guardFoldOn lns fld = do
 
 foldROn, guardFoldROn
   :: Foldable f
-  => Getter ClientMessage (f a)
+  => Getter ctxt (f a)
   -> ReifiedFold a b
-  -> ServerResponseT [b]
+  -> ServerResponseT ctxt [b]
 
 foldROn lns rfld = foldOn lns (runFold rfld)
 
