@@ -1,3 +1,5 @@
+{-# LANGUAGE PatternGuards #-}
+
 module Irc2me.Backends.IRC.Events where
 
 import Control.Concurrent
@@ -65,7 +67,7 @@ manageIrcConnections irc = forever $ do
 
         sendIrc (nc ^. networkConnection) ircmsg
 
-    _ -> return ()
+      | otherwise -> logM $ "Network not found."
 
  where
   logM msg = liftIO $ putStrLn $ "[IRC] " ++ msg
