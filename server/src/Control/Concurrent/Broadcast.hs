@@ -10,7 +10,7 @@ module Control.Concurrent.Broadcast
   , BroadcastT
   , startBroadcasting, startBroadcasting'
   , stopBroadcasting
-  , broadcast, getBroadcastFunction
+  , broadcast, getBroadcastFunction, sendBroadcast
   , subscribe
   ) where
 
@@ -101,6 +101,10 @@ broadcast :: MonadIO m => msg -> BroadcastT msg m ()
 broadcast msg = BroadcastT $ do
   messages <- ask
   liftIO $ atomically $ writeTChan messages msg
+
+sendBroadcast :: MonadIO m => Broadcast msg -> msg -> m ()
+sendBroadcast bc msg = do
+  liftIO $ atomically $ writeTChan (bc ^. broadcastMessages) msg
 
 getBroadcastFunction :: MonadIO m => BroadcastT msg m (msg -> m ())
 getBroadcastFunction = BroadcastT $ do
