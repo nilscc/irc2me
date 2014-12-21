@@ -36,7 +36,7 @@ serverStream = do
     msg <- getMessage
 
     let state = ServerReaderState { connectionAccount = Just account
-                                  , clientMessage     = msg }
+                                  , responseContext   = msg }
 
     response <- getServerResponse state $ do
                   choice [ throwS "serverStream" $ "Not implemented: " ++ show msg

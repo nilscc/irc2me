@@ -124,7 +124,7 @@ toUser ui = emptyUser &~ do
 
 type Parameters = [Text]
 
-chatMessage :: Iso' IRC.IRCMsg (ChatMessage, Parameters)
+chatMessage :: Iso' IRC.IRCMsg ChatMessage
 chatMessage = iso toChatMsg fromChatMsg
 
 emptyChatMessage :: ChatMessage
@@ -140,8 +140,8 @@ emptyChatMessage = ChatMessage
   , _messageContent     = putField Nothing
   }
 
-toChatMsg :: IRC.IRCMsg -> (ChatMessage, Parameters)
-toChatMsg msg = (,to') $ emptyChatMessage &~ do
+toChatMsg :: IRC.IRCMsg -> ChatMessage
+toChatMsg msg = emptyChatMessage &~ do
 
   case IRC.msgCmd msg ^? msgType of
     Just ty        -> messageType      .= Just ty
@@ -149,6 +149,7 @@ toChatMsg msg = (,to') $ emptyChatMessage &~ do
 
   messageFromUser     .= fromU
   messageFromServer   .= fromS
+  messageParams       .= to'
   messageContent      .= if T.null content then Nothing else Just content
 
  where
@@ -167,11 +168,11 @@ toChatMsg msg = (,to') $ emptyChatMessage &~ do
   -- content
   content = IRC.msgTrail msg ^. encoded
 
-fromChatMsg :: (ChatMessage, Parameters) -> IRC.IRCMsg
-fromChatMsg (msg, to') = IRC.IRCMsg
+fromChatMsg :: ChatMessage -> IRC.IRCMsg
+fromChatMsg msg = IRC.IRCMsg
   { IRC.msgPrefix = prefix
   , IRC.msgCmd    = fromMaybe "PRIVMSG" cmd
-  , IRC.msgParams = map (^. from encoded) to'
+  , IRC.msgParams = map (^. from encoded) params
   , IRC.msgTrail  = fromMaybe "" content
   }
  where
@@ -183,6 +184,8 @@ fromChatMsg (msg, to') = IRC.IRCMsg
          <|> msg ^? messageTypeOther . _Just . from encoded
 
   content = msg ^? messageContent . _Just . from encoded
+
+  params = msg ^. messageParams
 
 --
 -- IRC type prism

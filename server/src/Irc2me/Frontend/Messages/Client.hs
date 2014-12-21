@@ -7,12 +7,15 @@ module Irc2me.Frontend.Messages.Client where
 
 import GHC.Generics (Generic)
 
+import Data.Text
+
 -- protobuf
 import Data.ProtocolBuffers
 import Data.ProtocolBuffers.Orphans ()
 import Data.ProtocolBuffers.TH
 
 -- local
+import Irc2me.Frontend.Messages.ChatMessage as ChatMessage
 import Irc2me.Frontend.Messages.Helper
 import Irc2me.Frontend.Messages.Network
 import Irc2me.Frontend.Messages.System
@@ -25,7 +28,7 @@ data ClientMessage = ClientMessage
 
     -- APIs
   , _clientGET              :: Optional 10 (Message GET)
-  , _clientSEND             :: Optional 10 (Message SEND)
+  , _clientSendMessage      :: Optional 10 (Message SendMessage)
   , _clientPUT              :: Optional 10 (Message PUT)
   , _clientDELETE           :: Optional 10 (Message DELETE)
   , _clientUPDATE           :: Optional 10 (Message UPDATE)
@@ -48,23 +51,19 @@ instance Encode GET
 instance Decode GET
 
 ------------------------------------------------------------------------------
--- SEND API
+-- SendMessage API
 
-data SEND = SEND
-  { -- _sendPrivateMessages :: Repeated 1 (Message PrivateMessage)
+data SendMessage = SendMessage
+  { _sendType             :: Optional 1  (Enumeration ChatMessage.Type)
+  , _sendTypeRaw          :: Optional 2  (Value Text)
+  , _sendNetworkID        :: Optional 3  (Value ID_T)
+  , _sendParams           :: Repeated 15 (Value Text)
+  , _sendContent          :: Optional 20 (Value Text)
   }
   deriving (Eq, Show, Generic)
 
-instance Encode SEND
-instance Decode SEND
-
-data PrivateMessage = PrivateMessage
-  { -- _privateMessage       :: Optional 1 (Message ChatMessage)
-  }
-  deriving (Eq, Show, Generic)
-
-instance Encode PrivateMessage
-instance Decode PrivateMessage
+instance Encode SendMessage
+instance Decode SendMessage
 
 ------------------------------------------------------------------------------
 -- PUT API
@@ -105,12 +104,7 @@ instance Decode UPDATE
 makeFieldLenses ''ClientMessage
 
 makeFieldLenses ''GET
-
-makeFieldLenses ''SEND
-makeFieldLenses ''PrivateMessage
-
+makeFieldLenses ''SendMessage
 makeFieldLenses ''PUT
-
 makeFieldLenses ''DELETE
-
 makeFieldLenses ''UPDATE
