@@ -28,10 +28,10 @@ data ClientMessage = ClientMessage
 
     -- APIs
   , _clientGET              :: Optional 10 (Message GET)
-  , _clientSendMessage      :: Optional 10 (Message SendMessage)
-  , _clientPUT              :: Optional 10 (Message PUT)
-  , _clientDELETE           :: Optional 10 (Message DELETE)
-  , _clientUPDATE           :: Optional 10 (Message UPDATE)
+  , _clientSendMessage      :: Optional 20 (Message SendMessage)
+  , _clientPUT              :: Optional 30 (Message PUT)
+  , _clientDELETE           :: Optional 40 (Message DELETE)
+  , _clientUPDATE           :: Optional 50 (Message UPDATE)
 
   }
   deriving (Eq, Show, Generic)
