@@ -190,4 +190,11 @@ $(document).ready(function () {
         UIState.closeAllWindows();
     });
 
+    // bin "enter" key in input fields
+    $("input").keypress(function (e) {
+        if (e.which == 13) { // enter key
+            page.connect();
+        }
+    });
+
 });
