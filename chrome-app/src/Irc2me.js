@@ -132,9 +132,18 @@ Irc2me.prototype._handleIncomingMessages = function (buffer) {
     // decode as ServerMsg
     var msg = ServerMsg.decode(buffer);
 
-    Irc2me.Signals.incomingMessage(msg);
+    // lookup response ID & callbacks
+    var cbs = self._callbacks = self._callbacks || {};
+    var id  = msg.response_id;
 
-    console.log(msg);
+    // check if 'id' has a callback
+    if (id && cbs.hasOwnProperty(id)) {
+        cbs[id](msg);
+    } else {
+        // otherwise notify all listeners
+        Irc2me.Signals.incomingMessage(msg);
+        console.log(msg);
+    }
 }
 
 /*
@@ -224,6 +233,57 @@ Irc2me.prototype.disconnect = function () {
 }
 
 /*
+ * Sending messages
+ *
+ */
+
+// Add a callback, returns the callback ID
+Irc2me.prototype.addCallback = function (cb) {
+
+    var self = this;
+
+    // get (and alias) next ID
+    var id  = self._nextId = (self._nextId || 0) + 1;
+
+    // init (and alias) callback object
+    var cbs = self._callbacks = self._callbacks || {};
+
+    // store callback
+    cbs[id] = cb;
+
+    return id;
+}
+
+Irc2me.prototype.sendMessage = function(network_id, type, content, parameters, cb) {
+
+    var self = this;
+
+    var messages = self._messages,
+        stream   = self._protoStream;
+
+    var msg = new messages.ClientMsg({
+        send: new messages.ClientMsg.SendMessage({
+            network_id: network_id,
+            params: parameters,
+            content: content,
+        }),
+    });
+
+    if (typeof type == "string") {
+        msg.send.type_raw = type;
+    } else {
+        msg.send.type = type;
+    }
+
+    if (typeof cb == "function") {
+        msg.response_id = self.addCallback(cb);
+    }
+
+    stream.sendMessage(msg);
+}
+
+
+/*
  * Chrome message interface: Incoming messages
  *
  */
@@ -231,6 +291,11 @@ Irc2me.prototype.disconnect = function () {
 Irc2me.connect     = new ChromeMessage("Irc2me.connect");
 Irc2me.isConnected = new ChromeMessage("Irc2me.isConnected");
 Irc2me.disconnect  = new ChromeMessage("Irc2me.disconnect");
+
+// sending messages
+Irc2me.sendMessage        = new ChromeMessage("Irc2me.sendMessage");
+Irc2me.sendPrivateMessage = new ChromeMessage("Irc2me.sendPrivateMessage");
+Irc2me.sendCommand        = new ChromeMessage("Irc2me.sendCommand");
 
 Irc2me.prototype.listen = function () {
 
@@ -256,6 +321,49 @@ Irc2me.prototype.listen = function () {
         sendResponse(self._authenticated === true);
     });
 
+    Irc2me.sendMessage.addListener(function(content, sendResponse) {
+
+        var netw = content.network_id,
+            type = content.type,
+            cont = content.content,
+            pars = content.parameters;
+            
+        self.sendMessage(netw, type, cont, pars, sendResponse);
+
+        return true; // async callback
+    });
+
+    Irc2me.sendPrivateMessage.addListener(function(content, sendResponse) {
+
+        var netw = content.network_id,
+            to   = content.to,
+            txt  = content.text;
+
+        // alias
+        var PRIVMSG = self._messages.Network.Message.Type.PRIVMSG;
+
+        self.sendMessage(netw, PRIVMSG, txt, [to], sendResponse);
+
+        return true; // async callback
+    });
+
+    Irc2me.sendCommand.addListener(function(content, sendResponse) {
+
+        var netw = content.network_id,
+            cmd  = content.command,
+            pars = content.parameters;
+
+        // alias
+        var Type = self._messages.Network.Message.Type;
+
+        if (typeof cmd == "string") {
+            cmd = self.messageTypeByString(cmd);
+        }
+
+        self.sendMessage(netw, cmd, "", pars, sendResponse);
+
+        return true; // async callback
+    });
 }
 
 /*
