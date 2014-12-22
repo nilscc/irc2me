@@ -1,6 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Irc2me.Frontend.Streams.SendMessage where
 
 import Control.Applicative
+import Control.Monad
+
+import Data.Char
+import Data.Text as Text
 
 -- lens
 import Control.Lens
@@ -41,6 +47,10 @@ sendMessageResponse = do
 
     -- message content
     cnt <- messageField sendContent
+
+    -- some simple validation: empty input on private messages
+    when (ty == Left PRIVMSG && Text.all isSpace (cnt ^. non "")) $
+      throwS "sendMessageResponse" "Empty PRIVMSG"
 
     -- build chat message
     let msg = emptyChatMessage &~ do
