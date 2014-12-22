@@ -139,9 +139,7 @@ PageConnect.prototype.SystemLog.append = function (statusObject) {
             + statusObject.message + "</p>");
 
     // scroll parent to bottom
-    var par = log.parent()[0];
-    par.scrollTop = par.scrollHeight;
-
+    Helper.scrollToBottom(log.parent());
 }
 
 PageConnect.prototype.SystemLog.loadAll = function () {

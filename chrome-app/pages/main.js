@@ -120,6 +120,12 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
         return;
     }
 
+    var messageList = $("#message-list");
+
+    // get current scroll position
+    var atBottom = Helper.scrollAtBottom(messageList);
+
+    // load template
     var src = $("#message-template").html();
 
     for (var i = 0; i < messages.length; i++) {
@@ -143,6 +149,10 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
         var compiled_template = Mustache.to_html(src, template_data);
 
         $("#message-list").append(compiled_template);
+    }
+
+    if (atBottom) {
+        Helper.scrollToBottom(messageList);
     }
 };
 
