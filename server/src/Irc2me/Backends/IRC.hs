@@ -100,8 +100,8 @@ reconnectAll con = withCon con $ do
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
 
           -- init network state
-          networkState <- newNetworkState accid netid ident
-          let converter = evalIRCMsg networkState
+          ns <- newNetworkState accid netid ident
+          let converter = evalIRCMsg ns
 
           -- start broadcasting
           mbc'  <- liftIO $ startIrcBroadcast server ident converter
@@ -117,7 +117,7 @@ reconnectAll con = withCon con $ do
                 ++ ")"
 
               -- store new broadcast
-              at accid . non' _Empty . at netid ?= NetworkConnection bc con'
+              at accid . non' _Empty . at netid ?= NetworkConnection bc con' ns
 
             Nothing -> do
               log' $ "Failed to connect to Network " ++ show (_networkId netid)

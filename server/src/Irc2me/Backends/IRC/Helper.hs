@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Irc2me.Backends.IRC.Helper where
 
@@ -21,6 +22,7 @@ import Network.IRC.ByteString.Parser as IRC
 import Control.Concurrent.Broadcast
 
 import Network.IRC.Connection
+import Irc2me.Backends.IRC.NetworkState
 import Irc2me.Database.Tables.Accounts as DB
 import Irc2me.Database.Tables.Networks as DB
 import Irc2me.Frontend.Messages as Message
@@ -32,19 +34,32 @@ type NetworkBroadcast = (Broadcast ServerMessage)
 data NetworkConnection = NetworkConnection
   { _networkBroadcast  :: NetworkBroadcast
   , _networkConnection :: Connection IO
+  , _networkState      :: NetworkState
   }
 
 makeLenses ''NetworkConnection
 
-rebroadcast :: MonadIO m => NetworkBroadcast -> NetworkID -> ChatMessage -> m ()
-rebroadcast bc (NetworkID nid) cm
+rebroadcast :: MonadIO m => NetworkConnection -> ChatMessage -> m ()
+rebroadcast nc cm
+
   | (to':_) <- cm ^. messageParams
-  = sendBroadcast bc $ emptyServerMessage &
+  = do
+
+    let NetworkID nid = nc ^. networkState . nsNetworkID
+
+    ident <- getNetworkIdentitiy $ nc ^. networkState
+    let usr = emptyUser &~ do
+                Message.userNick .= (ident ^. identityNick . non "")
+                Message.userName .= (ident ^. identityName)
+
+    sendBroadcast (nc ^. networkBroadcast) $ emptyServerMessage &
       serverNetworks .~ [ emptyNetwork &~ do
         Message.networkId .= Just (fromIntegral nid)
         networkChannels   .= [ emptyChannel &~ do
             channelName     .= Just to'
-            channelMessages .= [ cm ]
+            channelMessages .= [ cm &~ do
+                messageFromUser .= Just usr
+              ]
           ]
       ]
   | otherwise

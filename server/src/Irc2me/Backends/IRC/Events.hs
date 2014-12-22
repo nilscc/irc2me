@@ -68,7 +68,7 @@ manageIrcConnections irc = forever $ do
         sendIrc (nc ^. networkConnection) ircmsg
 
         -- build server message for "rebroadcast"
-        rebroadcast (nc ^. networkBroadcast) nid tmsg
+        rebroadcast nc tmsg
 
       | otherwise -> logM $ "Network not found."
 
