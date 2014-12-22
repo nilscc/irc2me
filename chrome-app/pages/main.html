@@ -27,10 +27,16 @@
 <script type="text/x-handlebars-template" id="message-template">
     <div class="message">
         <span class="timestamp">{{timestamp}}</span>
-            <span class="nickname {{userflag}}"
-                data-username="{{username}}"
-                data-nickname="{{nickname}}"
-                data-host="{{host}}">{{nickname}}</span>
+        {{#user}}
+            <span class="nickname {{user.flag}}"
+                data-username="{{user.name}}"
+                data-nickname="{{user.nick}}"
+                data-host="{{user.host}}">{{user.nick}}</span>
+        {{/user}}
+        {{#server}}
+            <span class="servermessage"
+                data-servername="{{server}}">{{server}}</span>
+        {{/server}}
         <span class="text">{{content}}</span>
     </div>
 </script>
@@ -53,7 +59,7 @@
             </div>
             <div id="message-list">
             </div>
-            <div class="input-prompt">
+            <div id="input-prompt">
                 <span class="nickname">irc2me</span>
                 <input type="text" name="input-prompt">
             </div>

@@ -118,7 +118,7 @@ body
     margin: 0 2pt 0;
 }
 
-.main-view .input-prompt
+.main-view #input-prompt
 {
     border-top: 1px solid rgba(0,0,0,0.15);
     background-color: rgba(0,0,0,0.075);
@@ -127,16 +127,16 @@ body
     display: flex;
     flex-direction: row;
 }
-.main-view .input-prompt .nickname
+.main-view #input-prompt .nickname
 {
     color: rgba(0,0,0,0.6);
     font-size: 10pt;
 }
-.main-view .input-prompt .nickname:after
+.main-view #input-prompt .nickname:after
 {
     content: ">";
 }
-.main-view .input-prompt input
+.main-view #input-prompt input
 {
     flex: 1;
     font-size: 10pt;
