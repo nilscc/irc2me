@@ -1,10 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Irc2me.Backends.IRC.Helper where
 
-import Data.Time
+import Control.Monad.Trans
 
+import Data.Time
 import Data.Map (Map)
+
+import System.IO
 
 -- lens
 import Control.Lens
@@ -17,9 +21,9 @@ import Network.IRC.ByteString.Parser as IRC
 import Control.Concurrent.Broadcast
 
 import Network.IRC.Connection
-import Irc2me.Database.Tables.Accounts
-import Irc2me.Database.Tables.Networks
-import Irc2me.Frontend.Messages
+import Irc2me.Database.Tables.Accounts as DB
+import Irc2me.Database.Tables.Networks as DB
+import Irc2me.Frontend.Messages as Message
 
 type IrcConnections = Map AccountID (Map NetworkID NetworkConnection)
 
@@ -31,6 +35,20 @@ data NetworkConnection = NetworkConnection
   }
 
 makeLenses ''NetworkConnection
+
+rebroadcast :: MonadIO m => NetworkBroadcast -> NetworkID -> ChatMessage -> m ()
+rebroadcast bc (NetworkID nid) cm
+  | (to':_) <- cm ^. messageParams
+  = sendBroadcast bc $ emptyServerMessage &
+      serverNetworks .~ [ emptyNetwork &~ do
+        Message.networkId .= Just (fromIntegral nid)
+        networkChannels   .= [ emptyChannel &~ do
+            channelName     .= Just to'
+            channelMessages .= [ cm ]
+          ]
+      ]
+  | otherwise
+  = liftIO $ hPutStrLn stderr $ "[rebroadcast] Invalid message format: " ++ show cm
 
 ------------------------------------------------------------------------------
 -- Testing
