@@ -74,6 +74,18 @@ Irc2me.prototype._loadMessages = function(cb) {
     });
 }
 
+Irc2me.prototype.messageTypeByString = function (ty_string) {
+    var self = this;
+
+    var Type = self._messages.Network.Message.Type;
+
+    if (Type.hasOwnProperty(ty_string.toUpperCase())) {
+        return Type[ty_string.toUpperCase()];
+    } else {
+        return ty_string;
+    }
+}
+
 Irc2me.prototype._handleAuthenticationResponse = function (buffer) {
 
     var self = this;
@@ -351,7 +363,8 @@ Irc2me.prototype.listen = function () {
 
         var netw = content.network_id,
             cmd  = content.command,
-            pars = content.parameters;
+            cnt  = content.content || "",
+            pars = content.parameters || [];
 
         // alias
         var Type = self._messages.Network.Message.Type;
@@ -360,7 +373,7 @@ Irc2me.prototype.listen = function () {
             cmd = self.messageTypeByString(cmd);
         }
 
-        self.sendMessage(netw, cmd, "", pars, sendResponse);
+        self.sendMessage(netw, cmd, cnt, pars, sendResponse);
 
         return true; // async callback
     });

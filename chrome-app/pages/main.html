@@ -25,20 +25,35 @@
 <!-- templates -->
 
 <script type="text/x-handlebars-template" id="message-template">
-    <div class="message">
-        <span class="timestamp">{{timestamp}}</span>
-        {{#user}}
-            <span class="nickname {{user.flag}}"
-                data-username="{{user.name}}"
-                data-nickname="{{user.nick}}"
-                data-host="{{user.host}}">{{user.nick}}</span>
-        {{/user}}
-        {{#server}}
-            <span class="servermessage"
-                data-servername="{{server}}">{{server}}</span>
-        {{/server}}
-        <span class="text">{{content}}</span>
-    </div>
+    {{#messages}}
+        <div class="message">
+            <span class="timestamp">{{timestamp}}</span>
+            {{#user}}
+                <span class="nickname {{flag}}"
+                    data-username="{{name}}"
+                    data-nickname="{{nick}}"
+                    data-host="{{host}}">{{nick}}</span>
+            {{/user}}
+            {{#server}}
+                <span class="servermessage"
+                    data-servername="{{server}}">{{server}}</span>
+            {{/server}}
+            <span class="text">{{content}}</span>
+        </div>
+    {{/messages}}
+</script>
+
+<script type="text/x-handlebars-template" id="network-list-template">
+    {{#network}}
+        <ul class="network" data-network_id="{{network.id}}" data-network="{{network.name}}">
+        </ul>
+    {{/network}}
+</script>
+
+<script type="text/x-handlebars-template" id="network-channel-list-item-template">
+    {{#channel}}
+        <li class="channel" data-channel="{{channel.name}}">{{channel.name}}</li>
+    {{/channel}}
 </script>
 
 <!-- main body -->
@@ -47,8 +62,6 @@
 
     <div class="network-list card">
         <div class="group-title">Channel</div>
-        <div class="network">
-        </div>
     </div>
 
     <div class="main-view card">

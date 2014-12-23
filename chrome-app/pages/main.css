@@ -35,6 +35,27 @@ body
     flex-direction: column;
 }
 
+.network-list .network
+{
+    list-style: none;
+    padding: 0 8pt 0;
+}
+
+.network-list .network .channel
+{
+    cursor: pointer;
+}
+
+.network-list .network .channel.active
+{
+    font-weight: bold;
+}
+
+.network-list .network .channel.unread
+{
+    color: rgb(0,100,255);
+}
+
 .card .group-title
 {
     border-top: 1px solid rgba(0,0,0,0.2);

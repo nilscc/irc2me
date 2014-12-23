@@ -103,7 +103,22 @@ MainPage.prototype.Chatview.load = function (network_id, channel_name) {
     // clear current messages
     $("#message-list").empty();
 
+    // remove 'active' flag from other channels
+    var active = ".network-list .network "
+               + ".channel.active:not([data-channel=\"" + channel_name + "\"])";
+
+    $(active).removeClass("active");
+
+    // unset 'unread' flag & set 'active'
+    var current = ".network-list "
+                + ".network[data-network_id=\"" + network_id + "\"] "
+                + ".channel[data-channel=\"" + channel_name + "\"]"
+
+    $(current).removeClass("unread").addClass("active");
+
     self.append(page.Backlog.get(network_id, channel_name));
+
+    $("#input-prompt input").focus();
 };
 
 MainPage.prototype.Chatview.append = function (network_id, channel_name, messages) {
@@ -115,62 +130,213 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
         channel_name = self.currentChannel;
         network_id = self.currentNetwork;
     }
-    // ignore invalid network/channel
-    else if (network_id != self.currentNetwork || channel_name != self.currentChannel) {
-        return;
+
+    // optional channel name
+    if (typeof channel_name == "object") {
+        messages = channel_name;
+        channel_name = null;
     }
 
+    // alias
     var messageList = $("#message-list");
+
+    // ignore invalid network/channel
+    var is_current = network_id   == self.currentNetwork
+                  && channel_name == self.currentChannel;
+
+    // build template data
+    var template_messages = [];
+
+    for (var i = 0; i < messages.length; i++) {
+
+        if (is_current) {
+
+            var msg = messages[i];
+            var epoch = dcodeIO.Long.prototype.toNumber.call(msg.timestamp);
+            var date  = new Date(epoch);
+
+            var template_data = {
+                timestamp: date.toLocaleTimeString(),
+                content: msg.content,
+            };
+
+            if (msg.from == "user") {
+                template_data.user = msg.user;
+                template_data.user.flag = "";
+            } else {
+                template_data.server = msg.server;
+            }
+
+            template_messages.push(template_data);
+
+        } else {
+            // not current channel
+            var name = channel_name || msg.server || (msg.user && msg.user.nick);
+            self.setUnreadMessage(network_id, name);
+        }
+    }
 
     // get current scroll position
     var atBottom = Helper.scrollAtBottom(messageList);
 
-    // load template
-    var src = $("#message-template").html();
+    // compile template
+    var src               = $("#message-template").html(),
+        compiled_template = $( Mustache.to_html(src, { messages: template_messages }) );
 
-    for (var i = 0; i < messages.length; i++) {
-        var msg = messages[i];
-
-        var epoch = dcodeIO.Long.prototype.toNumber.call(msg.timestamp);
-        var date  = new Date(epoch);
-
-        var template_data = {
-            timestamp: date.toLocaleTimeString(),
-            content: msg.content,
-        };
-
-        if (msg.from == "user") {
-            template_data.user = msg.user;
-            template_data.user.flag = "";
-        } else {
-            template_data.server = msg.server;
-        }
-
-        var compiled_template = Mustache.to_html(src, template_data);
-
-        $("#message-list").append(compiled_template);
-    }
+    $("#message-list").append(compiled_template);
 
     if (atBottom) {
         Helper.scrollToBottom(messageList);
     }
 };
 
+MainPage.prototype.Chatview.setUnreadMessage = function (network_id, channel_name) {
+
+    var self = this;
+
+    var network = $(".network-list .network[data-network_id=" + network_id + "]");
+
+    // check if network exists
+    if (network.length == 0) {
+
+        // load template
+        var src = $("#network-list-template").html();
+
+        var data = {
+            network: {
+                id: network_id,
+            },
+        };
+
+        // compile template to jquery object
+        network = $( Mustache.to_html(src, data) );
+
+        $(".network-list").append(network);
+    }
+
+    var channel = $("> .channel[data-channel=" + channel_name + "]", network);
+
+    // check if channel exists
+    if (channel.length == 0) {
+
+        // load template
+        var src = $("#network-channel-list-item-template").html();
+
+        var data = {
+            channel: {
+                name: channel_name,
+            }
+        };
+
+        // compile template to jquery object
+        channel = $( Mustache.to_html(src, data) );
+
+        // load channel view on click
+        channel.click(function () {
+            self.load(network_id, channel_name);
+        });
+
+        // add to list
+        network.append(channel);
+    }
+
+    // set as 'unread'
+    channel.addClass("unread");
+};
+
 MainPage.prototype.Chatview.send = function (text, cb) {
 
     var self = this;
 
-    if (! (self.currentNetwork && self.currentChannel)) {
-        return;
+    if (!text) { return; }
+
+    var cmd, pars;
+
+    if (text[0] == "/") {
+        pars = text.slice(1).split(/\s/);
+        cmd  = pars.shift().toUpperCase();
     }
 
-    // aliases
-    Irc2me.sendPrivateMessage({
-        network_id: self.currentNetwork,
-        to:         self.currentChannel,
-        text:       text,
-    }, cb);
-}
+    // require network
+    if (! self.currentNetwork) { return; }
+
+    /*
+     * Handle user command
+     *
+     */
+
+    var validCommands = [
+        "JOIN",
+        "PART",
+        "INVITE",
+        "QUIT",
+        "KICK",
+        "NICK",
+        "NOTICE",
+    ];
+
+    if (cmd && validCommands.indexOf(cmd) != -1) {
+
+        var content = "";
+
+        switch (cmd) {
+
+            case "PART": {
+                if (! self.currentChannel) { return;}
+                break;
+            }
+
+            case "QUIT": {
+                content = pars.join(" ");
+                break;
+            }
+
+            case "NOTICE": {
+
+                // trailing text
+                var to  = pars.shift(),
+                    txt = pars.join(" ");
+
+                content = txt;
+                pars    = [to];
+
+                break;
+            }
+
+            default: { }
+        }
+
+        Irc2me.sendCommand({
+            network_id: self.currentNetwork,
+            command:    cmd,
+            parameters: pars,
+            content:    content,
+        }, cb);
+
+    } else {
+
+        /*
+         * regular private message
+         *
+         */
+
+        // require channel
+        if (! self.currentChannel) { return; }
+
+        if (cmd == "ME") {
+            var SOH = String.fromCharCode(1);
+            text = SOH + "ACTION " + pars.join(" ") + SOH;
+        }
+
+        // send private message
+        Irc2me.sendPrivateMessage({
+            network_id: self.currentNetwork,
+            to:         self.currentChannel,
+            text:       text,
+        }, cb);
+
+    }
+};
 
 MainPage.prototype.Chatview.bindKeyEvents = function () {
 
@@ -186,7 +352,7 @@ MainPage.prototype.Chatview.bindKeyEvents = function () {
             });
         }
     });
-}
+};
 
 /*
  * Load UI
