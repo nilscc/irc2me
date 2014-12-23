@@ -61,7 +61,7 @@ MainPage.prototype.Backlog.append = function (network_id, channel_name, messages
     for (var i = 0; i < messages.length; i++) {
 
         var msg  = messages[i],
-            name = channel_name || msg.sever || (msg.user && msg.user.nick);
+            name = channel_name || msg.server || (msg.user && msg.user.nick);
 
         if (name) {
             // init 'name' backlog
@@ -149,9 +149,10 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
 
     for (var i = 0; i < messages.length; i++) {
 
+        var msg = messages[i];
+
         if (is_current) {
 
-            var msg = messages[i];
             var epoch = dcodeIO.Long.prototype.toNumber.call(msg.timestamp);
             var date  = new Date(epoch);
 
@@ -214,7 +215,7 @@ MainPage.prototype.Chatview.setUnreadMessage = function (network_id, channel_nam
         $(".network-list").append(network);
     }
 
-    var channel = $("> .channel[data-channel=" + channel_name + "]", network);
+    var channel = $("> .channel[data-channel=\"" + channel_name + "\"]", network);
 
     // check if channel exists
     if (channel.length == 0) {
