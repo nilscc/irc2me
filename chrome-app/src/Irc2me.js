@@ -300,6 +300,10 @@ Irc2me.prototype.sendMessage = function(network_id, type, content, parameters, c
  *
  */
 
+// data
+Irc2me.getProtobufMesageTypes = new ChromeMessage("Irc2me.getProtobufMesageTypes");
+
+// connection
 Irc2me.connect     = new ChromeMessage("Irc2me.connect");
 Irc2me.isConnected = new ChromeMessage("Irc2me.isConnected");
 Irc2me.disconnect  = new ChromeMessage("Irc2me.disconnect");
@@ -313,6 +317,17 @@ Irc2me.prototype.listen = function () {
 
     var self = this;
 
+    Irc2me.getProtobufMesageTypes.addListener(function (content, sendResponse) {
+        var send = function () { sendResponse(self._messages.Network.Message.Type); };
+
+        if (!self._messages) {
+            self._loadMessages(send);
+            return true; // _loadMessages is async
+        } else {
+            send();
+        }
+    });
+
     Irc2me.connect.addListener(function(content, sendResponse) {
 
         var host = content.hostname,
@@ -322,7 +337,6 @@ Irc2me.prototype.listen = function () {
 
         // connect and send authentication message
         self.connect(host, port, user, pass);
-
     });
 
     Irc2me.disconnect.addListener(function(content, sendResponse) {
