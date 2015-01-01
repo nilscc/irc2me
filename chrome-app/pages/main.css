@@ -123,8 +123,8 @@ body
     margin-bottom: 2pt;
 }
 
-.main-view #message-list .message .nickname::before { content: "<"; }
-.main-view #message-list .message .nickname::after  { content: ">"; }
+.main-view #message-list .message.type-privmsg .nickname::before { content: "<"; }
+.main-view #message-list .message.type-privmsg .nickname::after  { content: ">"; }
 
 .main-view #message-list .message .timestamp
 {

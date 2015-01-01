@@ -26,7 +26,7 @@
 
 <script type="text/x-handlebars-template" id="message-template">
     {{#messages}}
-        <div class="message">
+        <div class="message {{classes}}">
             <span class="timestamp">{{timestamp}}</span>
             {{#user}}
                 <span class="nickname {{flag}}"
@@ -38,7 +38,18 @@
                 <span class="servermessage"
                     data-servername="{{server}}">{{server}}</span>
             {{/server}}
-            <span class="text">{{content}}</span>
+            {{#join}}
+                <span class="join">has joined</span>
+            {{/join}}
+            {{#part}}
+                <span class="part">has left</span>
+            {{/part}}
+            {{#quit}}
+                <span class="quit">has quit</span>
+            {{/quit}}
+            {{#content}}
+                <span class="text">{{content}}</span>
+            {{/content}}
         </div>
     {{/messages}}
 </script>

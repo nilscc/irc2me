@@ -91,11 +91,18 @@ MainPage.prototype.Backlog.get = function (network_id, name) {
  */
 
 MainPage.prototype.Chatview = {
-
 };
 
-MainPage.prototype.Chatview.load = function (network_id, channel_name) {
+MainPage.prototype.Chatview.load = function (network_id, channel_name, cb) {
     var self = this;
+
+    if (!self._protoMsgTypes) {
+        Irc2me.getProtobufMesageTypes(function (tys) {
+            self._protoMsgTypes = tys;
+            self.load(network_id, channel_name, cb);
+        });
+        return; // quit
+    }
 
     self.currentNetwork = network_id;
     self.currentChannel = channel_name;
@@ -119,6 +126,9 @@ MainPage.prototype.Chatview.load = function (network_id, channel_name) {
     self.append(page.Backlog.get(network_id, channel_name));
 
     $("#input-prompt input").focus();
+
+    // run callback (if any)
+    if (typeof cb == "function") { cb(); }
 };
 
 MainPage.prototype.Chatview.append = function (network_id, channel_name, messages) {
@@ -152,24 +162,9 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
         var msg = messages[i];
 
         if (is_current) {
-
-            var epoch = dcodeIO.Long.prototype.toNumber.call(msg.timestamp);
-            var date  = new Date(epoch);
-
-            var template_data = {
-                timestamp: date.toLocaleTimeString(),
-                content: msg.content,
-            };
-
-            if (msg.from == "user") {
-                template_data.user = msg.user;
-                template_data.user.flag = "";
-            } else {
-                template_data.server = msg.server;
-            }
-
-            template_messages.push(template_data);
-
+            template_messages.push(
+                self._getTemplateData(messages[i])
+            );
         } else {
             // not current channel
             var name = channel_name || msg.server || (msg.user && msg.user.nick);
@@ -184,12 +179,54 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
     var src               = $("#message-template").html(),
         compiled_template = $( Mustache.to_html(src, { messages: template_messages }) );
 
-    $("#message-list").append(compiled_template);
+    messageList.append(compiled_template);
 
     if (atBottom) {
         Helper.scrollToBottom(messageList);
     }
 };
+
+MainPage.prototype.Chatview._getTemplateData = function (msg) {
+
+    var self = this;
+
+    var epoch = dcodeIO.Long.prototype.toNumber.call(msg.timestamp);
+    var date  = new Date(epoch);
+
+    var template_data = {
+        timestamp: date.toLocaleTimeString(),
+        content: msg.content,
+        classes: [],
+    };
+
+    // figure out who wrote the message
+    if (msg.from == "user") {
+        template_data.user = msg.user;
+        template_data.user.flag = "";
+    } else {
+        template_data.server = msg.server;
+    }
+
+    // special messages like join/part/quit etc
+
+    var types = self._protoMsgTypes;
+
+    var set_type = function (ty) {
+        template_data[ty] = true;
+        template_data.classes.push("type-" + ty);
+    }
+
+    if (msg.type == "known") {
+        for (var ty in types) {
+            if (msg[msg.type] == types[ty]) {
+                set_type(ty.toLowerCase());
+                break;
+            }
+        }
+    }
+
+    return template_data;
+}
 
 MainPage.prototype.Chatview.setUnreadMessage = function (network_id, channel_name) {
 
