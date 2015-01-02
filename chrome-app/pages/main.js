@@ -179,12 +179,72 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
     var src               = $("#message-template").html(),
         compiled_template = $( Mustache.to_html(src, { messages: template_messages }) );
 
+    self._inlineImages(compiled_template);
+
     messageList.append(compiled_template);
 
     if (atBottom) {
         Helper.scrollToBottom(messageList);
     }
 };
+
+MainPage.prototype.Chatview._getAutolinker = function () {
+
+    if (!self._Autolinker) {
+
+        self._Autolinker = new Autolinker({
+            twitter: false,
+            className: "user-link",
+        });
+
+        // FIXME: workaround for https://github.com/gregjacobs/Autolinker.js/issues/76
+        self._Autolinker.htmlCharacterEntitiesRegex =
+            /(&nbsp;|&#160;|&lt;|&#60;|&gt;|&#62;|&quot;|&#039;)/gi;
+    }
+
+    return self._Autolinker;
+}
+
+MainPage.prototype.Chatview._inlineImages = function (html, cb) {
+
+    // turn into jquery object if not already
+    if (typeof html == "string") {
+        html = $(html);
+    }
+
+    // regular images
+    html.find("a:regex(href, \\.(jpg|jpeg|gif|png)$)").click(function () {
+
+        event.preventDefault();
+
+        var a   = $(this),
+            url = a.attr("href");
+
+        if (a.hasClass("open")) {
+
+            $("img", a).remove();
+            a.removeClass("open");
+
+        } else {
+
+            var error_cb = function () {
+                console.log.apply(this, arguments);
+            }
+
+            var success_cb = function (data) {
+                a.append("<img class=\"inline-image\" src=\"" + window.URL.createObjectURL(data) + "\">");
+            };
+
+            $.ajax(url, {
+                dataType: "blob",
+                error: error_cb,
+                success: success_cb,
+            });
+
+            a.addClass("open");
+        }
+    });
+}
 
 MainPage.prototype.Chatview._getTemplateData = function (msg) {
 
@@ -230,18 +290,8 @@ MainPage.prototype.Chatview._getTemplateData = function (msg) {
 
     if (template_data.content) {
 
-        if (!self._Autolinker) {
-            self._Autolinker = new Autolinker({
-                twitter: false,
-                className: "user-link",
-            });
-
-            // FIXME: workaround for https://github.com/gregjacobs/Autolinker.js/issues/76
-            self._Autolinker.htmlCharacterEntitiesRegex = /(&nbsp;|&#160;|&lt;|&#60;|&gt;|&#62;|&quot;|&#039;)/gi;
-        }
-
         // alias
-        var autolinker = self._Autolinker;
+        var autolinker = self._getAutolinker();
 
         template_data.content = autolinker.link(Helper.escapeHtml(template_data.content));
     }
