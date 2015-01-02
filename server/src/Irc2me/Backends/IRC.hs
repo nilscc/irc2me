@@ -32,7 +32,7 @@ import qualified Data.Map as Map
 import Database.HDBC
 
 -- lens
-import Control.Lens
+import Control.Lens hiding (Identity)
 import Data.Text.Lens
 
 -- local
@@ -135,44 +135,62 @@ reconnectAll con = withCon con $ do
 -- IRC message evaluation & network state
 
 evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> IO (Maybe ServerMessage)
-evalIRCMsg ns (t,msg)
+evalIRCMsg ns (t,msg) = do
 
-  | Just _ty  <- cm ^. messageType    -- known type
-  , [to']     <- cm ^. messageParams  -- one recipient
+  updateNetworkState ns msg
 
-  = do ident <- getNetworkIdentitiy ns
+  -- get network identity
+  ident <- getNetworkIdentitiy ns
 
-       -- build broadcast message
-       return $ Just $ serverMessage $ network &~ do
+  -- get network ID
+  let nid = ns ^. nsNetworkID
 
-         -- figure out where messages goes to
-         if ident ^. identityNick == Just to' then
-           networkMessages .= [ cm ]
-          else
-           networkChannels .=
-             [ emptyChannel &~ do
-                 channelName     .= Just to'
-                 channelMessages .= [ cm ]
-             ]
+  -- convert time + irc message to protobuf 'ChatMessage'
+  let epoch :: Int64
+      epoch = floor $ utcTimeToPOSIXSeconds t * 1000
+      cm    = msg ^. chatMessage & messageTimestamp .~ Just epoch
 
-  | otherwise
-  = do -- broadcast everything else as 'private' network message:
-       return $ Just $ serverMessage $ network &~ do
-         networkMessages .= [ cm ]
+  return $ Just $ buildServerMessage nid ident cm
+
+updateNetworkState :: NetworkState -> IRCMsg -> IO ()
+updateNetworkState ns msg = do
+  
+  --case 
+  return ()
+
+buildServerMessage :: NetworkID -> Identity -> ChatMessage -> ServerMessage
+buildServerMessage nid ident cm = serverMessage $ network &~ do
+
+  case messageChannelName of
+
+    -- channel message
+    Just chan -> do
+      networkChannels .= [
+        emptyChannel &~ do
+          channelName .= Just chan
+          channelMessages .= [ cm ]
+        ]
+
+    -- private message
+    Nothing -> networkMessages .= [ cm ]
 
  where
 
-  epoch :: Int64
-  epoch = floor $ utcTimeToPOSIXSeconds t * 1000
+  messageChannelName
+    | Just _ty  <- cm ^. messageType        -- known type
+    , [to']     <- cm ^. messageParams      -- one recipient
+    , Just nick <- ident ^. identityNick
+    , nick /= to'                           -- recipient does not match current
+                                            -- nickname
+    = Just to'
 
-  cm = (msg ^. chatMessage) &
-    -- add timestamp
-    messageTimestamp .~ Just epoch
+    | otherwise
+    = Nothing
 
   -- ServerMessage default 'template'
-  serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
+  serverMessage netw = emptyServerMessage &
+    serverNetworks .~ [ netw ]
 
   -- network template
-  network = emptyNetwork &~ do
-
-    M.networkId .= Just (ns ^. nsNetworkID . DB.networkId & fromIntegral)
+  network = emptyNetwork &
+    M.networkId .~ Just (nid ^. DB.networkId & fromIntegral)

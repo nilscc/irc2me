@@ -9,8 +9,6 @@ import Control.Monad.Trans
 import Data.Time
 import Data.Map (Map)
 
-import System.IO
-
 -- lens
 import Control.Lens
 --import Data.Text.Lens
@@ -42,7 +40,8 @@ makeLenses ''NetworkConnection
 rebroadcast :: MonadIO m => NetworkConnection -> ChatMessage -> m ()
 rebroadcast nc cm
 
-  | (to':_) <- cm ^. messageParams
+  | Just PRIVMSG <- cm ^. messageType
+  , (to':_)      <- cm ^. messageParams
   = do
 
     let NetworkID nid = nc ^. networkState . nsNetworkID
@@ -62,8 +61,9 @@ rebroadcast nc cm
               ]
           ]
       ]
+
   | otherwise
-  = liftIO $ hPutStrLn stderr $ "[rebroadcast] Invalid message format: " ++ show cm
+  = return ()
 
 ------------------------------------------------------------------------------
 -- Testing
