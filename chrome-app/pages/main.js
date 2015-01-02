@@ -286,6 +286,9 @@ MainPage.prototype.Chatview.send = function (text, cb) {
 
     var self = this;
 
+    // require network
+    if (! self.currentNetwork) { return; }
+
     if (!text) { return; }
 
     var cmd, pars;
@@ -295,61 +298,59 @@ MainPage.prototype.Chatview.send = function (text, cb) {
         cmd  = pars.shift().toUpperCase();
     }
 
-    // require network
-    if (! self.currentNetwork) { return; }
-
     /*
      * Handle user command
      *
      */
 
-    var validCommands = [
-        "JOIN",
-        "PART",
-        "INVITE",
-        "QUIT",
-        "KICK",
-        "NICK",
-        "NOTICE",
-    ];
+    var types = self._protoMsgTypes;
 
-    if (cmd && validCommands.indexOf(cmd) != -1) {
+    if (cmd) {
 
-        var content = "";
+        // make sure cmd is valid
+        if (types.hasOwnProperty(cmd)) {
 
-        switch (cmd) {
+            var content = "";
 
-            case "PART": {
-                if (! self.currentChannel) { return;}
-                break;
+            switch (types[cmd]) {
+
+                case types.PART: {
+                    if (! self.currentChannel) { return; }
+
+                    content = pars.join(" ");
+                    pars    = [ self.currentChannel ];
+
+                    break;
+                }
+
+                case types.QUIT: {
+                    content = pars.join(" ");
+                    break;
+                }
+
+                case types.NOTICE: {
+
+                    // trailing text
+                    var to  = pars.shift(),
+                        txt = pars.join(" ");
+
+                    content = txt;
+                    pars    = [to];
+
+                    break;
+                }
+
+                default: { }
             }
 
-            case "QUIT": {
-                content = pars.join(" ");
-                break;
-            }
+            Irc2me.sendCommand({
+                network_id: self.currentNetwork,
+                command:    cmd,
+                parameters: pars,
+                content:    content,
+            }, cb);
 
-            case "NOTICE": {
-
-                // trailing text
-                var to  = pars.shift(),
-                    txt = pars.join(" ");
-
-                content = txt;
-                pars    = [to];
-
-                break;
-            }
-
-            default: { }
         }
-
-        Irc2me.sendCommand({
-            network_id: self.currentNetwork,
-            command:    cmd,
-            parameters: pars,
-            content:    content,
-        }, cb);
 
     } else {
 
