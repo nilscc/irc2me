@@ -126,6 +126,9 @@ body
 .main-view #message-list .message.type-privmsg .nickname::before { content: "<"; }
 .main-view #message-list .message.type-privmsg .nickname::after  { content: ">"; }
 
+.main-view #message-list .message.type-part .text::before { content: "("; }
+.main-view #message-list .message.type-part .text::after  { content: ")"; }
+
 .main-view #message-list .message .timestamp
 {
     color: rgba(0,0,0,0.6);

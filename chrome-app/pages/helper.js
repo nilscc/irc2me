@@ -12,7 +12,7 @@ Helper.escapeHtml = function(text) {
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
-        "'": '&#039;'
+        "'": '&#39;'
     };
 
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });

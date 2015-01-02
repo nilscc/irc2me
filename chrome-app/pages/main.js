@@ -200,6 +200,7 @@ MainPage.prototype.Chatview._getTemplateData = function (msg) {
     };
 
     // figure out who wrote the message
+
     if (msg.from == "user") {
         template_data.user = msg.user;
         template_data.user.flag = "";
@@ -207,7 +208,7 @@ MainPage.prototype.Chatview._getTemplateData = function (msg) {
         template_data.server = msg.server;
     }
 
-    // special messages like join/part/quit etc
+    // figure out message type
 
     var types = self._protoMsgTypes;
 
@@ -223,6 +224,26 @@ MainPage.prototype.Chatview._getTemplateData = function (msg) {
                 break;
             }
         }
+    }
+
+    // highlight links
+
+    if (template_data.content) {
+
+        if (!self._Autolinker) {
+            self._Autolinker = new Autolinker({
+                twitter: false,
+                className: "user-link",
+            });
+
+            // FIXME: workaround for https://github.com/gregjacobs/Autolinker.js/issues/76
+            self._Autolinker.htmlCharacterEntitiesRegex = /(&nbsp;|&#160;|&lt;|&#60;|&gt;|&#62;|&quot;|&#039;)/gi;
+        }
+
+        // alias
+        var autolinker = self._Autolinker;
+
+        template_data.content = autolinker.link(Helper.escapeHtml(template_data.content));
     }
 
     return template_data;
