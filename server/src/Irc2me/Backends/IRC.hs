@@ -8,6 +8,7 @@ module Irc2me.Backends.IRC
   ( runIrcBackend, runIrcBackend'
   ) where
 
+import Control.Applicative
 import Control.Concurrent
 
 import Control.Monad
@@ -16,6 +17,7 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
 import Data.Int
+import qualified Data.Text as Text
 
 import System.IO
 
@@ -137,11 +139,6 @@ reconnectAll con = withCon con $ do
 evalIRCMsg :: NetworkState -> (UTCTime, IRCMsg) -> IO (Maybe ServerMessage)
 evalIRCMsg ns (t,msg) = do
 
-  updateNetworkState ns msg
-
-  -- get network identity
-  ident <- getNetworkIdentitiy ns
-
   -- get network ID
   let nid = ns ^. nsNetworkID
 
@@ -150,13 +147,55 @@ evalIRCMsg ns (t,msg) = do
       epoch = floor $ utcTimeToPOSIXSeconds t * 1000
       cm    = msg ^. chatMessage & messageTimestamp .~ Just epoch
 
-  return $ Just $ buildServerMessage nid ident cm
+  -- keep track of JOIN/PART etc pp
+  updateNetworkState ns cm
 
-updateNetworkState :: NetworkState -> IRCMsg -> IO ()
-updateNetworkState ns msg = do
+  -- get network identity
+  ident <- getNetworkIdentitiy ns
+
+  case cm ^. messageType of
+    Nothing
+
+      -- do not send anything on NAMREPLY command
+      | Just "353" <- cm ^. messageTypeOther
+      -> return Nothing
+
+      -- once NAMREPLY is finished, send userlist for channel
+      | Just "366"    <- cm ^. messageTypeOther
+      , [_nick, chan] <- cm ^. messageParams
+      -> sendUserlist ns chan
+
+    -- default
+    _ -> return $ Just $ buildServerMessage nid ident cm
+
+updateNetworkState :: NetworkState -> ChatMessage -> IO ()
+updateNetworkState ns cm = do
   
-  --case 
-  return ()
+  case cm ^. messageType of
+
+    -- handle nickname changes
+    Just NICK
+      | Just old   <- cm ^? messageFromUser . _Just . M.userNick
+      , Just [new] <- Text.words <$> cm ^. messageContent
+      -> changeNickname ns old new
+
+    Just _ -> return () -- do nothing
+
+    Nothing
+
+      -- user list
+      | Just "353"              <- cm ^. messageTypeOther 
+      , [_nick, _, chan]        <- cm ^. messageParams
+      , Just userlist           <- Text.words <$> cm ^. messageContent
+      -> addUserlist ns chan userlist
+
+      -- end of user list
+      | Just "366"              <- cm ^. messageTypeOther
+      , [_nick, chan]           <- cm ^. messageParams
+      -> endUserlist ns chan
+
+      -- do nothing
+      | otherwise -> return ()
 
 buildServerMessage :: NetworkID -> Identity -> ChatMessage -> ServerMessage
 buildServerMessage nid ident cm = serverMessage $ network &~ do
@@ -194,3 +233,31 @@ buildServerMessage nid ident cm = serverMessage $ network &~ do
   -- network template
   network = emptyNetwork &
     M.networkId .~ Just (nid ^. DB.networkId & fromIntegral)
+
+sendUserlist
+  :: MonadIO m => NetworkState -> Channelname -> m (Maybe ServerMessage)
+sendUserlist ns chan = do
+
+  muserlist <- getUserlist ns chan
+  case muserlist of
+    Nothing       -> do
+      liftIO $ hPutStrLn stderr $ "No known users in channel \"" ++ Text.unpack chan ++ "\""
+      return Nothing
+    Just userlist -> do
+      return . Just $ serverMessage $ network &~ do
+        networkChannels .= [
+          emptyChannel &~ do
+            channelName  .= Just chan
+            channelUsers .= Map.foldrWithKey toUserlist [] userlist
+          ]
+
+ where
+  nid = ns ^. nsNetworkID . DB.networkId & fromIntegral
+
+  serverMessage netw = emptyServerMessage & serverNetworks .~ [ netw ]
+  network            = emptyNetwork & M.networkId .~ Just nid
+
+  toUserlist nick muflag l =
+    let usr = emptyUser & M.userNick .~ nick
+                        & M.userFlag .~ muflag
+    in usr : l
