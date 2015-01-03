@@ -45,6 +45,22 @@ message Network
      *
      */
 
+    // User of a message
+    message User
+    {
+      required string nick = 1;
+      optional string name = 2;
+      optional string host = 3;
+
+      enum Userflag
+      {
+        OPERATOR = 0;
+        VOICE    = 1;
+      };
+
+      optional Userflag flag = 4;
+    };
+
     message Message
     {
         enum Type
@@ -68,22 +84,6 @@ message Network
 
         // epoch timestamp in miliseconds
         optional uint64 timestamp = 5;
-
-        // User of a message
-        message User
-        {
-            optional string nick = 1;
-            optional string name = 2;
-            optional string host = 3;
-
-            enum Userflag
-            {
-                OPERATOR = 0;
-                VOICE    = 1;
-            };
-
-            optional Userflag flag = 4;
-        };
 
         oneof from {
             User   user   = 10;
@@ -109,6 +109,7 @@ message Network
         optional Status  status   = 3;
 
         repeated Message messages = 10;
+        repeated User    users    = 20;
     };
 
     repeated Channel channels               = 30;

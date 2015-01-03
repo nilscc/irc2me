@@ -29,8 +29,16 @@ MainPage.prototype.listen = function () {
 
             for (var c = 0; network.channels && c < network.channels.length; c++) {
                 var chan = network.channels[c];
-                self.Backlog.append(network_id, chan.name, chan.messages);
-                self.Chatview.append(network_id, chan.name, chan.messages);
+
+                if (chan.messages.length > 0) {
+                    self.Backlog.append(network_id, chan.name, chan.messages);
+                    self.Chatview.append(network_id, chan.name, chan.messages);
+                }
+
+                if (chan.users.length > 0) {
+                    self.Backlog.setUserlist(network_id, chan.name, chan.users);
+                    self.Chatview.setUserlist(network_id, chan.name, chan.users);
+                }
             }
         }
     });
@@ -43,6 +51,7 @@ MainPage.prototype.listen = function () {
 
 MainPage.prototype.Backlog = {
     _backlog: {},
+    _userlist: {},
 };
 
 MainPage.prototype.Backlog.append = function (network_id, channel_name, messages) {
@@ -75,15 +84,23 @@ MainPage.prototype.Backlog.append = function (network_id, channel_name, messages
     }
 }
 
+MainPage.prototype.Backlog.setUserlist = function (network_id, channel_name, users) {
+    var self = this;
+
+    var userlist = self._userlist[network_id] = self._userlist[network_id] || {};
+    userlist[channel_name] = users;
+}
+
 MainPage.prototype.Backlog.get = function (network_id, name) {
 
     var self = this;
 
-    var backlog = self._backlog[network_id] || {};
+    var backlog  = self._backlog[network_id]  || {},
+        userlist = self._userlist[network_id] || {};
 
-    return backlog[name] || [];
+    return { backlog:  backlog[name]  || []
+           , userlist: userlist[name] || [] };
 }
-
 
 /*
  * UI: Chat view
@@ -99,6 +116,14 @@ MainPage.prototype.Chatview.load = function (network_id, channel_name, cb) {
     if (!self._protoMsgTypes) {
         Irc2me.getProtobufMesageTypes(function (tys) {
             self._protoMsgTypes = tys;
+            self.load(network_id, channel_name, cb);
+        });
+        return; // quit
+    }
+
+    if (!self._protoUserflags) {
+        Irc2me.getProtobufUserflags(function (uf) {
+            self._protoUserflags = uf;
             self.load(network_id, channel_name, cb);
         });
         return; // quit
@@ -123,7 +148,13 @@ MainPage.prototype.Chatview.load = function (network_id, channel_name, cb) {
 
     $(current).removeClass("unread").addClass("active");
 
-    self.append(page.Backlog.get(network_id, channel_name));
+    var log = page.Backlog.get(network_id, channel_name);
+
+    // append messages
+    self.append(log.backlog);
+
+    // load userlist
+    self.setUserlist(log.userlist);
 
     $("#input-prompt input").focus();
 
@@ -188,6 +219,58 @@ MainPage.prototype.Chatview.append = function (network_id, channel_name, message
     }
 };
 
+MainPage.prototype.Chatview.setUserlist = function (network_id, channel_name, userlist) {
+    var self = this;
+
+    if (typeof network_id == "object") {
+        userlist = network_id;
+        network_id = self.currentNetwork;
+        channel_name = self.currentChannel;
+    }
+
+    if (network_id != self.currentNetwork && channel_name != self.currentChannel) {
+        return;
+    }
+
+    // gather data
+    var template_data = {
+        operators: [],
+        voice: [],
+        users: [],
+    };
+
+    var flags = self._protoUserflags;
+
+    for (var i = 0; i < userlist.length; i++) {
+
+        var user = userlist[i];
+
+        if (user.flag != null) {
+            switch (user.flag) {
+                case flags.OPERATOR: {
+                    template_data.operators.push(user);
+                    break;
+                }
+                case flags.VOICE: {
+                    template_data.voice.push(user);
+                    break;
+                }
+                default: {
+                    console.error("Unexpected user flag", user.flag);
+                }
+            }
+        } else {
+            template_data.users.push(user);
+        }
+    }
+
+    // compile template
+    var src               = $("#user-list-template").html(),
+        compiled_template = $( Mustache.to_html(src, template_data) );
+
+    $("#user-list").html(compiled_template);
+}
+
 MainPage.prototype.Chatview._getAutolinker = function () {
 
     if (!self._Autolinker) {
@@ -232,7 +315,9 @@ MainPage.prototype.Chatview._inlineImages = function (html, cb) {
             }
 
             var success_cb = function (data) {
-                a.append("<img class=\"inline-image\" src=\"" + window.URL.createObjectURL(data) + "\">");
+                if (a.hasClass("open")) { // not closed already again
+                    a.append("<img class=\"inline-image\" src=\"" + window.URL.createObjectURL(data) + "\">");
+                }
             };
 
             $.ajax(url, {
