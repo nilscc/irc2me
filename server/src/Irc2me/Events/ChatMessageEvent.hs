@@ -9,6 +9,7 @@ import Control.Monad.State
 import Data.Maybe
 
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 -- lens
 import Control.Lens hiding (Identity)
@@ -36,6 +37,8 @@ buildChatMessageResponse nid@(NetworkID nid') cm = do
   -- see if current user is recipient of `cm`
   let isRecipient = (mnick ^. non "") `elem` params
 
+  let ircState = connectedIrcNetworks . at nid . _Just
+
   {-
    - Analyze message
    -
@@ -43,20 +46,53 @@ buildChatMessageResponse nid@(NetworkID nid') cm = do
 
   mchannels <- case cm ^. messageType of
 
-    -- handle JOIN events on new channels
+    -- handle JOIN events
     Just JOIN
+
       | fromSelf, [chan] <- params -> do
-        connectedIrcNetworks . at nid . _Just . ircChannels %= Set.insert chan
+
+        -- keep track of active channels
+        ircState . ircChannels %= Set.insert chan
+
+        return $ Just [chan]
+
+      | not fromSelf
+      , Just nick <- unick    -- nick name of user joining
+      , [chan]    <- params   -- channel name
+      -> do
+
+        -- add `nick` to channel user list
+        let f = Just . maybe (Set.singleton nick) (Set.insert nick)
+        ircState . ircUsers %= Map.alter f chan
+
         return $ Just [chan]
 
     -- handle PART events
     Just PART
+
       | fromSelf, [chan] <- params -> do
-        connectedIrcNetworks . at nid . _Just . ircChannels %= Set.delete chan
+
+        -- remove channel from current list of channels
+        ircState . ircChannels %= Set.delete chan
+
+        -- remove user list of channel
+        ircState . ircUsers %= Map.delete chan
+
         return $ Just [chan]
 
+      | not fromSelf
+      , Just nick <- unick    -- nick name of user joining
+      , [chan]    <- params   -- channel name
+      -> do
+
+        -- remove user from user list
+        ircState . ircUsers %= Map.alter (fmap $ Set.delete nick) chan
+
+        return $ Just [chan]
+
+    -- other messages
     _ | isRecipient -> return Nothing -- private/network message
-      | otherwise   -> return $ Just (cm ^. messageParams)
+      | otherwise   -> return $ Just params
 
   {-
    - Send server message to all channels (if any)

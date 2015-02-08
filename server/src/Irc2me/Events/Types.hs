@@ -69,10 +69,14 @@ instance AsEmpty AccountState where
     null   (_connectedClients     as) &&
     M.null (_connectedIrcNetworks as)
 
+type Channelname = Text
+type Nickname = Text
+
 data IrcState = IrcState
   { _ircConnection :: IrcConnection
   , _ircIdentity   :: Identity
   , _ircChannels   :: Set Text
+  , _ircUsers      :: Map Channelname (Set Nickname)
   }
 
 makeLenses ''EventLoopState

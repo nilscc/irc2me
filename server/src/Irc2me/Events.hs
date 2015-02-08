@@ -58,6 +58,7 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
       let ircState = IrcState { _ircConnection = con
                               , _ircIdentity   = ident
                               , _ircChannels   = Set.empty
+                              , _ircUsers      = Map.empty
                               }
 
       accState . connectedIrcNetworks %= Map.insert nid ircState
