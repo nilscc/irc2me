@@ -13,12 +13,18 @@ import Irc2me.Frontend.ServerStream
 
 runFrontend
   :: MonadIO m
-  => Handle
+  => ClientID
+  -> Handle
   -> HostName
-  -> EventQueue WO AccountEvent
+  -> EventQueue WO Event
   -> m ()
-runFrontend h hostname eq = do
-  res <- runStream h eq serverStream
+runFrontend cid h hostname eq = do
+
+  res <- runStream h eq $ serverStream cid
   case res of
     Right () -> return ()
     Left err -> liftIO $ putStrLn $ "[" ++ hostname ++ "] " ++ err
+
+  -- raise disconnected event
+  liftIO $ writeEventIO eq $
+    ClientEvent cid ClientDisconnectedEvent

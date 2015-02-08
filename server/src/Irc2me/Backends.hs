@@ -8,6 +8,6 @@ import Control.Concurrent.Event
 import Irc2me.Events.Types
 import Irc2me.Backends.IRC
 
-runBackends :: MonadIO m => EventT mode AccountEvent m Bool
+runBackends :: MonadIO m => EventT mode Event m Bool
 runBackends = do
   runIrcBackend

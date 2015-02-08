@@ -51,10 +51,10 @@ runServer conf = do
 
   socket <- listenOn $ PortNumber (serverPort conf)
 
-  finally `flip` Socket.close socket $ forever $ do
+  finally `flip` Socket.close socket $ forM_ [1..] $ \cid -> do
 
     (h, hostname, _) <- accept socket
 
     void $ forkIO $ do
       putStrLn $ "[" ++ hostname ++ "] New connection."
-      runFrontend h hostname eq
+      runFrontend cid h hostname eq

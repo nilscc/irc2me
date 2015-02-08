@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-# OPTIONS -fno-warn-orphans #-} -- for Show instance of SendServerMessage
 
@@ -11,6 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 
 import Data.Set (Set)
+import qualified Data.Set as S
 
 -- text
 import Data.Text (Text)
@@ -31,18 +33,28 @@ import Irc2me.Database.Tables.Networks
 -- Event types
 --
 
-data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }
-  deriving (Show)
+-- data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event }
+  -- deriving (Show)
 
 data Event
-  = ClientConnectedEvent  ClientConnection
-  | ClientMessageEvent    ClientConnection ClientMessage
-  | NewIrcConnectionEvent NetworkID IrcConnection Identity
-  | ChatMessageEvent      NetworkID ChatMessage
+  = ClientEvent               ClientID ClientEvent
+  | AccountEvent              AccountID AccountEvent
   deriving (Show)
 
-type EventRW m = EventT RW AccountEvent m
-type EventWO m = EventT WO AccountEvent m
+data ClientEvent
+  = ClientConnectedEvent      ClientConnection
+  | ClientAuthenticatedEvent  AccountID
+  | ClientDisconnectedEvent
+  deriving (Show)
+
+data AccountEvent
+  = ClientMessageEvent        ClientConnection ClientMessage
+  | NewIrcConnectionEvent     NetworkID IrcConnection Identity
+  | ChatMessageEvent          NetworkID ChatMessage
+  deriving (Show)
+
+type EventRW m = EventT RW Event m
+type EventWO m = EventT WO Event m
 
 -- orphan Show instances
 
@@ -57,16 +69,21 @@ deriving instance Show ClientConnection
 
 data EventLoopState = EventLoopState
   { _elsAccounts :: Map AccountID AccountState
+  , _elsClients  :: Map ClientID  ClientState
   }
 
+--
+-- Account state
+--
+
 data AccountState = AccountState
-  { _connectedClients       :: [ClientConnection]
-  , _connectedIrcNetworks   :: Map NetworkID IrcState
+  { _connectedIrcNetworks   :: Map NetworkID IrcState
+  , _connectedClients       :: Set ClientID
   }
 
 instance AsEmpty AccountState where
-  _Empty = nearly (AccountState [] M.empty) $ \as ->
-    null   (_connectedClients     as) &&
+  _Empty = nearly (AccountState M.empty S.empty) $ \as ->
+    S.null (_connectedClients     as) &&
     M.null (_connectedIrcNetworks as)
 
 type Channelname = Text
@@ -79,6 +96,23 @@ data IrcState = IrcState
   , _ircUsers      :: Map Channelname (Set Nickname)
   }
 
+--
+-- Client state
+--
+
+newtype ClientID = ClientID Integer
+  deriving (Eq, Show, Ord, Enum, Num)
+
+data ClientState = ClientState
+  { _clientConnection :: ClientConnection
+  , _clientAccount    :: Maybe AccountID
+  }
+
+--
+-- TH
+--
+
 makeLenses ''EventLoopState
 makeLenses ''AccountState
 makeLenses ''IrcState
+makeLenses ''ClientState

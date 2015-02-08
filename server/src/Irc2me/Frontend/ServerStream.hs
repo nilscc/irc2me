@@ -36,31 +36,34 @@ import Irc2me.Frontend.Messages.Authentication
 import Irc2me.Frontend.Streams.StreamT as Stream
 import Irc2me.Frontend.Streams.Helper  as Stream
 
-serverStream :: Stream ()
-serverStream = do
+serverStream :: ClientID -> Stream ()
+serverStream cid = do
 
-  account <- authenticate <|> throwUnauthorized
+  tid <- liftIO myThreadId
 
   withClientConnection $ \con -> do
 
     let send :: MonadIO m => ServerMessage -> m ()
         send = Stream.sendMessage con
 
-        raise = raiseEvent . AccountEvent account
-
-    send responseOkMessage
-
-    -- notify event handler of new connection
-    tid <- liftIO myThreadId
     let cc = ClientConnection tid send
 
-    raise $ ClientConnectedEvent cc
+    -- notify event handler of new connection
+    raiseEvent $ ClientEvent cid $ ClientConnectedEvent cc
+
+    account <- authenticate <|> throwUnauthorized
+
+    -- notify event loop of authentication
+    raiseEvent $ ClientEvent cid $ ClientAuthenticatedEvent account
+
+    send responseOkMessage
 
     forever $ do
       msg <- getMessage
 
       let cc' = cc & ccSend .~ send . addResponseId msg
-      raise $ ClientMessageEvent cc' msg
+      raiseEvent $ AccountEvent account $
+        ClientMessageEvent cc' msg
 
  where
   addResponseId msg response =

@@ -48,7 +48,7 @@ import Irc2me.Backends.IRC.Helper
 import Irc2me.Backends.IRC.Connection as C
 
 runIrcBackend
-  :: (MonadIO m, MonadEventW m AccountEvent)
+  :: (MonadIO m, MonadEventW m Event)
   => m Bool
 runIrcBackend = do
   mcs <- runExceptT $ reconnectAll Map.empty
@@ -66,7 +66,7 @@ runIrcBackend = do
 -- Starting up
 
 reconnectAll
-  :: (MonadIO m, MonadError SqlError m, MonadEventW m AccountEvent)
+  :: (MonadIO m, MonadError SqlError m, MonadEventW m Event)
   => IrcConnections
   -> m ()
 reconnectAll con = withCon con $ do
@@ -127,7 +127,7 @@ reconnectAll con = withCon con $ do
 --------------------------------------------------------------------------------
 -- IRC message evaluation & network state
 
-raiseChatMessageEvent :: EventQueue WO AccountEvent -> AccountID -> NetworkID -> (UTCTime, IRCMsg) -> IO ()
+raiseChatMessageEvent :: EventQueue WO Event -> AccountID -> NetworkID -> (UTCTime, IRCMsg) -> IO ()
 raiseChatMessageEvent eq aid nid (t,msg) =
   writeEventIO eq $ AccountEvent aid $ ChatMessageEvent nid cm
  where

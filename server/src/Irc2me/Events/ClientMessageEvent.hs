@@ -31,7 +31,7 @@ import Irc2me.Frontend.Connection.Types
 import Irc2me.Frontend.Messages
 
 clientMessageEvent
-  :: (MonadIO m, Functor m, MonadReader AccountState m, MonadEventW m AccountEvent)
+  :: (MonadIO m, Functor m, MonadReader AccountState m, MonadEventW m Event)
   => AccountID
   -> ClientConnection
   -> ClientMessage

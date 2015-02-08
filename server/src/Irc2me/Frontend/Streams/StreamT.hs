@@ -151,7 +151,7 @@ withChunks f = StreamT $ \s@(_,c) -> do
 runStream
   :: (MonadIO m, IsClientConnection c)
   => c
-  -> EventQueue WO AccountEvent
+  -> EventQueue WO Event
   -> Stream a
   -> m (Either String a)
 runStream con q st = liftIO $ do
