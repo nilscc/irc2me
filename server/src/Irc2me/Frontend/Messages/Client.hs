@@ -28,10 +28,10 @@ data ClientMessage = ClientMessage
 
     -- APIs
   , _clGET              :: Optional 10 (Message GET)
-  , _clSendMessage      :: Optional 10 (Message SendMessage)
-  , _clPUT              :: Optional 10 (Message PUT)
-  , _clDELETE           :: Optional 10 (Message DELETE)
-  , _clUPDATE           :: Optional 10 (Message UPDATE)
+  , _clSendMessage      :: Optional 20 (Message SendMessage)
+  , _clPUT              :: Optional 30 (Message PUT)
+  , _clDELETE           :: Optional 40 (Message DELETE)
+  , _clUPDATE           :: Optional 50 (Message UPDATE)
 
   }
   deriving (Eq, Show, Generic)
@@ -59,7 +59,7 @@ data SendMessage = SendMessage
 
   , _sendNetworkID       :: Optional 3  (Value ID_T)
 
-  , _sendParams          :: Optional 15 (Value Text)
+  , _sendParams          :: Repeated 15 (Value Text)
   , _sendContent         :: Optional 20 (Value Text)
   }
   deriving (Eq, Show, Generic)
