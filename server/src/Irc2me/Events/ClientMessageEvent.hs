@@ -10,6 +10,10 @@ import Control.Monad.Trans
 --import Control.Monad.Maybe
 import Control.Monad.Reader
 
+-- time
+import Data.Time
+import Data.Time.Clock.POSIX
+
 --text
 import qualified Data.Text as Text
 
@@ -41,9 +45,16 @@ clientMessageEvent aid cc clm = choice
 
         if success then do
 
-          -- resend message with current identity as 'from user'
+          -- current time as epoch timestamp
+          now <- liftIO getCurrentTime
+          let epoch = floor $ utcTimeToPOSIXSeconds now * 1000
+
+          -- current identity
           musr <- ircNetworkUser nid
-          let cm' = cm & messageFromUser .~ musr
+
+          -- resend message with fixed 'from user' and 'timestamp'
+          let cm' = cm & messageFromUser  .~ musr
+                       & messageTimestamp .~ Just epoch
           raiseEvent $ AccountEvent aid (ChatMessageEvent nid cm')
 
           sendResponse responseOkMessage
