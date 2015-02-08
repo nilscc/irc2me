@@ -67,13 +67,16 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
     ChatMessageEvent nid cm -> do
 
       -- look up identity of the current irc network & build server message
-      response <- withAccountState $ do
+      mresponse <- withAccountState $ do
         buildChatMessageResponse nid cm
 
-      -- send server message to all clients
-      clients <- useAccState connectedClients
-      forM_ clients $ \(ClientConnection _ send) -> do
-        liftIO $ send response
+      case mresponse of
+        Nothing -> return ()
+        Just response -> do
+          -- send server message to all clients
+          clients <- useAccState connectedClients
+          forM_ clients $ \(ClientConnection _ send) -> do
+            liftIO $ send response
 
     {-
      - Client events

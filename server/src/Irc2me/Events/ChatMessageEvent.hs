@@ -4,10 +4,13 @@
 
 module Irc2me.Events.ChatMessageEvent where
 
+import Control.Monad
 import Control.Monad.State
+import Control.Monad.Maybe
 
 import Data.Maybe
 
+import qualified Data.Text as Text
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
@@ -24,8 +27,8 @@ buildChatMessageResponse
   :: (MonadIO m, MonadState AccountState m)
   => NetworkID
   -> ChatMessage
-  -> m ServerMessage
-buildChatMessageResponse nid@(NetworkID nid') cm = do
+  -> m (Maybe ServerMessage)
+buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
 
   mident <- preuse $ connectedIrcNetworks . at nid . _Just . ircIdentity
   let mnick = mident ^. _Just . identityNick
@@ -44,7 +47,7 @@ buildChatMessageResponse nid@(NetworkID nid') cm = do
    -
    -}
 
-  mchannels <- case cm ^. messageType of
+  case cm ^. messageType of
 
     -- handle JOIN events
     Just JOIN
@@ -54,7 +57,7 @@ buildChatMessageResponse nid@(NetworkID nid') cm = do
         -- keep track of active channels
         ircState . ircChannels %= Set.insert chan
 
-        return $ Just [chan]
+        return $ sendToChannels [chan]
 
       | not fromSelf
       , Just nick <- unick    -- nick name of user joining
@@ -65,7 +68,7 @@ buildChatMessageResponse nid@(NetworkID nid') cm = do
         let f = Just . maybe (Set.singleton nick) (Set.insert nick)
         ircState . ircUsers %= Map.alter f chan
 
-        return $ Just [chan]
+        return $ sendToChannels [chan]
 
     -- handle PART events
     Just PART
@@ -78,7 +81,7 @@ buildChatMessageResponse nid@(NetworkID nid') cm = do
         -- remove user list of channel
         ircState . ircUsers %= Map.delete chan
 
-        return $ Just [chan]
+        return $ sendToChannels [chan]
 
       | not fromSelf
       , Just nick <- unick    -- nick name of user joining
@@ -88,35 +91,76 @@ buildChatMessageResponse nid@(NetworkID nid') cm = do
         -- remove user from user list
         ircState . ircUsers %= Map.alter (fmap $ Set.delete nick) chan
 
-        return $ Just [chan]
+        return $ sendToChannels [chan]
+
+    -- handle NAMES list
+    Nothing
+      | isNamesList
+      , [_, _, chan] <- params
+      -> do
+
+        -- insert all users
+        let userSet = Set.fromList $ Text.words $ content ^. non ""
+            f       = Just . maybe userSet (Set.union userSet)
+        ircState . ircUsers %= Map.alter f chan
+
+        -- send nothing until end of names list is reached
+        sendNothing
+
+      | isEndOfNamesList
+      , [_, chan] <- params
+      -> do
+
+        -- look up names of current channel
+        ul <- use $ connectedIrcNetworks . at nid . _Just
+                  . ircUsers . at chan . non' _Empty
+
+        -- build user list message
+        let msg = serverMessage $ network & networkChannels .~ [ emptyChannel &~ do
+                    channelName  .= Just chan
+                    channelUsers .= map (\nick -> emptyUser & userNick .~ nick)
+                                        (Set.toList ul)
+                    ]
+        return msg
 
     -- other messages
-    _ | isRecipient -> return Nothing -- private/network message
-      | otherwise   -> return $ Just params
+    _ | isRecipient -> return sendFromNetwork -- private/network message
+      | otherwise   -> return $ sendToChannels params
+
+ where
 
   {-
-   - Send server message to all channels (if any)
+   - Build server message
    -
    -}
 
-  return $ case mchannels of
+  sendToChannels channels =
+    let netchans = flip map channels $ \channel -> emptyChannel &~ do
+          channelName     .= Just channel
+          channelMessages .= [ cm ]
+    in
+    serverMessage $ network & networkChannels .~ netchans
 
-    Just channels ->
+  sendFromNetwork =
+    serverMessage $ network & networkMessages .~ [ cm ]
 
-      let netchans = flip map channels $ \channel -> emptyChannel &~ do
-            channelName     .= Just channel
-            channelMessages .= [ cm ]
-      in
-      serverMessage $ network & networkChannels .~ netchans
+  sendNothing = mzero
 
-    Nothing ->
+  {-
+   - Helper
+   -
+   -}
 
-      serverMessage $ network & networkMessages .~ [ cm ]
-
- where
   serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
 
   network = emptyNetwork &~ do
     Msg.networkId .= Just (fromIntegral nid')
 
+  otherType = cm ^. messageTypeOther
   params = cm ^. messageParams
+  content = cm ^. messageContent
+
+  -- other message types
+
+  isNamesList      = otherType == Just "353"
+  isEndOfNamesList = otherType == Just "366"
