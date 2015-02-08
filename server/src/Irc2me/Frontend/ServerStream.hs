@@ -52,11 +52,15 @@ serverStream = do
 
     -- notify event handler of new connection
     tid <- liftIO myThreadId
-    raise $ ClientConnectedEvent $ ClientConnection tid send
+    let cc = ClientConnection tid send
+
+    raise $ ClientConnectedEvent cc
 
     forever $ do
       msg <- getMessage
-      raise $ ClientMessageEvent msg (send . addResponseId msg)
+
+      let cc' = cc & ccSend .~ send . addResponseId msg
+      raise $ ClientMessageEvent cc' msg
 
  where
   addResponseId msg response =

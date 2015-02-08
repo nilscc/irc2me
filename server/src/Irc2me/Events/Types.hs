@@ -31,7 +31,7 @@ data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event
 
 data Event
   = ClientConnectedEvent  ClientConnection
-  | ClientMessageEvent    ClientMessage (ServerMessage -> IO ())
+  | ClientMessageEvent    ClientConnection ClientMessage
   | NewIrcConnectionEvent NetworkID IrcConnection
   | ChatMessageEvent      NetworkID ChatMessage
   deriving (Show)

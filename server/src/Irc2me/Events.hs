@@ -5,6 +5,7 @@ module Irc2me.Events
 
 import Control.Monad
 import Control.Monad.State
+import Control.Monad.Reader
 import System.IO
 
 import qualified Data.Map as M
@@ -20,6 +21,7 @@ import Irc2me.Backends.IRC.Helper
 
 import Irc2me.Events.Types
 import Irc2me.Events.ChatMessageEvent
+import Irc2me.Events.ClientMessageEvent
 
 handleEvents :: EventRW IO ()
 handleEvents = evalStateT `flip` eventState $ forever $ do
@@ -33,11 +35,14 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
 
   case e of
 
-    -- New client connection
-    ClientConnectedEvent cc -> do
+    {-
+     - IRC events
+     -
+     -}
 
-      -- add client to account state
-      accState . connectedClients ++= [cc]
+    NewIrcConnectionEvent nid con -> do
+
+      accState . connectedIrcNetworks %= M.insert nid con
 
     -- Incoming IRC/chat message
     ChatMessageEvent nid cm -> do
@@ -51,8 +56,36 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
       forM_ clients $ \(ClientConnection _ send) -> do
         liftIO $ send response
 
-    -- other
-    _ -> liftIO $ hPutStrLn stderr $ "Unhandled event: " ++ show e
+    {-
+     - Client events
+     -
+     -}
+
+    -- New client connection
+    ClientConnectedEvent cc -> do
+
+      -- add client to account state
+      accState . connectedClients ++= [cc]
+
+    -- Incoming client message
+    ClientMessageEvent cc cm -> do
+
+      -- current account state
+      as <- use $ elsAccounts . at account . non' _Empty
+
+      -- handle client message event
+      success <- runReaderT `flip` as $ do
+        clientMessageEvent account cc cm
+
+      unless success $
+        liftIO $ hPutStrLn stderr $ "Unhandled client message: " ++ show cm
+
+    {- 
+     - other
+     -
+     -}
+
+    -- _ -> liftIO $ hPutStrLn stderr $ "Unhandled event: " ++ show e
 
  where
   eventState :: EventLoopState

@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Irc2me.Frontend.Connection.Types where
 
 import Control.Applicative
@@ -11,6 +13,10 @@ import Network.TLS as TLS
 
 import System.IO
 
+-- lens
+import Control.Lens
+
+-- local
 import Irc2me.Frontend.Messages.Server
 
 type Chunks = [ByteString]
@@ -28,6 +34,8 @@ instance IsClientConnection Handle where
   incomingChunks h = BL.toChunks <$> BL.hGetContents h
 
 data ClientConnection = ClientConnection
-  { ccThreadId :: ThreadId
-  , ccSend     :: ServerMessage -> IO ()
+  { _ccThreadId :: ThreadId
+  , _ccSend     :: ServerMessage -> IO ()
   }
+
+makeLenses ''ClientConnection

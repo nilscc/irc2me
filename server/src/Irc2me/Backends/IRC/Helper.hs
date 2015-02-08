@@ -1,4 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances #-}
+
+-- disable orphan warning for (ChatMessage -> IO ()) show instance
+{-# OPTIONS -fno-warn-orphans #-}
 
 module Irc2me.Backends.IRC.Helper where
 
@@ -18,12 +22,17 @@ import Network.IRC.ByteString.Parser as IRC
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
 import Irc2me.Frontend.Messages.Identity
+import Irc2me.Frontend.Messages.ChatMessage
+
+instance Show (ChatMessage -> IO ()) where
+  show _ = "(ChatMessage -> IO ())"
 
 data IrcConnection = IrcConnection
   { _ircThread    :: ThreadId
   , _ircIdentity  :: Identity
+  , _ircSend      :: ChatMessage -> IO ()
   }
-  deriving (Eq, Show)
+  deriving Show
 
 makeLenses ''IrcConnection
 

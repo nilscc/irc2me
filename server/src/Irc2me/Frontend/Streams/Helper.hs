@@ -1,21 +1,9 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
 
 module Irc2me.Frontend.Streams.Helper where
 
-import Control.Concurrent.Event
-import Control.Lens
 import Control.Monad.Reader
-import Control.Monad.Except
 
---import Data.Foldable
---import Data.Maybe
 import Data.Monoid
 import Data.ProtocolBuffers
 
@@ -24,11 +12,7 @@ import Data.ProtocolBuffers.Internal
 
 import qualified Data.ByteString as B
 
-import Irc2me.Database.Tables.Accounts
-import Irc2me.Events.Types
 import Irc2me.Frontend.Connection.Types
-import Irc2me.Frontend.Messages.Client
-import Irc2me.Frontend.Messages.Server
 import Irc2me.Frontend.Streams.StreamT
 
 --------------------------------------------------------------------------------
@@ -78,6 +62,7 @@ sendMessage con msg = do
 --------------------------------------------------------------------------------
 -- Server response state
 
+{-
 data ServerReaderState = ServerReaderState
   { connectionAccount :: Maybe AccountID
   , clientMessage     :: ClientMessage
@@ -126,3 +111,4 @@ withMessageField_
   -> ServerResponseT b s
   -> ServerResponseT r s
 withMessageField_ g st = withMessageField g (const st)
+-}
