@@ -45,17 +45,22 @@ clientMessageEvent aid cc clm = choice
 
         if success then do
 
-          -- current time as epoch timestamp
-          now <- liftIO getCurrentTime
-          let epoch = floor $ utcTimeToPOSIXSeconds now * 1000
+          let msgTy = cm ^. messageType
 
-          -- current identity
-          musr <- ircNetworkUser nid
+          -- 'rebroadcast' private messages
+          when (msgTy == Just PRIVMSG) $ do
 
-          -- resend message with fixed 'from user' and 'timestamp'
-          let cm' = cm & messageFromUser  .~ musr
-                       & messageTimestamp .~ Just epoch
-          raiseEvent $ AccountEvent aid (ChatMessageEvent nid cm')
+            -- current time as epoch timestamp
+            now <- liftIO getCurrentTime
+            let epoch = floor $ utcTimeToPOSIXSeconds now * 1000
+
+            -- current identity
+            musr <- ircNetworkUser nid
+
+            -- resend message with fixed 'from user' and 'timestamp'
+            let cm' = cm & messageFromUser  .~ musr
+                         & messageTimestamp .~ Just epoch
+            raiseEvent $ AccountEvent aid (ChatMessageEvent nid cm')
 
           sendResponse responseOkMessage
          else
