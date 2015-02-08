@@ -86,9 +86,6 @@ ircConnect server ident broadcast
   handleIncoming con = do
     mce <- handleIrcMessages con $ \tmsg@(_,msg) -> do
 
-      -- output for debugging purposes
-      putStrLn $ testFormat tmsg
-
       if msgCmd msg == "PING" then
         sendIrc con $ ircMsg "PONG" [] ""
        else
