@@ -1,6 +1,7 @@
 module Irc2me.Frontend.Connection.Types where
 
 import Control.Applicative
+import Control.Concurrent
 
 import           Data.ByteString ( ByteString )
 import qualified Data.ByteString.Char8 as B8
@@ -10,17 +11,23 @@ import Network.TLS as TLS
 
 import System.IO
 
+import Irc2me.Frontend.Messages.Server
+
 type Chunks = [ByteString]
 
-class ClientConnection c where
+class IsClientConnection c where
   sendToClient :: c -> ByteString -> IO ()
   incomingChunks :: c -> IO Chunks
 
-instance ClientConnection TLS.Context where
+instance IsClientConnection TLS.Context where
   sendToClient tls = sendData tls . BL.fromStrict
   incomingChunks tls = sequence (repeat $ recvData tls)
 
-instance ClientConnection Handle where
+instance IsClientConnection Handle where
   sendToClient h = B8.hPutStr h
   incomingChunks h = BL.toChunks <$> BL.hGetContents h
 
+data ClientConnection = ClientConnection
+  { ccThreadId :: ThreadId
+  , ccSend     :: ServerMessage -> IO ()
+  }

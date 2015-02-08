@@ -40,7 +40,7 @@ import Irc2me.Frontend.Connection.Types
 -- newtype on chunks
 
 newtype StreamT e m a = StreamT
-  { unStreamT :: ClientConnection con => (con, Chunks) -> ExceptT e m (Chunks, a)
+  { unStreamT :: IsClientConnection con => (con, Chunks) -> ExceptT e m (Chunks, a)
   }
 
 type Stream = StreamT (First String) (EventWO IO)
@@ -124,14 +124,14 @@ showS w et = do
     Right a -> return a
 
 sendChunk
-  :: (MonadIO m, ClientConnection con)
+  :: (MonadIO m, IsClientConnection con)
   => con -> ByteString -> m ()
 sendChunk con bs = do
   liftIO $ sendToClient con bs
 
 withClientConnection
   :: (Monad m)
-  => (forall con. ClientConnection con => con -> StreamT e m a)
+  => (forall con. IsClientConnection con => con -> StreamT e m a)
   -> StreamT e m a
 withClientConnection f = StreamT $ \s@(con,_) -> unStreamT (f con) s
 
@@ -143,7 +143,7 @@ withChunks f = StreamT $ \s@(_,c) -> do
 
 -- | Run a `Stream` monad with on a handle. Returns the first error message (if any)
 runStream
-  :: (MonadIO m, ClientConnection c)
+  :: (MonadIO m, IsClientConnection c)
   => c
   -> EventQueue WO AccountEvent
   -> Stream a
@@ -157,7 +157,7 @@ runStream con q st = liftIO $ do
 
 -- | Generalized `runStreamOnHandle`
 runStreamT
-  :: (Functor m, MonadIO m, ClientConnection c)
+  :: (Functor m, MonadIO m, IsClientConnection c)
   => c -> StreamT e m a -> m (Either e a)
 runStreamT con st = do
   c <- liftIO $ incomingChunks con

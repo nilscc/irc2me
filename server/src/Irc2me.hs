@@ -38,8 +38,7 @@ runServer conf = do
 
   -- start event loop
   eq <- newEventQueue
-  void $ forkIO $ runEventTRW eq $
-    forever handleEvents
+  void $ forkIO $ runEventTRW eq handleEvents
 
   -- start backends
   putStrLn "Starting backends"

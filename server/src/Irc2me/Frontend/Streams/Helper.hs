@@ -69,7 +69,7 @@ getMessage = withChunks $ \chunks ->
       _ -> throwS "getMessage" "Unexpected end of input."
 
 sendMessage
-  :: (MonadIO m, ClientConnection con, Encode a)
+  :: (MonadIO m, IsClientConnection con, Encode a)
   => con -> a -> m ()
 sendMessage con msg = do
   let encoded = runPut $ encodeMessage msg

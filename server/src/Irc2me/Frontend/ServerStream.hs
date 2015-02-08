@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Irc2me.Frontend.ServerStream
   ( -- * StreamT
@@ -9,6 +10,7 @@ module Irc2me.Frontend.ServerStream
   ) where
 
 import Control.Applicative
+import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 
@@ -28,6 +30,7 @@ import Irc2me.Database.Tables.Accounts
 
 import Irc2me.Events.Types as Events
 
+import Irc2me.Frontend.Connection.Types
 import Irc2me.Frontend.Messages
 import Irc2me.Frontend.Messages.Authentication
 import Irc2me.Frontend.Streams.StreamT as Stream
@@ -47,7 +50,9 @@ serverStream = do
 
     send responseOkMessage
 
-    raise $ ClientConnectedEvent send
+    -- notify event handler of new connection
+    tid <- liftIO myThreadId
+    raise $ ClientConnectedEvent $ ClientConnection tid send
 
     forever $ do
       msg <- getMessage

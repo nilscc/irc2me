@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Irc2me.Backends.IRC.Helper where
 
 import Control.Concurrent
@@ -6,7 +8,7 @@ import Data.Time
 import Data.Map (Map)
 
 -- lens
---import Control.Lens
+import Control.Lens hiding (Identity)
 --import Data.Text.Lens
 
 -- irc-bytestring
@@ -15,11 +17,15 @@ import Network.IRC.ByteString.Parser as IRC
 -- local
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
+import Irc2me.Frontend.Messages.Identity
 
 data IrcConnection = IrcConnection
-  { broadcastThread :: ThreadId
+  { _ircThread    :: ThreadId
+  , _ircIdentity  :: Identity
   }
   deriving (Eq, Show)
+
+makeLenses ''IrcConnection
 
 type IrcConnections = Map AccountID (Map NetworkID IrcConnection)
 

@@ -72,7 +72,8 @@ ircConnect server ident broadcast
         tid <- forkIO $ handleIncoming con
 
         return $ Just $ IrcConnection
-          { broadcastThread = tid
+          { _ircThread   = tid
+          , _ircIdentity = ident
           }
 
   | otherwise = do

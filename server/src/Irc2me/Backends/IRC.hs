@@ -109,9 +109,6 @@ reconnectAll con = withCon con $ do
                 ++ (if server ^. serverUseTLS . non False then "using TLS" else "plaintext")
                 ++ ")"
 
-              -- store new broadcast
-              --at accid . non' _Empty . at netid ?= bc
-
               -- notify event handler of new connection
               lift $ lift $ raiseEvent $ AccountEvent accid $
                 NewIrcConnectionEvent netid c
