@@ -93,14 +93,14 @@ newtype AsyncResponse m = AsyncResponse { sendAsyncMessage :: ServerMessage -> m
 type ServerResponse = ServerResponseT ClientMessage (Either ServerMessage (AsyncResponse IO))
 
 class HasOptionalMessageField a b | a -> b where
-  hasMessageField :: Getter r a -> ServerResponseT r b
+  hasMessageField :: (MonadPlus m, MonadReader r m) => Getter r a -> m b
 
 instance HasOptionalMessageField (Maybe a) a where
-  hasMessageField g = maybe mzero return =<< lift (asks (^. g))
+  hasMessageField g = maybe mzero return =<< asks (^. g)
 
 instance HasOptionalMessageField [a] [a] where
   hasMessageField g = do
-    l <- lift $ asks (^. g)
+    l <- asks (^. g)
     guard $ not $ null l
     return l
 

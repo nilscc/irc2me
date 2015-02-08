@@ -4,6 +4,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
 
@@ -27,6 +28,7 @@ import Control.Applicative
 import Control.Arrow
 import Control.Concurrent.Event
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Except
 
 import Data.ByteString (ByteString)
@@ -76,6 +78,10 @@ instance MonadTrans (StreamT e) where
   lift f = StreamT $ \(_,c) -> do
     a <- lift f
     return (c,a)
+
+instance MonadReader r m => MonadReader r (StreamT e m) where
+  ask = lift ask
+  local f (StreamT s) = StreamT $ \a -> local f (s a)
 
 instance MonadError e m => MonadError e (StreamT e m) where
   throwError e   = StreamT $ \_ -> throwError e
