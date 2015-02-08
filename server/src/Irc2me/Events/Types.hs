@@ -10,8 +10,13 @@ module Irc2me.Events.Types where
 import Data.Map (Map)
 import qualified Data.Map as M
 
+import Data.Set (Set)
+
+-- text
+import Data.Text (Text)
+
 -- lens
-import Control.Lens
+import Control.Lens hiding (Identity)
 
 -- local
 import Control.Concurrent.Event
@@ -32,7 +37,7 @@ data AccountEvent = AccountEvent { _eventAccountId :: AccountID, _event :: Event
 data Event
   = ClientConnectedEvent  ClientConnection
   | ClientMessageEvent    ClientConnection ClientMessage
-  | NewIrcConnectionEvent NetworkID IrcConnection
+  | NewIrcConnectionEvent NetworkID IrcConnection Identity
   | ChatMessageEvent      NetworkID ChatMessage
   deriving (Show)
 
@@ -56,7 +61,7 @@ data EventLoopState = EventLoopState
 
 data AccountState = AccountState
   { _connectedClients       :: [ClientConnection]
-  , _connectedIrcNetworks   :: Map NetworkID IrcConnection
+  , _connectedIrcNetworks   :: Map NetworkID IrcState
   }
 
 instance AsEmpty AccountState where
@@ -64,5 +69,12 @@ instance AsEmpty AccountState where
     null   (_connectedClients     as) &&
     M.null (_connectedIrcNetworks as)
 
+data IrcState = IrcState
+  { _ircConnection :: IrcConnection
+  , _ircIdentity   :: Identity
+  , _ircChannels   :: Set Text
+  }
+
 makeLenses ''EventLoopState
 makeLenses ''AccountState
+makeLenses ''IrcState

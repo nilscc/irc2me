@@ -6,6 +6,7 @@ module Irc2me.Events.Helper where
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Maybe
 
 import Data.Maybe
@@ -18,6 +19,10 @@ import Irc2me.Database.Tables.Networks
 import Irc2me.Events.Types
 import Irc2me.Frontend.Messages
 import Irc2me.Backends.IRC.Helper
+
+infix 4 ++=
+(++=) :: MonadState s m => Setting' (->) s [a] -> [a] -> m ()
+l ++= a = l %= (++ a)
 
 require :: MonadPlus m => Maybe a -> m a
 require = maybe mzero return
@@ -33,7 +38,7 @@ sendIrcMessage
   -> ChatMessage
   -> m Bool
 sendIrcMessage nid cm = do
-  mc <- asks (^. connectedIrcNetworks . at nid)
+  mc <- asks (^? connectedIrcNetworks . at nid . _Just . ircConnection)
   case mc of
     Nothing  -> return False
     Just con -> do

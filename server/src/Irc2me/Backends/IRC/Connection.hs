@@ -73,7 +73,6 @@ ircConnect server ident broadcast
 
         return $ Just $ IrcConnection
           { _ircThread   = tid
-          , _ircIdentity = ident
           , _ircSend     = \cm -> sendIrc con (cm ^. from chatMessage)
           }
 

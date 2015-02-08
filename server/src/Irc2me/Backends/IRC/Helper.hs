@@ -21,7 +21,6 @@ import Network.IRC.ByteString.Parser as IRC
 -- local
 import Irc2me.Database.Tables.Accounts
 import Irc2me.Database.Tables.Networks
-import Irc2me.Frontend.Messages.Identity
 import Irc2me.Frontend.Messages.ChatMessage
 
 instance Show (ChatMessage -> IO ()) where
@@ -29,7 +28,6 @@ instance Show (ChatMessage -> IO ()) where
 
 data IrcConnection = IrcConnection
   { _ircThread    :: ThreadId
-  , _ircIdentity  :: Identity
   , _ircSend      :: ChatMessage -> IO ()
   }
   deriving Show

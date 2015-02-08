@@ -8,7 +8,8 @@ import Control.Monad.State
 import Control.Monad.Reader
 import System.IO
 
-import qualified Data.Map as M
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 -- lens
 import Control.Lens
@@ -17,39 +18,56 @@ import Control.Lens
 import Control.Concurrent.Event
 
 import Irc2me.Frontend.Connection.Types
-import Irc2me.Backends.IRC.Helper
+--import Irc2me.Backends.IRC.Helper
 
 import Irc2me.Events.Types
+import Irc2me.Events.Helper
 import Irc2me.Events.ChatMessageEvent
 import Irc2me.Events.ClientMessageEvent
 
 handleEvents :: EventRW IO ()
 handleEvents = evalStateT `flip` eventState $ forever $ do
 
-  AccountEvent account e <- lift getEvent
+  AccountEvent account event <- lift getEvent
 
   -- prism onto the current account state
   let accState      = elsAccounts . at account . non' _Empty
-      preAccState l = preuse $ elsAccounts . at account . _Just . l
-      useAccState l =    use $ elsAccounts . at account . _Just . l
+      useAccState l = use $ elsAccounts . at account . _Just . l
 
-  case e of
+  -- run a `ReaderT AccountState m` monad
+  let useAccountState f = do
+        as <- use $ elsAccounts . at account . non' _Empty
+        runReaderT f as
+
+  -- run a `StateT AccountState m` monad
+  let withAccountState f = do
+        as <- use $ elsAccounts . at account . non' _Empty
+        (a, as') <- runStateT f (as)
+        accState .= as'
+        return a
+
+  case event of
 
     {-
      - IRC events
      -
      -}
 
-    NewIrcConnectionEvent nid con -> do
+    NewIrcConnectionEvent nid con ident -> do
 
-      accState . connectedIrcNetworks %= M.insert nid con
+      let ircState = IrcState { _ircConnection = con
+                              , _ircIdentity   = ident
+                              , _ircChannels   = Set.empty
+                              }
+
+      accState . connectedIrcNetworks %= Map.insert nid ircState
 
     -- Incoming IRC/chat message
     ChatMessageEvent nid cm -> do
 
       -- look up identity of the current irc network & build server message
-      ident <- preAccState $ connectedIrcNetworks . at nid . _Just . ircIdentity
-      let response = buildChatMessageResponse nid ident cm
+      response <- withAccountState $ do
+        buildChatMessageResponse nid cm
 
       -- send server message to all clients
       clients <- useAccState connectedClients
@@ -70,26 +88,13 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
     -- Incoming client message
     ClientMessageEvent cc cm -> do
 
-      -- current account state
-      as <- use $ elsAccounts . at account . non' _Empty
-
       -- handle client message event
-      success <- runReaderT `flip` as $ do
-        clientMessageEvent account cc cm
+      success <- useAccountState $ clientMessageEvent account cc cm
 
       unless success $
         liftIO $ hPutStrLn stderr $ "Unhandled client message: " ++ show cm
 
-    {- 
-     - other
-     -
-     -}
-
-    -- _ -> liftIO $ hPutStrLn stderr $ "Unhandled event: " ++ show e
-
  where
   eventState :: EventLoopState
-  eventState = EventLoopState M.empty
+  eventState = EventLoopState Map.empty
 
-  infix 4 ++=
-  l ++= a = l %= (++ a)

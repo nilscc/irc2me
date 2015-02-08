@@ -111,7 +111,7 @@ reconnectAll con = withCon con $ do
 
               -- notify event handler of new connection
               lift $ lift $ raiseEvent $ AccountEvent accid $
-                NewIrcConnectionEvent netid c
+                NewIrcConnectionEvent netid c ident
 
             Nothing -> do
               log' $ "Failed to connect to Network " ++ show (_networkId netid)

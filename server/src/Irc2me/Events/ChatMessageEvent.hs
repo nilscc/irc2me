@@ -1,35 +1,86 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Irc2me.Events.ChatMessageEvent where
 
+import Control.Monad.State
+
+import Data.Maybe
+
+import qualified Data.Set as Set
+
+-- lens
 import Control.Lens hiding (Identity)
 
+-- local
 import Irc2me.Database.Tables.Networks
 import Irc2me.Frontend.Messages as Msg
+import Irc2me.Events.Types
+-- import Irc2me.Events.Helper
 
 buildChatMessageResponse
-  :: NetworkID
-  -> Maybe Identity
+  :: (MonadIO m, MonadState AccountState m)
+  => NetworkID
   -> ChatMessage
-  -> ServerMessage
-buildChatMessageResponse (NetworkID nid) ident cm
+  -> m ServerMessage
+buildChatMessageResponse nid@(NetworkID nid') cm = do
 
-  | Just _ty  <- cm ^. messageType             -- known type
-  , [to']     <- cm ^. messageParams           -- one recipient
-  , Just nick <- ident ^. _Just . identityNick -- current nickname
-  , to' /= nick                                -- message to channel
-  = serverMessage $ network &~ do
-      networkChannels .= [ emptyChannel &~ do
-        channelName .= Just to'
-        channelMessages .= [ cm ]
-        ]
+  mident <- preuse $ connectedIrcNetworks . at nid . _Just . ircIdentity
+  let mnick = mident ^. _Just . identityNick
 
-  -- private message
-  | otherwise = serverMessage $ network &~ do
-      networkMessages .= [ cm ]
+  -- see if user nick of `cm` is the current identity nick name
+  let unick    = cm ^? messageFromUser . _Just . userNick
+      fromSelf = isJust mnick && mnick == unick
+
+  -- see if current user is recipient of `cm`
+  let isRecipient = (mnick ^. non "") `elem` params
+
+  {-
+   - Analyze message
+   -
+   -}
+
+  mchannels <- case cm ^. messageType of
+
+    -- handle JOIN events on new channels
+    Just JOIN
+      | fromSelf, [chan] <- params -> do
+        connectedIrcNetworks . at nid . _Just . ircChannels %= Set.insert chan
+        return $ Just [chan]
+
+    -- handle PART events
+    Just PART
+      | fromSelf, [chan] <- params -> do
+        connectedIrcNetworks . at nid . _Just . ircChannels %= Set.delete chan
+        return $ Just [chan]
+
+    _ | isRecipient -> return Nothing -- private/network message
+      | otherwise   -> return $ Just (cm ^. messageParams)
+
+  {-
+   - Send server message to all channels (if any)
+   -
+   -}
+
+  return $ case mchannels of
+
+    Just channels ->
+
+      let netchans = flip map channels $ \channel -> emptyChannel &~ do
+            channelName     .= Just channel
+            channelMessages .= [ cm ]
+      in
+      serverMessage $ network & networkChannels .~ netchans
+
+    Nothing ->
+
+      serverMessage $ network & networkMessages .~ [ cm ]
 
  where
   serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
 
   network = emptyNetwork &~ do
-    Msg.networkId .= Just (fromIntegral nid)
+    Msg.networkId .= Just (fromIntegral nid')
+
+  params = cm ^. messageParams
