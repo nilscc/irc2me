@@ -93,8 +93,29 @@ buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
 
         return $ sendToChannels [chan]
 
+    -- handle QUIT events
+    Just QUIT
+
+      | fromSelf
+      -> do
+
+        liftIO $ putStrLn "No implemented: Own QUIT message" -- TODO
+        sendNothing
+
+      | not fromSelf
+      , Just nick <- unick
+      -> do
+
+        -- figure out all channels in which user was
+        usrs <- use $ connectedIrcNetworks . at nid . _Just . ircUsers
+        let channels = Map.keys $ Map.filter (Set.member nick) usrs
+
+        return $ sendToChannels channels
+
+
     -- handle NAMES list
     Nothing
+
       | isNamesList
       , [_, _, chan] <- params
       -> do
