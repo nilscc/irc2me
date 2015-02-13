@@ -1,8 +1,23 @@
+
+var deps =
+    [ "main/Backlog"
+    , "main/ChatView"
+    , "src/Irc2me"
+    ];
+
+var main = function(Backlog, ChatView, Irc2me) {
+};
+
+require(["../require-common"], function (common) {
+    require(deps, main);
+});
+
 /*
  * Main page class
  *
  */
 
+/*
 var page;
 
 function MainPage () {
@@ -22,11 +37,13 @@ MainPage.prototype.listen = function () {
             var network    = msg.networks[n],
                 network_id = dcodeIO.Long.prototype.toNumber.call(network.id);
 
+            // handle network messages
             if (network.messages && network.messages.length > 0) {
                 self.Backlog.append(network_id, network.messages);
                 self.Chatview.append(network_id, network.messages);
             }
 
+            // handle channel messages
             for (var c = 0; network.channels && c < network.channels.length; c++) {
                 var chan = network.channels[c];
 
@@ -43,12 +60,14 @@ MainPage.prototype.listen = function () {
         }
     });
 }
+*/
 
 /*
  * Backlog
  *
  */
 
+/*
 MainPage.prototype.Backlog = {
     _backlog: {},
     _userlist: {},
@@ -102,10 +121,14 @@ MainPage.prototype.Backlog.get = function (network_id, name) {
            , userlist: userlist[name] || [] };
 }
 
+*/
+
 /*
  * UI: Chat view
  *
  */
+
+/*
 
 MainPage.prototype.Chatview = {
 };
@@ -115,7 +138,10 @@ MainPage.prototype.Chatview.load = function (network_id, channel_name, cb) {
 
     if (!self._protoMsgTypes) {
         Irc2me.getProtobufMesageTypes(function (tys) {
-            self._protoMsgTypes = tys;
+            self._protoMsgTypes = Array();
+            for (var ty in tys) {
+                self._protoMsgTypes[tys[ty]] = ty;
+            }
             self.load(network_id, channel_name, cb);
         });
         return; // quit
@@ -363,12 +389,7 @@ MainPage.prototype.Chatview._getTemplateData = function (msg) {
     }
 
     if (msg.type == "known") {
-        for (var ty in types) {
-            if (msg[msg.type] == types[ty]) {
-                set_type(ty.toLowerCase());
-                break;
-            }
-        }
+        set_type(types[msg[msg.type]].toLowerCase());
     }
 
     // highlight links
@@ -454,23 +475,23 @@ MainPage.prototype.Chatview.send = function (text, cb) {
         cmd  = pars.shift().toUpperCase();
     }
 
-    /*
+    / *
      * Handle user command
      *
-     */
+     * /
 
     var types = self._protoMsgTypes;
 
     if (cmd) {
 
         // make sure cmd is valid
-        if (types.hasOwnProperty(cmd)) {
+        if (types.indexOf(cmd) > -1) {
 
             var content = "";
 
-            switch (types[cmd]) {
+            switch (cmd) {
 
-                case types.PART: {
+                case "PART": {
                     if (! self.currentChannel) { return; }
 
                     content = pars.join(" ");
@@ -479,12 +500,12 @@ MainPage.prototype.Chatview.send = function (text, cb) {
                     break;
                 }
 
-                case types.QUIT: {
+                case "QUIT": {
                     content = pars.join(" ");
                     break;
                 }
 
-                case types.NOTICE: {
+                case "NOTICE": {
 
                     // trailing text
                     var to  = pars.shift(),
@@ -501,7 +522,7 @@ MainPage.prototype.Chatview.send = function (text, cb) {
 
             Irc2me.sendCommand({
                 network_id: self.currentNetwork,
-                command:    cmd,
+                command:    types.indexOf(cmd),
                 parameters: pars,
                 content:    content,
             }, cb);
@@ -510,10 +531,10 @@ MainPage.prototype.Chatview.send = function (text, cb) {
 
     } else {
 
-        /*
+        / *
          * regular private message
          *
-         */
+         * /
 
         // require channel
         if (! self.currentChannel) { return; }
@@ -548,12 +569,14 @@ MainPage.prototype.Chatview.bindKeyEvents = function () {
         }
     });
 };
+*/
 
 /*
  * Load UI
  *
  */
 
+    /*
 $(document).ready(function () {
 
     page = new MainPage();
@@ -563,4 +586,6 @@ $(document).ready(function () {
     page.Chatview.bindKeyEvents();
 
     page.listen();
+
 });
+    */

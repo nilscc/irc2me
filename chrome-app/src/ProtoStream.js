@@ -4,251 +4,245 @@
  * Optional 'socket' parameter.
  */
 
-function ProtoStream (socket) {
+define(function(require) {
 
-    var self = this;
+    var Logger     = require("src/Logger");
+    var ByteBuffer = require("ByteBuffer");
 
-    self._connected = false;
+    var ProtoStream = function(socket) {
 
-    // set socket
-    self._socket = socket;
+        var self = this;
 
-    // log nothing
-    self._logger = function () { };
-}
+        self._connected = false;
 
-/*
- * Suspend & restore
- *
- */
+        // set socket
+        self._socket = socket;
 
-ProtoStream.prototype.suspend = function (cb) {
-    var self = this;
-
-    self.disconnect(cb);
-}
-
-/*
- * Logging
- *
- */
-
-ProtoStream.prototype.setLogger = function (loggerFunction) {
-    var self = this;
-
-    self._logger = loggerFunction;
-}
-
-ProtoStream.prototype.getLogger = function (where /* ... */) {
-    var self = this;
-
-    var args = Array.prototype.slice.call(arguments);
-    args.shift();
-
-    // add arguments to 'where'
-    where = "ProtoStream." + where + "(" + args.join(", ") + ")";
-
-    // return Logger
-    return new Logger(where, self._logger);
-}
-
-ProtoStream.prototype.logToConsole = function () {
-    var self = this;
-    self.setLogger(function (o) { console.log(o); });
-}
-
-
-/*
- * Handle incoming data
- *
- * handleIncoming : ByteBuffer -> ()
- *
- */
-ProtoStream.prototype.setIncomingCallback = function (handleIncoming) {
-    var self = this;
-    self._incomingCB = handleIncoming;
-}
-
-/*
- * Send & receive
- *
- */
-
-ProtoStream.prototype.sendMessage = function (proto_message, callback) {
-
-    if (callback == null) {
-        callback = function() {};
+        // log nothing
+        self._logger = function () { };
     }
 
-    var self = this;
+    /*
+     * Suspend & restore
+     *
+     */
 
-    var Logger = self.getLogger("sendMessage", proto_message);
+    ProtoStream.prototype.suspend = function (cb) {
+        var self = this;
 
-    if (!self._socket) {
-        return Logger.error("Socket not initialized.");
+        self.disconnect(cb);
     }
 
-    if (!self._connected) {
-        return Logger.error("Not connected.");
+    /*
+     * Logging
+     *
+     */
+
+    ProtoStream.prototype.setLogger = function (loggerFunction) {
+        var self = this;
+
+        self._logger = loggerFunction;
     }
 
-    // encode message and get its length
-    var encodedMessage = proto_message.encodeAB(),
-        byteLength     = encodedMessage.byteLength;
+    ProtoStream.prototype.getLogger = function (where /* ... */) {
+        var self = this;
 
-    // calculate the varint64 length for the message length
-    var varintLength = dcodeIO.ByteBuffer.calculateVarint64(byteLength);
+        var args = Array.prototype.slice.call(arguments);
+        args.shift();
 
-    // sum up
-    var totalLength = varintLength + byteLength;
+        // add arguments to 'where'
+        where = "ProtoStream." + where + "(" + args.join(", ") + ")";
 
-    // allocate byte buffer
-    var buffer = new dcodeIO.ByteBuffer(totalLength);
+        // return Logger
+        return new Logger(where, self._logger);
+    }
 
-    // prefix message length and append encoded message
-    buffer.writeVarint64(byteLength);
-    buffer.append(encodedMessage);
+    ProtoStream.prototype.logToConsole = function () {
+        var self = this;
+        self.setLogger(function (o) { console.log(o); });
+    }
 
-    // jump back to buffer start
-    buffer.offset = 0;
 
-    // send buffer
-    chrome.sockets.tcp.send(self._socket, buffer.toArrayBuffer(), function(res) {
+    /*
+     * Handle incoming data
+     *
+     * handleIncoming : ByteBuffer -> ()
+     *
+     */
+    ProtoStream.prototype.setIncomingCallback = function (handleIncoming) {
+        var self = this;
+        self._incomingCB = handleIncoming;
+    }
 
-        if (res.resultCode != 0) {
-            return callback(false, "Could not send message (" + res.resultCode + ").");
+    /*
+     * Send & receive
+     *
+     */
+
+    ProtoStream.prototype.sendMessage = function (proto_message, callback) {
+
+        if (callback == null) {
+            callback = function() {};
         }
 
-        if (res.bytesSent < totalLength) {
-            var bytesSent =
-            Logger.warn("Only " +  res.bytesSent + " of " + totalLength + " bytes sent.");
+        var self = this;
+
+        var Logger = self.getLogger("sendMessage", proto_message);
+
+        if (!self._socket) {
+            return Logger.error("Socket not initialized.");
         }
 
-        // done
-        return callback(true);
-    });
-}
+        if (!self._connected) {
+            return Logger.error("Not connected.");
+        }
 
-ProtoStream.prototype._onReceive = function(info) {
+        // encode message and get its length
+        var encodedMessage = proto_message.encodeAB(),
+            byteLength     = encodedMessage.byteLength;
 
-    var self = this;
+        // calculate the varint64 length for the message length
+        var varintLength = ByteBuffer.calculateVarint64(byteLength);
 
-    // skip other sockets
-    if (info.socketId != self._socket) {
-        return;
+        // sum up
+        var totalLength = varintLength + byteLength;
+
+        // allocate byte buffer
+        var buffer = new ByteBuffer(totalLength);
+
+        // prefix message length and append encoded message
+        buffer.writeVarint64(byteLength);
+        buffer.append(encodedMessage);
+
+        // jump back to buffer start
+        buffer.offset = 0;
+
+        // send buffer
+        chrome.sockets.tcp.send(self._socket, buffer.toArrayBuffer(), function(res) {
+
+            if (res.resultCode != 0) {
+                return callback(false, "Could not send message (" + res.resultCode + ").");
+            }
+
+            if (res.bytesSent < totalLength) {
+                var bytesSent =
+                Logger.warn("Only " +  res.bytesSent + " of " + totalLength + " bytes sent.");
+            }
+
+            // done
+            return callback(true);
+        });
     }
 
-    var totalLength = info.data.byteLength;
+    ProtoStream.prototype._onReceive = function(info) {
 
-    // wrap the array buffer into our byte buffer
-    var buffer = dcodeIO.ByteBuffer.wrap(info.data);
+        var self = this;
 
-    // see if we have any incomplete messages still in buffer
-    if (self._incompleteMessageBuffer != null) {
+        // skip other sockets
+        if (info.socketId != self._socket) {
+            return;
+        }
 
-        totalLength += self._incompleteMessageBuffer.remaining();
+        var totalLength = info.data.byteLength;
 
-        // append 'buffer' to the end of incomplete message buffer
-        self._incompleteMessageBuffer.append(buffer, self._incompleteMessageBuffer.limit);
-    }
+        // wrap the array buffer into our byte buffer
+        var buffer = ByteBuffer.wrap(info.data);
 
-    // check if callback has been set properly, otherwise delay buffer
-    if (typeof self._incomingCB != "function") {
-        return; // delay
-    }
+        // see if we have any incomplete messages still in buffer
+        if (self._incompleteMessageBuffer != null) {
 
-    // swap buffer/incomplete buffer
-    if (self._incompleteMessageBuffer != null) {
-        buffer = self._incompleteMessageBuffer;
-        self._incompleteMessageBuffer = null;
-    }
+            totalLength += self._incompleteMessageBuffer.remaining();
 
-    // reset all limit/offsets
-    buffer.clear();
+            // append 'buffer' to the end of incomplete message buffer
+            self._incompleteMessageBuffer.append(buffer, self._incompleteMessageBuffer.limit);
+        }
 
-    // loop over all messages
-    while (buffer.remaining() > 0) {
+        // check if callback has been set properly, otherwise delay buffer
+        if (typeof self._incomingCB != "function") {
+            return; // delay
+        }
 
-        // mark current buffer position
-        buffer.mark();
+        // swap buffer/incomplete buffer
+        if (self._incompleteMessageBuffer != null) {
+            buffer = self._incompleteMessageBuffer;
+            self._incompleteMessageBuffer = null;
+        }
 
-        // read message
-        var messageLength = buffer.readVarint64();
+        // reset all limit/offsets
+        buffer.clear();
 
-        if (buffer.remaining() >= messageLength) {
+        // loop over all messages
+        while (buffer.remaining() > 0) {
 
-            // set proper limit
-            buffer.limit = parseInt(buffer.offset) + parseInt(messageLength);
+            // mark current buffer position
+            buffer.mark();
 
-            // decode message and run callback
-            self._incomingCB(buffer);
+            // read message
+            var messageLength = buffer.readVarint64();
 
-            // reset buffer and set proper offset
-            buffer.offset = buffer.limit;
-            buffer.limit  = totalLength;
+            if (buffer.remaining() >= messageLength) {
 
-        } else {
+                // set proper limit
+                buffer.limit = parseInt(buffer.offset) + parseInt(messageLength);
 
-            // jump back to old 'marked' varint64 message length prefix position
-            buffer.reset();
+                // decode message and run callback
+                self._incomingCB(buffer);
 
-            // break out of while loop
-            break;
+                // reset buffer and set proper offset
+                buffer.offset = buffer.limit;
+                buffer.limit  = totalLength;
+
+            } else {
+
+                // jump back to old 'marked' varint64 message length prefix position
+                buffer.reset();
+
+                // break out of while loop
+                break;
+            }
+        }
+
+        // check if we have left over data
+        if (buffer.remaining() > 0) {
+
+            if (!self._incompleteMessageBuffer) {
+                self._incompleteMessageBuffer = buffer;
+            } else {
+                self._incompleteMessageBuffer.append(buffer);
+            }
         }
     }
 
-    // check if we have left over data
-    if (buffer.remaining() > 0) {
+    /*
+     * Connect & disconnect
+     *
+     */
 
-        if (!self._incompleteMessageBuffer) {
-            self._incompleteMessageBuffer = buffer;
-        } else {
-            self._incompleteMessageBuffer.append(buffer);
-        }
-    }
-}
+    ProtoStream.prototype.connect = function (hostname, port, callback) {
 
-/*
- * Connect & disconnect
- *
- */
+        var self = this;
 
-ProtoStream.prototype.connect = function (hostname, port, callback) {
+        var log = self.getLogger("connect", hostname, port);
 
-    var self = this;
-
-    var log = self.getLogger("connect", hostname, port);
-
-    if (self._socket != null) {
-        return log.error("ProtoStream.connect: _socket already set.");
-    }
-
-    if (self._connected) {
-        return log.error("ProtoStream.connect: Already connected.");
-    }
-
-    if (callback == null) {
-        callback = function () {};
-    }
-
-    log.log("Connecting", "Connecting…");
-
-    // create new socket
-    chrome.sockets.tcp.create({
-        name: "protostream-tcp-socket",
-        persistent: true,
-    }, function(createInfo) {
-
-        // check error
-        if (chrome.runtime.lastError) {
-            self.disconnect();
-            return callback(false, chrome.runtime.lastError.message);
+        if (self._socket != null) {
+            return log.error("ProtoStream.connect: _socket already set.");
         }
 
-        self._socket = createInfo.socketId;
+        if (self._connected) {
+            return log.error("ProtoStream.connect: Already connected.");
+        }
 
-        // connect
-        chrome.sockets.tcp.connect(self._socket, hostname, parseInt(port), function(res) {
+        if (callback == null) {
+            callback = function () {};
+        }
+
+        log.log("Connecting", "Connecting…");
+
+        // create new socket
+        chrome.sockets.tcp.create({
+            name: "protostream-tcp-socket",
+            persistent: true,
+        }, function(createInfo) {
 
             // check error
             if (chrome.runtime.lastError) {
@@ -256,90 +250,109 @@ ProtoStream.prototype.connect = function (hostname, port, callback) {
                 return callback(false, chrome.runtime.lastError.message);
             }
 
-            if (res != 0) {
-                // quit
-                self.disconnect();
-                return callback(false, "Could not connect socket (" + res + ").");
-            }
+            self._socket = createInfo.socketId;
 
-            self._connected = true;
-
-            log.info("Connected to " + hostname + ":" + port + ".");
-
-            // (try to) disable delay
-            chrome.sockets.tcp.setNoDelay(self._socket, true, function(res) {
-
-                var reason = chrome.runtime.lastError ? chrome.runtime.lastError.message : res;
+            // connect
+            chrome.sockets.tcp.connect(self._socket, hostname, parseInt(port), function(res) {
 
                 // check error
-                if (reason) {
-                    log.warn("Could not set NoDelay (" + reason + ").");
-                }
-            });
-
-            // install handler for incoming data
-            self._onReceiveListener = function (info) {
-                self._onReceive(info);
-            };
-
-            chrome.sockets.tcp.onReceive.addListener(self._onReceiveListener);
-
-            // done
-            return callback(true);
-        });
-    });
-}
-
-ProtoStream.prototype.disconnect = function (callback) {
-
-    if (callback == null) {
-        callback = function () {};
-    }
-
-    var self = this,
-        log = self.getLogger("disconnect");
-
-    if (self._socket == null) {
-        // do nothing
-        return log.warn("No socket available.");
-    }
-
-    // buffer values
-    var socket = self._socket,
-        connected = self._connected;
-
-    // reset self status
-    self._socket = null;
-    self._connected = false;
-    self._incomingCB = null;
-
-    // remove chrome api listener
-    if (self._onReceiveListener) {
-        chrome.sockets.tcp.onReceive.removeListener(self._onReceiveListener);
-        self._onReceiveListener = null;
-    }
-
-    // perform disconnect
-    if (connected) {
-        chrome.sockets.tcp.disconnect(socket, function() {
-
-            if (chrome.runtime.lastError) {
-                return callback(false, chrome.runtime.lastError.message);
-            }
-
-            // log disconnect() call
-            log.log("Disconnected", "Disconnected.");
-
-            // close socket
-            chrome.sockets.tcp.close(socket, function () {
-
                 if (chrome.runtime.lastError) {
-                    return log.error(chrome.runtime.lastError.message);
+                    self.disconnect();
+                    return callback(false, chrome.runtime.lastError.message);
                 }
+
+                if (res != 0) {
+                    // quit
+                    self.disconnect();
+                    return callback(false, "Could not connect socket (" + res + ").");
+                }
+
+                self._connected = true;
+
+                log.info("Connected to " + hostname + ":" + port + ".");
+
+                // (try to) disable delay
+                chrome.sockets.tcp.setNoDelay(self._socket, true, function(res) {
+
+                    var reason = chrome.runtime.lastError ? chrome.runtime.lastError.message : res;
+
+                    // check error
+                    if (reason) {
+                        log.warn("Could not set NoDelay (" + reason + ").");
+                    }
+                });
+
+                // install handler for incoming data
+                self._onReceiveListener = function (info) {
+                    self._onReceive(info);
+                };
+
+                chrome.sockets.tcp.onReceive.addListener(self._onReceiveListener);
 
                 // done
                 return callback(true);
             });
         });
     }
-}
+
+    ProtoStream.prototype.disconnect = function (callback) {
+
+        if (callback == null) {
+            callback = function () {};
+        }
+
+        var self = this,
+            log = self.getLogger("disconnect");
+
+        if (self._socket == null) {
+            // do nothing
+            return log.warn("No socket available.");
+        }
+
+        // buffer values
+        var socket = self._socket,
+            connected = self._connected;
+
+        // reset self status
+        self._socket = null;
+        self._connected = false;
+        self._incomingCB = null;
+
+        // remove chrome api listener
+        if (self._onReceiveListener) {
+            chrome.sockets.tcp.onReceive.removeListener(self._onReceiveListener);
+            self._onReceiveListener = null;
+        }
+
+        // perform disconnect
+        if (connected) {
+            chrome.sockets.tcp.disconnect(socket, function() {
+
+                if (chrome.runtime.lastError) {
+                    return callback(false, chrome.runtime.lastError.message);
+                }
+
+                // log disconnect() call
+                log.log("Disconnected", "Disconnected.");
+
+                // close socket
+                chrome.sockets.tcp.close(socket, function () {
+
+                    if (chrome.runtime.lastError) {
+                        return log.error(chrome.runtime.lastError.message);
+                    }
+
+                    // done
+                    return callback(true);
+                });
+            });
+        }
+    }
+
+    /*
+     * End of module
+     *
+     */
+    return ProtoStream;
+
+});
