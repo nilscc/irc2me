@@ -1,54 +1,62 @@
-function ChromeMessage (id) {
+define(function (require) {
 
-    var f = function (content, callback) {
+    "use strict";
 
-        if (typeof content == "function" && callback == null) {
-            // swap arguments
-            callback = content;
-            content = null;
-        }
+    // Constructor
+    var ChromeMessage = function (id) {
 
-        chrome.runtime.sendMessage({
-            id: f._id,
-            content: content || {},
-        }, callback);
-    };
+        var f = function (content, callback) {
 
-    // link ChromeMessages prototype to f
-    f.__proto__ = ChromeMessage.prototype;
+            if (typeof content == "function" && callback == null) {
+                // swap arguments
+                callback = content;
+                content = null;
+            }
 
-    // set current values
-    f._id = id;
+            chrome.runtime.sendMessage({
+                id: f._id,
+                content: content || {},
+            }, callback);
+        };
 
-    return f;
-}
+        // link ChromeMessages prototype to f
+        f.__proto__ = ChromeMessage.prototype;
 
-// inherit prototype from Function class
-ChromeMessage.prototype = Object.create(Function.prototype);
+        // set current values
+        f._id = id;
 
-/*
- * Add listener functions
- *
- */
-
-ChromeMessage.prototype.addListener = function (run) {
-    var self = this;
-
-    if (typeof run != "function") {
-        return;
+        return f;
     }
 
-    var f = function (msg, sender, sendResponse) {
+    // inherit prototype from Function class
+    ChromeMessage.prototype = Object.create(Function.prototype);
 
-        // ignore invalid messages
-        if (typeof msg != "object" || typeof msg.id != "string") {
+    /*
+     * Add listener functions
+     *
+     */
+
+    ChromeMessage.prototype.addListener = function (run) {
+        var self = this;
+
+        if (typeof run != "function") {
             return;
         }
 
-        if (msg.id == self._id) {
-            return run(msg.content, sendResponse);
-        }
-    };
+        var f = function (msg, sender, sendResponse) {
 
-    chrome.runtime.onMessage.addListener(f);
-}
+            // ignore invalid messages
+            if (typeof msg != "object" || typeof msg.id != "string") {
+                return;
+            }
+
+            if (msg.id == self._id) {
+                return run(msg.content, sendResponse);
+            }
+        };
+
+        chrome.runtime.onMessage.addListener(f);
+    }
+
+    return ChromeMessage;
+});

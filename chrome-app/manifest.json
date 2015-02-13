@@ -23,14 +23,7 @@
         "background":
         {
             "scripts":
-                [ "libs/Long.min.js"
-                , "libs/ByteBufferAB.min.js"
-                , "libs/ProtoBuf.js"
-                , "src/Logger.js"
-                , "src/ChromeMessage.js"
-                , "src/ProtoStream.js"
-                , "src/Irc2me.js"
-                , "src/UIState.js"
+                [ "libs/require.js"
                 , "background.js"
                 ],
             "persistent": false

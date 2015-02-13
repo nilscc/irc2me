@@ -1,15 +1,21 @@
-/*
- * Main page class
- *
- */
+var deps =
+    [ "main/Backlog"
+    , "main/ChatView"
+    , "src/Irc2me"
+    ];
 
-var page;
+var main = function(Backlog, ChatView, Irc2me) {
 
-function MainPage () {
-}
+    var backlog  = new Backlog();
+    var chatview = new ChatView(backlog);
 
-MainPage.prototype.listen = function () {
-    var self = this;
+    chatview.listenForNewMessages();
+    chatview.bindKeyEvents($("#input-prompt"));
+
+    /*
+     * Setup signals
+     *
+     */
 
     Irc2me.Signals.disconnected.addListener(function () {
         UIState.ConnectionWindow.open();
@@ -17,95 +23,20 @@ MainPage.prototype.listen = function () {
     });
 
     Irc2me.Signals.incomingMessage.addListener(function (msg) {
-        // loop over networks
-        for (var n = 0; n < msg.networks.length; n++) {
-            var network    = msg.networks[n],
-                network_id = dcodeIO.Long.prototype.toNumber.call(network.id);
-
-            if (network.messages && network.messages.length > 0) {
-                self.Backlog.append(network_id, network.messages);
-                self.Chatview.append(network_id, network.messages);
-            }
-
-            for (var c = 0; network.channels && c < network.channels.length; c++) {
-                var chan = network.channels[c];
-
-                if (chan.messages.length > 0) {
-                    self.Backlog.append(network_id, chan.name, chan.messages);
-                    self.Chatview.append(network_id, chan.name, chan.messages);
-                }
-
-                if (chan.users.length > 0) {
-                    self.Backlog.setUserlist(network_id, chan.name, chan.users);
-                    self.Chatview.setUserlist(network_id, chan.name, chan.users);
-                }
-            }
-        }
+        backlog.incomingMessage(msg);
     });
-}
-
-/*
- * Backlog
- *
- */
-
-MainPage.prototype.Backlog = {
-    _backlog: {},
-    _userlist: {},
 };
 
-MainPage.prototype.Backlog.append = function (network_id, channel_name, messages) {
-
-    var self = this;
-
-    // optional 'channel_name' argument
-    if (typeof channel_name == "object") {
-        messages = channel_name;
-        channel_name = null;
-    }
-
-    // init and alias network backlog
-    var backlog = self._backlog[network_id] = self._backlog[network_id] || {};
-
-    for (var i = 0; i < messages.length; i++) {
-
-        var msg  = messages[i],
-            name = channel_name || msg.server || (msg.user && msg.user.nick);
-
-        if (name) {
-            // init 'name' backlog
-            backlog[name] = backlog[name] || [];
-            // append message
-            backlog[name].push(msg);
-        } else {
-            console.log(msg);
-            console.error("Invalid Backlog.append message");
-        }
-    }
-}
-
-MainPage.prototype.Backlog.setUserlist = function (network_id, channel_name, users) {
-    var self = this;
-
-    var userlist = self._userlist[network_id] = self._userlist[network_id] || {};
-    userlist[channel_name] = users;
-}
-
-MainPage.prototype.Backlog.get = function (network_id, name) {
-
-    var self = this;
-
-    var backlog  = self._backlog[network_id]  || {},
-        userlist = self._userlist[network_id] || {};
-
-    return { backlog:  backlog[name]  || []
-           , userlist: userlist[name] || [] };
-}
+require(["../require-common"], function (common) {
+    require(deps, main);
+});
 
 /*
  * UI: Chat view
  *
  */
+
+/*
 
 MainPage.prototype.Chatview = {
 };
@@ -115,7 +46,10 @@ MainPage.prototype.Chatview.load = function (network_id, channel_name, cb) {
 
     if (!self._protoMsgTypes) {
         Irc2me.getProtobufMesageTypes(function (tys) {
-            self._protoMsgTypes = tys;
+            self._protoMsgTypes = Array();
+            for (var ty in tys) {
+                self._protoMsgTypes[tys[ty]] = ty;
+            }
             self.load(network_id, channel_name, cb);
         });
         return; // quit
@@ -363,12 +297,7 @@ MainPage.prototype.Chatview._getTemplateData = function (msg) {
     }
 
     if (msg.type == "known") {
-        for (var ty in types) {
-            if (msg[msg.type] == types[ty]) {
-                set_type(ty.toLowerCase());
-                break;
-            }
-        }
+        set_type(types[msg[msg.type]].toLowerCase());
     }
 
     // highlight links
@@ -454,23 +383,23 @@ MainPage.prototype.Chatview.send = function (text, cb) {
         cmd  = pars.shift().toUpperCase();
     }
 
-    /*
+    / *
      * Handle user command
      *
-     */
+     * /
 
     var types = self._protoMsgTypes;
 
     if (cmd) {
 
         // make sure cmd is valid
-        if (types.hasOwnProperty(cmd)) {
+        if (types.indexOf(cmd) > -1) {
 
             var content = "";
 
-            switch (types[cmd]) {
+            switch (cmd) {
 
-                case types.PART: {
+                case "PART": {
                     if (! self.currentChannel) { return; }
 
                     content = pars.join(" ");
@@ -479,12 +408,12 @@ MainPage.prototype.Chatview.send = function (text, cb) {
                     break;
                 }
 
-                case types.QUIT: {
+                case "QUIT": {
                     content = pars.join(" ");
                     break;
                 }
 
-                case types.NOTICE: {
+                case "NOTICE": {
 
                     // trailing text
                     var to  = pars.shift(),
@@ -501,7 +430,7 @@ MainPage.prototype.Chatview.send = function (text, cb) {
 
             Irc2me.sendCommand({
                 network_id: self.currentNetwork,
-                command:    cmd,
+                command:    types.indexOf(cmd),
                 parameters: pars,
                 content:    content,
             }, cb);
@@ -510,10 +439,10 @@ MainPage.prototype.Chatview.send = function (text, cb) {
 
     } else {
 
-        /*
+        / *
          * regular private message
          *
-         */
+         * /
 
         // require channel
         if (! self.currentChannel) { return; }
@@ -548,12 +477,14 @@ MainPage.prototype.Chatview.bindKeyEvents = function () {
         }
     });
 };
+*/
 
 /*
  * Load UI
  *
  */
 
+    /*
 $(document).ready(function () {
 
     page = new MainPage();
@@ -563,4 +494,6 @@ $(document).ready(function () {
     page.Chatview.bindKeyEvents();
 
     page.listen();
+
 });
+    */

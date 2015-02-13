@@ -1,198 +1,212 @@
+
 /*
  * Page class
  *
  */
 
-var page;
+var deps =
+    [ "src/Irc2me"
+    , "src/UIState"
+    , "common/Helper"
+    , "jquery"
+    ];
 
-function PageConnect() { }
 
-/*
- * Actions
- *
- */
+var main = function(Irc2me, UIState, Helper, $) {
 
-PageConnect.prototype.connect = function() {
-    var self = this;
+    var PageConnect = function () { }
 
-    self.setConnecting();
+    /*
+     * Actions
+     *
+     */
 
-    // input data
-    var host = Helper.inputByName("hostname"),
-        port = Helper.inputByName("port"),
-        user = Helper.inputByName("username"),
-        pass = Helper.inputByName("password");
+    PageConnect.prototype.connect = function() {
+        var self = this;
 
-    Irc2me.connect({
-        hostname: host,
-        port: port,
-        username: user,
-        password: pass,
-    });
-}
+        self.setConnecting();
 
-PageConnect.prototype.disconnect = function () {
-    var self = this;
+        // input data
+        var host = Helper.inputByName("hostname"),
+            port = Helper.inputByName("port"),
+            user = Helper.inputByName("username"),
+            pass = Helper.inputByName("password");
 
-    Irc2me.disconnect(function () {
-        self.setDisconnected();
-    });
-}
-
-PageConnect.prototype.close = function() {
-    chrome.app.window.current().close();
-}
-
-PageConnect.prototype.disableInput = function (disabled) {
-    if (disabled == null) {
-        disabled = true;
+        Irc2me.connect({
+            hostname: host,
+            port: port,
+            username: user,
+            password: pass,
+        });
     }
 
-    $("#login-form input")
-        .prop('disabled', disabled);
-}
+    PageConnect.prototype.disconnect = function () {
+        var self = this;
 
-PageConnect.prototype.setConnecting = function () {
-    var self = this;
+        Irc2me.disconnect(function () {
+            self.setDisconnected();
+        });
+    }
 
-    $("#connect")
-        .text("Connecting")
-        .addClass("inactive");
+    PageConnect.prototype.close = function() {
+        chrome.app.window.current().close();
+    }
 
-    self.disableInput();
-}
+    PageConnect.prototype.disableInput = function (disabled) {
+        if (disabled == null) {
+            disabled = true;
+        }
 
-PageConnect.prototype.setConnected = function() {
-    var self = this;
+        $("#login-form input")
+            .prop('disabled', disabled);
+    }
 
-    $("#connect")
-        .text("Disconnect")
-        .removeClass("inactive")
-        .one("click", function () { self.disconnect(); });
+    PageConnect.prototype.setConnecting = function () {
+        var self = this;
 
-    self.disableInput();
-}
+        $("#connect")
+            .text("Connecting")
+            .addClass("inactive");
 
-PageConnect.prototype.setDisconnected = function() {
-    var self = this;
+        self.disableInput();
+    }
 
-    $("#connect")
-        .text("Connect")
-        .removeClass("inactive")
-        .one("click", function () { self.connect(); });
+    PageConnect.prototype.setConnected = function() {
+        var self = this;
 
-    // enable input
-    self.disableInput(false);
-}
+        $("#connect")
+            .text("Disconnect")
+            .removeClass("inactive")
+            .one("click", function () { self.disconnect(); });
 
-/*
- * Connection status
- *
- */
+        self.disableInput();
+    }
 
-PageConnect.prototype.ConnectionStatus = {};
+    PageConnect.prototype.setDisconnected = function() {
+        var self = this;
 
-PageConnect.prototype.ConnectionStatus.load = function () {
-    var self = this;
+        $("#connect")
+            .text("Connect")
+            .removeClass("inactive")
+            .one("click", function () { self.connect(); });
 
-    Irc2me.isConnected(function (connected) {
-        if (connected) {
+        // enable input
+        self.disableInput(false);
+    }
+
+    /*
+     * Connection status
+     *
+     */
+
+    PageConnect.prototype.ConnectionStatus = {};
+
+    PageConnect.prototype.ConnectionStatus.load = function () {
+        var self = this;
+
+        Irc2me.isConnected(function (connected) {
+            if (connected) {
+                page.setConnected();
+            } else {
+                page.setDisconnected();
+            }
+        });
+    }
+
+    PageConnect.prototype.ConnectionStatus.listen = function () {
+
+        var self = this,
+            cur  = chrome.app.window.current();
+
+        Irc2me.Signals.connected.addListener(function() {
             page.setConnected();
-        } else {
+
+            // load main window
+            UIState.MainWindow.open();
+            UIState.ConnectionWindow.close();
+        });
+
+        Irc2me.Signals.disconnected.addListener(function() {
             page.setDisconnected();
-        }
+        });
+
+    }
+
+    /*
+     * System log
+     *
+     */
+
+    PageConnect.prototype.SystemLog = {};
+
+    PageConnect.prototype.SystemLog.append = function (statusObject) {
+
+        var log = $("#connection-log");
+
+        log.append("<p title=\"" + Helper.escapeHtml(statusObject.where || "") + "\">"
+                + "[" + statusObject.time + "] "
+                + statusObject.message + "</p>");
+
+        // scroll parent to bottom
+        Helper.scrollToBottom(log.parent());
+    }
+
+    PageConnect.prototype.SystemLog.loadAll = function () {
+        var self = this;
+
+        UIState.getSystemLogs(function(logs) {
+
+            // empty log
+            $("#connection-log").html("");
+
+            for (var i = 0; i < logs.length; i++) {
+                self.append(logs[i]);
+            }
+
+        });
+    }
+
+    PageConnect.prototype.SystemLog.listen = function () {
+
+        var self = this;
+
+        UIState.Signals.addSystemLog.addListener(function (obj) {
+            self.append(obj);
+        });
+
+    }
+
+    /*
+     * Setup UI
+     *
+     */
+
+    $(document).ready(function () {
+
+        page = new PageConnect();
+
+        page.SystemLog.loadAll();
+        page.SystemLog.listen();
+
+        page.ConnectionStatus.load();
+        page.ConnectionStatus.listen();
+
+        // bind "quit" button
+        $("#quit").click(function () {
+            Irc2me.disconnect();
+            UIState.closeAllWindows();
+        });
+
+        // bin "enter" key in input fields
+        $("input").keypress(function (e) {
+            if (e.which == 13) { // enter key
+                page.connect();
+            }
+        });
+
     });
-}
+};
 
-PageConnect.prototype.ConnectionStatus.listen = function () {
-
-    var self = this,
-        cur  = chrome.app.window.current();
-
-    Irc2me.Signals.connected.addListener(function() {
-        page.setConnected();
-
-        // load main window
-        UIState.MainWindow.open();
-        UIState.ConnectionWindow.close();
-    });
-
-    Irc2me.Signals.disconnected.addListener(function() {
-        page.setDisconnected();
-    });
-
-}
-
-/*
- * System log
- *
- */
-
-PageConnect.prototype.SystemLog = {};
-
-PageConnect.prototype.SystemLog.append = function (statusObject) {
-
-    var log = $("#connection-log");
-
-    log.append("<p title=\"" + Helper.escapeHtml(statusObject.where || "") + "\">"
-            + "[" + statusObject.time + "] "
-            + statusObject.message + "</p>");
-
-    // scroll parent to bottom
-    Helper.scrollToBottom(log.parent());
-}
-
-PageConnect.prototype.SystemLog.loadAll = function () {
-    var self = this;
-
-    UIState.getSystemLogs(function(logs) {
-
-        // empty log
-        $("#connection-log").html("");
-
-        for (var i = 0; i < logs.length; i++) {
-            self.append(logs[i]);
-        }
-
-    });
-}
-
-PageConnect.prototype.SystemLog.listen = function () {
-
-    var self = this;
-
-    UIState.Signals.addSystemLog.addListener(function (obj) {
-        self.append(obj);
-    });
-
-}
-
-/*
- * Setup UI
- *
- */
-
-$(document).ready(function () {
-
-    page = new PageConnect();
-
-    page.SystemLog.loadAll();
-    page.SystemLog.listen();
-
-    page.ConnectionStatus.load();
-    page.ConnectionStatus.listen();
-
-    // bind "quit" button
-    $("#quit").click(function () {
-        Irc2me.disconnect();
-        UIState.closeAllWindows();
-    });
-
-    // bin "enter" key in input fields
-    $("input").keypress(function (e) {
-        if (e.which == 13) { // enter key
-            page.connect();
-        }
-    });
-
+require(["../require-common"], function (common) {
+    require(deps, main);
 });
