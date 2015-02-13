@@ -2,6 +2,7 @@ define(function (require) {
 
     "use strict";
 
+    var Irc2me  = require("src/Irc2me");
     var Helper  = require("common/Helper");
     var Long    = require("Long");
     var $       = require("jquery");
@@ -13,7 +14,6 @@ define(function (require) {
 
     var B = Backlog.prototype;
 
-
     /*
      * Helper functions
      *
@@ -21,19 +21,36 @@ define(function (require) {
 
     var initNetwork = function(network_id) {
         var self = this;
-        self.backlog[network_id] = self.network(network_id);
+        return self.backlog[network_id] = self.network(network_id);
     };
 
     var initChannel = function(network_id, channel) {
         var self = this;
         initNetwork.call(self, network_id);
-        self.backlog[network_id].channels[channel] = self.channel(network_id, channel);
+        return self.backlog[network_id].channels[channel] = self.channel(network_id, channel);
     };
 
     var initQuery = function (network_id, user) {
         var self = this;
         initNetwork.call(self, network_id);
-        self.backlog[network_id].queries[Helper.userFullname(user)] = self.query(network_id, user);
+        return self.backlog[network_id].queries[Helper.userFullname(user)] = self.query(network_id, user);
+    };
+
+    /*
+     * Protobuf helper functions
+     *
+     */
+
+    var protoMsgTypes;
+
+    var loadProtoMsgTypes = function (cb) {
+        Irc2me.getProtobufMesageTypes(function (tys) {
+            protoMsgTypes = Array();
+            for (var ty in tys) {
+                protoMsgTypes[tys[ty]] = ty;
+            }
+            cb();
+        });
     };
 
     /*
@@ -53,6 +70,7 @@ define(function (require) {
         return this.backlog[network_id].channels[channel] || {
             messages: [],
             users: [],
+            topic: "",
         };
     };
 
@@ -102,7 +120,6 @@ define(function (require) {
      */
 
     B.appendNetworkMessages = function(network_id, messages) {
-
         var self = this;
 
         // initialize network
@@ -120,19 +137,24 @@ define(function (require) {
     };
 
     B.appendChannelMessages = function(network_id, channel, messages) {
-
         var self = this;
 
         // init channel
-        initChannel.call(self, network_id, channel);
+        var chan = initChannel.call(self, network_id, channel);
 
         // subscription ID
         var sub_id = self.newPublicMessageSubscriptionID;
 
         // append messages
         for (var i = 0; i < messages.length; i++) {
-            var msg = messages[i];
-            self.channel(network_id, channel).messages.push(msg);
+            var msg  = messages[i];
+
+            chan.messages.push(msg);
+
+            if (msg.known && protoMsgTypes[msg.known] == "TOPIC") {
+                chan.topic = msg.content;
+            }
+
             publish.call(self, sub_id, network_id, channel, msg);
         }
     };
@@ -159,9 +181,24 @@ define(function (require) {
         self.channel(network_id, channel).users = users;
     };
 
-    B.incomingMessage = function (msg) {
+    var buff = [];
+
+    B.incomingMessage = function (msg, force) {
 
         var self = this;
+
+        if (buff && !force) {
+            // first message loads proto types
+            if (buff.push(msg) == 1) {
+                loadProtoMsgTypes(function () {
+                    while (buff.length > 0) {
+                        self.incomingMessage(buff.shift(), true);
+                    }
+                    buff = null;
+                });
+            }
+            return; // quit
+        };
 
         // loop over networks
         for (var n = 0; n < msg.networks.length; n++) {

@@ -33,7 +33,7 @@
                     data-servername="{{server}}">{{server}}</span>
             {{/server}}
             {{#invite}}
-                <span class="join">invited you to join</span>
+                <span class="invite">invited you to join</span>
             {{/invite}}
             {{#join}}
                 <span class="join">has joined</span>
@@ -44,6 +44,9 @@
             {{#quit}}
                 <span class="quit">has quit</span>
             {{/quit}}
+            {{#topic}}
+                <span class="topic">has changed the topic to</span>
+            {{/topic}}
             {{#content}}
                 <span class="text">{{{content}}}</span>
             {{/content}}
@@ -86,8 +89,8 @@
     <div class="main-view card">
         <div class="vertical-flex">
             <div class="group-title">
-                <span class="channel-name">&nbsp;</span>
-                <span class="motd"></span>
+                <span id="channel-name">&nbsp;</span>
+                <span id="topic"></span>
             </div>
             <div id="message-list">
             </div>

@@ -307,8 +307,6 @@ define(function (require) {
             msg.response_id = self.addCallback(cb);
         }
 
-        console.log(msg);
-
         stream.sendMessage(msg);
     }
 

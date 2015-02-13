@@ -40,17 +40,17 @@ body
     padding: 0 8pt 0;
 }
 
-.network-list .network .channel
+.network-list .network .entry
 {
     cursor: pointer;
 }
 
-.network-list .network .channel.active
+.network-list .network .entry.active
 {
     font-weight: bold;
 }
 
-.network-list .network .channel.unread
+.network-list .network .entry.unread
 {
     color: rgb(0,100,255);
 }
@@ -99,11 +99,11 @@ body
     white-space: normal;
 }
 
-.main-view .motd
+.main-view #topic
 {
     -webkit-user-select: text;
 }
-.main-view .motd:not(:empty):before
+.main-view #topic:not(:empty):before
 {
     content: " – ";
 }
@@ -129,6 +129,9 @@ body
 
 .main-view #message-list .message.type-part .text::before { content: "("; }
 .main-view #message-list .message.type-part .text::after  { content: ")"; }
+
+.main-view #message-list .message.type-topic .text::before { content: "\""; }
+.main-view #message-list .message.type-topic .text::after  { content: "\""; }
 
 .main-view #message-list .message .timestamp
 {

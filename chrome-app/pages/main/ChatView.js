@@ -118,18 +118,61 @@ define(function(require) {
     };
 
     /*
+     * UI helper
+     *
+     */
+
+    var loadUserlist = function (users) {
+        $(".user-list-view").show();
+    };
+
+    var emptyUserlist = function () {
+        $("#user-list").empty();
+    };
+
+    var hideUserlist = function () {
+        $(".user-list-view").hide();
+    };
+
+    var setCurrent = function (network_id, channel, queryuser) {
+        var self = this;
+
+        self.currentNetworkID = network_id;
+        self.currentChannel   = channel;
+        self.currentQuery     = queryuser;
+    };
+
+    var setActiveEntry = function (class_, id, opt_ctxt) {
+        $(".network-list .entry.active:not([data-id=\"" + id + "\"])", opt_ctxt)
+            .removeClass("active");
+
+        $(".network-list .entry." + class_ + "[data-id=\"" + id + "\"]", opt_ctxt)
+            .removeClass("unread")
+            .addClass("active");
+    };
+
+    var setTopic = function (channel_name, topic) {
+        $("#channel-name").html(channel_name);
+        $("#topic").html(topic || "");
+    };
+
+    var focusInput = function () {
+        $("#input-prompt input").focus();
+    };
+
+    /*
      * Load backlog for channel/network
      *
      */
 
     var messagelist;
 
-    var appendMessages = function (messages) {
+    var appendMessages = function (messages, cb) {
 
         // make sure protobuf message types are loaded
         if (typeof protoMsgTypes != "object") {
             loadProtoMsgTypes(function () {
-                appendMessages(messages);
+                appendMessages(messages, cb);
             });
             return; //quit
         }
@@ -138,7 +181,14 @@ define(function(require) {
 
         var template_data = [];
         for (var i = 0; i < messages.length; i++) {
-            template_data.push(getTemplateData(messages[i]));
+            var message = messages[i];
+            var data    = getTemplateData(message);
+
+            if (typeof cb == "function" && cb(message, data)) {
+                continue;
+            }
+
+            template_data.push(data);
         }
 
         // the compiled template
@@ -155,25 +205,13 @@ define(function(require) {
         }
     };
 
-    var loadMessages = function (messages) {
+    var loadMessages = function (messages, cb) {
         messagelist = messagelist || $("#message-list");
 
         // replace current message list
         messagelist.empty();
 
-        appendMessages(messages);
-    };
-
-    var loadUserlist = function (users) {
-        $(".user-list-view").show();
-    };
-
-    var emptyUserlist = function () {
-        $("#user-list").empty();
-    };
-
-    var hideUserlist = function () {
-        $(".user-list-view").hide();
+        appendMessages(messages, cb);
     };
 
     C.loadNetwork = function (network_id) {
@@ -182,22 +220,32 @@ define(function(require) {
         var netw = self.backlog.network(network_id);
         loadMessages(netw.messages);
         hideUserlist();
+        setActiveEntry("network", network_id);
+        focusInput();
 
-        self.currentNetworkID = network_id;
-        self.currentChannel   = null;
-        self.currentQuery     = null;
+        setCurrent.call(self, network_id, null, null);
     };
 
     C.loadChannel = function (network_id, channel) {
         var self = this;
 
         var chan = self.backlog.channel(network_id, channel);
-        loadMessages(chan.messages);
-        loadUserlist(chan.users);
 
-        self.currentNetworkID = network_id;
-        self.currentChannel   = channel;
-        self.currentQuery     = null;
+        self.messageCallback = function (message, data) {
+            if (data.topic && data.server) {
+                setTopic(channel, data.content);
+                return true;
+            }
+        };
+
+        loadMessages(chan.messages, self.messageCallback);
+
+        loadUserlist(chan.users);
+        setTopic(channel, chan.topic);
+        setActiveEntry("channel", channel);
+        focusInput();
+
+        setCurrent.call(self, network_id, channel, null);
     };
 
     C.loadQuery = function (network_id, user) {
@@ -212,10 +260,11 @@ define(function(require) {
 
         loadMessages(query.messages);
         hideUserlist();
+        setTopic(user.nick, "(" + Helper.userNameHost(user) + ")");
+        setActiveEntry("query", Helper.userFullname(user));
+        focusInput();
 
-        self.currentNetworkID = network_id;
-        self.currentChannel   = null;
-        self.currentQuery     = user;
+        setCurrent.call(self, network_id, null, user);
     };
 
     /*
@@ -225,7 +274,7 @@ define(function(require) {
 
     var networklistTemplate;
 
-    var unreadMessage = function (network_id, id, class_, name) {
+    var unreadMessage = function (network_id, id, class_, name, click_cb) {
         var network = $(".network-list .network[data-network_id=" + network_id + "]");
 
         // check if network exists
@@ -270,6 +319,9 @@ define(function(require) {
         // set as 'unread'
         entry.addClass("unread");
 
+        // add 'click' event
+        entry.click(click_cb);
+
         return entry;
     };
 
@@ -277,9 +329,7 @@ define(function(require) {
         var self = this;
 
         // TODO: get network name
-        var entry = unreadMessage(network_id, network_id, "network", "<network>");
-
-        entry.click(function () {
+        unreadMessage(network_id, network_id, "network", "<network>", function () {
             self.loadNetwork(network_id);
         });
     };
@@ -287,9 +337,7 @@ define(function(require) {
     var unreadPublicMessage = function (network_id, channel) {
         var self = this;
 
-        var entry = unreadMessage(network_id, channel, "channel", channel);
-
-        entry.click(function () {
+        unreadMessage(network_id, channel, "channel", channel, function () {
             self.loadChannel(network_id, channel);
         });
     };
@@ -297,9 +345,7 @@ define(function(require) {
     var unreadPrivateMessage = function (network_id, user) {
         var self = this;
 
-        var entry = unreadMessage(network_id, Helper.userFullname(user), "query", user.nick);
-
-        entry.click(function () {
+        unreadMessage(network_id, Helper.userFullname(user), "query", user.nick, function () {
             self.loadQuery(network_id, user);
         });
     };
@@ -324,6 +370,7 @@ define(function(require) {
         var isCurrentQuery = function (network_id, user) {
             return isCurrentNetwork(network_id)
                 && typeof self.currentQuery == "object"
+                && self.currentQuery
                 && Helper.userFullname(self.currentQuery) === Helper.userFullname(user);
         }
 
@@ -337,7 +384,7 @@ define(function(require) {
 
         backlog.subscribe(backlog.newPublicMessageSubscriptionID, function (nid, chan, msg) {
             if (isCurrentChannel(nid, chan)) {
-                appendMessages([msg]);
+                appendMessages([msg], self.messageCallback);
             } else {
                 unreadPublicMessage.call(self, nid, chan);
             }
@@ -351,7 +398,6 @@ define(function(require) {
                 unreadPrivateMessage.call(self, nid, user);
             }
         });
-
     };
 
     /*
@@ -361,8 +407,6 @@ define(function(require) {
 
     var send = function (text, cb) {
         var self = this;
-
-        console.log("send:", text);
 
         // require network
         if (! self.currentNetworkID) { return; }
@@ -378,8 +422,6 @@ define(function(require) {
             pars = text.slice(1).split(/\s/);
             cmd  = pars.shift().toUpperCase();
         }
-
-        console.log(cmd, pars);
 
         /*
          * Handle user command

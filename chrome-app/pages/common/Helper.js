@@ -40,8 +40,12 @@ define(["jquery"], function ($) {
             >= (elem.prop("scrollHeight") - elem.innerHeight());
     };
 
+    Helper.userNameHost = function (user) {
+        return user.name + "@" + user.host;
+    };
+
     Helper.userFullname = function (user) {
-        return user.nick + " (" + user.name + "@" + user.host + ")";
+        return user.nick + " (" + Helper.userNameHost(user) + ")";
     };
 
     return Helper;
