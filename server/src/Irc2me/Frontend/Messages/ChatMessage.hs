@@ -18,6 +18,9 @@ import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
+-- time
+import Data.Time
+
 -- protobuf
 import Data.ProtocolBuffers
 import Data.ProtocolBuffers.TH
@@ -33,7 +36,7 @@ import qualified Network.IRC.ByteString.Parser as IRC
 
 -- local
 import Network.IRC.Message.Codes
-import Irc2me.Frontend.Messages.Helper
+import Irc2me.Frontend.Messages.Helper as H
 
 --------------------------------------------------------------------------------
 -- IRC messages
@@ -91,6 +94,10 @@ makePrisms      ''Type
 makeFieldLenses ''User
 makePrisms      ''Userflag
 
+messageTime :: Traversal' ChatMessage UTCTime
+messageTime = messageTimestamp . _Just . from H.epoch
+
+--messageTime ::
 --
 -- IRC user isomorphism
 --
@@ -204,7 +211,7 @@ fromType cmd = case cmd of
   QUIT    -> "QUIT"
   KICK    -> "KICK"
   NICK    -> "NICK"
-  TOPIC   -> rpl_TOPIC
+  TOPIC   -> "TOPIC" --rpl_TOPIC
   MOTD    -> "MOTD"
 
 toType :: ByteString -> Maybe Type
@@ -217,6 +224,7 @@ toType bs = case bs of
   "QUIT"            -> Just QUIT
   "KICK"            -> Just KICK
   "NICK"            -> Just NICK
+  "TOPIC"           -> Just TOPIC
   _ | is rpl_TOPIC  -> Just TOPIC
     | otherwise     -> Nothing
  where

@@ -101,11 +101,11 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
           accState . connectedIrcNetworks %= Map.insert nid ircState
 
         -- Incoming IRC/chat message
-        ChatMessageEvent nid cm -> do
+        ChatMessageEvent nid mu cm -> do
 
           -- look up identity of the current irc network & build server message
           mresponse <- withAccountState $ do
-            buildChatMessageResponse nid cm
+            buildChatMessageResponse nid mu cm
 
           case mresponse of
             Nothing -> return ()

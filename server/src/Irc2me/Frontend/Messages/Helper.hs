@@ -6,6 +6,8 @@
 module Irc2me.Frontend.Messages.Helper where
 
 import Data.Int
+import Data.Time.Clock
+import Data.Time.Clock.POSIX
 
 -- lens
 import Control.Lens
@@ -28,3 +30,9 @@ encodeUtf8 = E.encodeUtf8
 
 encoded :: Iso' ByteString Text
 encoded = iso decodeUtf8 encodeUtf8
+
+epoch :: Iso' UTCTime Int64
+epoch = iso toEpoch fromEpoch
+ where
+  fromEpoch e = posixSecondsToUTCTime $ fromIntegral e / 1000
+  toEpoch   t = floor $ utcTimeToPOSIXSeconds t * 1000

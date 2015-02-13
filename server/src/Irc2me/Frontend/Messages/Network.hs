@@ -50,6 +50,23 @@ data ChannelStatus
   | NEWNOTIFICATIONS
   deriving (Eq, Show, Enum)
 
+data PrivateQuery = PrivateQuery
+  { _queryUser        :: Required 1  (Message User)
+  , _queryStatus      :: Optional 2  (Enumeration ChannelStatus)
+  , _queryMessages    :: Repeated 10 (Message ChatMessage)
+  }
+  deriving (Eq, Show, Generic)
+
+instance Encode PrivateQuery
+instance Decode PrivateQuery
+
+emptyPrivateQuery :: User -> PrivateQuery
+emptyPrivateQuery u = PrivateQuery
+  { _queryUser      = putField u
+  , _queryStatus    = putField Nothing
+  , _queryMessages  = putField []
+  }
+
 data Channel = Channel
   { _channelId        :: Optional 1 (Value ID_T)
   , _channelName      :: Optional 2 (Value Text)
@@ -71,7 +88,6 @@ emptyChannel = Channel
   , _channelUsers = putField []
   }
 
-
 --
 -- IRC network message
 --
@@ -90,11 +106,14 @@ data Network = Network
     -- network servers
   , _networkServers   :: Repeated 20 (Message Server)
 
-    -- channels
-  , _networkChannels  :: Repeated 30 (Message Channel)
-
     -- network messages
-  , _networkMessages  :: Repeated 40 (Message ChatMessage)
+  , _networkMessages  :: Repeated 30 (Message ChatMessage)
+
+    -- private query messages
+  , _networkQueries   :: Repeated 40 (Message PrivateQuery)
+
+    -- channels
+  , _networkChannels  :: Repeated 50 (Message Channel)
   }
   deriving (Eq, Show, Generic)
 
@@ -109,13 +128,15 @@ emptyNetwork = Network
   , _networkReconnect = putField Nothing
   , _networkIdentity  = putField Nothing
   , _networkServers   = putField []
-  , _networkChannels  = putField []
   , _networkMessages  = putField []
+  , _networkQueries   = putField []
+  , _networkChannels  = putField []
   }
 
 ------------------------------------------------------------------------------
 -- Lenses
 
 makeFieldLenses ''Server
+makeFieldLenses ''PrivateQuery
 makeFieldLenses ''Channel
 makeFieldLenses ''Network
