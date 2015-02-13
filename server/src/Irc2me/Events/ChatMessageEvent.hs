@@ -11,10 +11,11 @@ import Control.Monad.Maybe
 
 import Data.Maybe
 
-import qualified Data.Text    as Text
-import qualified Data.Text.IO as Text
-import qualified Data.Set as Set
-import qualified Data.Map as Map
+import qualified Data.Text      as Text
+import qualified Data.Text.IO   as Text
+import qualified Data.Set       as Set
+--import qualified Data.Sequence  as Seq
+import qualified Data.Map       as Map
 
 import System.IO
 
@@ -29,8 +30,8 @@ import Control.Lens hiding (Identity)
 import Irc2me.Database.Tables.Networks
 import Irc2me.Frontend.Messages        as Msg
 -- import Irc2me.Frontend.Messages.Helper as Msg
-import Irc2me.Events.Types
--- import Irc2me.Events.Helper
+import Irc2me.Events.Types             as E
+import Irc2me.Events.Helper
 
 buildChatMessageResponse
   :: (MonadIO m, MonadState AccountState m)
@@ -50,9 +51,8 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
       fromSelf = isJust mnick && mnick == unick
 
   -- see if current user is recipient of `cm`
-  let isRecipient = (mnick ^. non "") `elem` params
-
-  let ircState = connectedIrcNetworks . at nid . _Just
+  let isRecipient     = (mnick ^. non "") `elem` params
+      isServerMessage = isJust $ cm ^. messageFromServer
 
   {-
    - Analyze message
@@ -64,36 +64,86 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
     -- private messages
     Just PRIVMSG
 
-      | isRecipient -> return sendPrivate
+      -- receiving private query message
+      | isRecipient
+      , Just u <- cm ^. messageFromUser
+      -> do
 
+        -- save bandwidth by removing the "duplicate" user
+        let cm' = cm & messageFromUser .~ Nothing
+
+        -- add message to query backlog
+        storeQueryBacklog u cm'
+
+        return $ sendQuery u cm'
+
+      -- sending private query message
       | fromSelf
       , Just u <- mqueryuser
       -> do
+
+        -- add message to query backlog
+        storeQueryBacklog u cm
+
         return $ sendQuery u cm
 
-      | otherwise -> return $ sendToChannels params
+      -- message from network
+      | isRecipient && isServerMessage
+      -> do
+
+        -- add message to network backlog
+        storeNetworkBacklog cm
+
+        return sendNetworkMessage
+
+      -- public channel message
+      | otherwise -> do
+
+        -- add message to channel backlog
+        case params of
+          [chan] -> storeChannelBacklog chan cm
+          _      -> warnMissingBacklog
+
+        return $ sendToChannels params
 
     -- notifications
     Just NOTICE
 
-      | isRecipient -> return sendPrivate
-      | otherwise   -> return $ sendToChannels params
-
-    -- topic
-    Just TOPIC
-
-      | isRecipient
-      , [_, c] <- params
+      | isServerMessage
       -> do
-        return $ sendToChannels [c]
 
-      | [c] <- params
-      -> do
-        return $ sendToChannels [c]
+        storeNetworkBacklog cm
+        return sendPrivate
 
       | otherwise -> do
-        liftIO $ hPutStrLn stderr "Invalid TOPIC"
-        sendNothing
+
+        -- add message to channel backlog
+        case params of
+          [chan] -> storeChannelBacklog chan cm
+          _      -> warnMissingBacklog
+
+        return $ sendToChannels params
+
+    -- topic
+    Just TOPIC -> do
+
+      let mchan =
+            case params of
+              [_, c] | isRecipient -> Just c
+              [c]                  -> Just c
+              _                    -> Nothing
+
+      let err = do
+            warnMissingBacklog
+            sendNothing
+
+      maybe err `flip` mchan $ \chan -> do
+
+        -- set channel topic
+        chanState chan . channelTopic .= cm ^. messageContent
+
+        storeChannelBacklog chan cm
+        return $ sendToChannels [chan]
 
     -- who set topic / what time
     Nothing
@@ -106,16 +156,33 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
     -- invites
     Just INVITE
 
-      | isRecipient -> return sendPrivate
-      | otherwise   -> return $ sendToChannels params
+      -- invite as private query message
+      | isRecipient
+      , Just u <- cm ^. messageFromUser
+      -> do
+
+        let cm' = cm & messageFromUser .~ Nothing
+        storeQueryBacklog u cm'
+        return $ sendQuery u cm'
+
+      | otherwise -> do
+
+        case params of
+          [chan] -> storeChannelBacklog chan cm
+          _      -> warnMissingBacklog
+
+        return $ sendToChannels params
 
     -- handle JOIN events
     Just JOIN
 
-      | fromSelf, [chan] <- params -> do
+      | fromSelf
+      , [chan] <- params -> do
 
         -- keep track of active channels
-        ircState . ircChannels %= Set.insert chan
+        chanState chan . E.channelStatus .= ONLINE
+
+        storeChannelBacklog chan cm
 
         return $ sendToChannels [chan]
 
@@ -125,8 +192,9 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
       -> do
 
         -- add `nick` to channel user list
-        let f = Just . maybe (Set.singleton nick) (Set.insert nick)
-        ircState . ircUsers %= Map.alter f chan
+        chanState chan . E.channelUsers %= Set.insert nick
+
+        storeChannelBacklog chan cm
 
         return $ sendToChannels [chan]
 
@@ -136,10 +204,9 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
       | fromSelf, [chan] <- params -> do
 
         -- remove channel from current list of channels
-        ircState . ircChannels %= Set.delete chan
+        ircState . ircChannels %= Map.delete chan
 
-        -- remove user list of channel
-        ircState . ircUsers %= Map.delete chan
+        storeChannelBacklog chan cm
 
         return $ sendToChannels [chan]
 
@@ -149,7 +216,9 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
       -> do
 
         -- remove user from user list
-        ircState . ircUsers %= Map.alter (fmap $ Set.delete nick) chan
+        chanState chan . E.channelUsers %= Set.delete nick
+
+        storeChannelBacklog chan cm
 
         return $ sendToChannels [chan]
 
@@ -167,8 +236,12 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
       -> do
 
         -- figure out all channels in which user was
-        usrs <- use $ connectedIrcNetworks . at nid . _Just . ircUsers
-        let channels = Map.keys $ Map.filter (Set.member nick) usrs
+        chans <- use $ connectedIrcNetworks . at nid . _Just . ircChannels
+        let channels = Map.keys $
+              Map.filter (^. E.channelUsers . to (Set.member nick))
+                         chans
+
+        mapM_ (storeChannelBacklog `flip` cm) channels
 
         return $ sendToChannels channels
 
@@ -181,8 +254,7 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
 
         -- insert all users
         let userSet = Set.fromList $ Text.words $ content ^. non ""
-            f       = Just . maybe userSet (Set.union userSet)
-        ircState . ircUsers %= Map.alter f chan
+        chanState chan . E.channelUsers %= Set.union userSet
 
         -- send nothing until end of names list is reached
         sendNothing
@@ -193,31 +265,39 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
 
         -- look up names of current channel
         ul <- use $ connectedIrcNetworks . at nid . _Just
-                  . ircUsers . at chan . non' _Empty
+                  . ircChannels . at chan . non' _Empty
+                  . E.channelUsers
 
         -- build user list message
-        let msg = serverMessage $ network & networkChannels .~ [ emptyChannel &~ do
-                    channelName  .= Just chan
-                    channelUsers .= map (\nick -> emptyUser &~ do
-                                          case Text.uncons nick of
-                                            Just ('@', n) -> do
-                                              userFlag .= Just Operator
-                                              userNick .= n
-                                            Just ('+', n) -> do
-                                              userFlag .= Just Voice
-                                              userNick .= n
-                                            _ -> do
-                                              userNick .= nick
-                                        )
-                                        (Set.toList ul)
-                    ]
-        return msg
+        return $
+          serverMessage $ network & networkChannels .~ [ emptyChannel &~ do
+            channelName      .= Just chan
+            Msg.channelUsers .= [ emptyUser & userNick .~ u | u <- Set.toList ul ]
+            ]
 
     -- other messages
-    _ | isRecipient -> return sendPrivate
-      | otherwise   -> return $ sendToChannels params
+    _ | isServerMessage -> do
+        storeNetworkBacklog cm
+        return sendNetworkMessage
+
+      | isRecipient
+      , Just u <- cm ^. messageFromUser
+      -> do
+        let cm' = cm & messageFromUser .~ Nothing
+        storeQueryBacklog u cm'
+        return $ sendQuery u cm'
+
+      | otherwise -> do
+
+        case params of
+          [chan] -> storeChannelBacklog chan cm
+          _      -> warnMissingBacklog
+
+        return $ sendToChannels params
 
  where
+
+  seqAppend = flip (|>)
 
   {-
    - Build server message
@@ -237,8 +317,10 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
     = let cm' = cm & messageFromUser .~ Nothing
       in sendQuery u cm'
 
-    | otherwise
-    = serverMessage $ network & networkMessages .~ [ cm ]
+    | otherwise = sendNetworkMessage
+
+  sendNetworkMessage =
+    serverMessage $ network & networkMessages .~ [ cm ]
 
   sendQuery u cm' =
 
@@ -253,14 +335,43 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
    -
    -}
 
+  otherType = cm ^. messageTypeOther
+  params    = cm ^. messageParams
+  content   = cm ^. messageContent
+
+  -- building response message
+
   serverMessage nw = emptyServerMessage & serverNetworks .~ [ nw ]
 
   network = emptyNetwork &~ do
     Msg.networkId .= Just (fromIntegral nid')
 
-  otherType = cm ^. messageTypeOther
-  params = cm ^. messageParams
-  content = cm ^. messageContent
+  -- state helper
+
+  ircState    = connectedIrcNetworks . at nid . _Just
+  chanState c = ircState . ircChannels . at' c
+  qryState  u = ircState . ircQueries . at' (u ^. userNick)
+
+  -- backlog functions
+
+  storeNetworkBacklog cm' = do
+    ircState . ircNetworkBacklog %= seqAppend cm'
+
+  storeChannelBacklog chan cm' = do
+    chanState chan . channelBacklog %= seqAppend cm'
+
+  storeQueryBacklog usr cm' = do
+    qryState usr . queryBacklog %= seqAppend cm'
+
+  warnMissingBacklog = liftIO $ hPutStrLn stderr $
+    "Warning: No backlog available for "
+    ++ ty ++ " (message parameter: "
+    ++ Text.unpack (Text.intercalate " " params)
+    ++ ")"
+   where
+    ty | Just t <- cm ^. messageType      = show t
+       | Just o <- cm ^. messageTypeOther = Text.unpack o
+       | otherwise = "?"
 
   -- other message types
 

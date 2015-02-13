@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Irc2me.Events.Helper where
 
@@ -23,6 +24,9 @@ import Irc2me.Backends.IRC.Helper
 infix 4 ++=
 (++=) :: MonadState s m => Setting' (->) s [a] -> [a] -> m ()
 l ++= a = l %= (++ a)
+
+at' :: (At m, AsEmpty (IxValue m)) => Index m -> Lens' m (IxValue m)
+at' i = at i . non' _Empty
 
 require :: MonadPlus m => Maybe a -> m a
 require = maybe mzero return

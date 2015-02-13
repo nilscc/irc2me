@@ -32,6 +32,9 @@ data IrcConnection = IrcConnection
   }
   deriving Show
 
+instance Eq IrcConnection where
+  c1 == c2 = _ircThread c1 == _ircThread c2
+
 makeLenses ''IrcConnection
 
 type IrcConnections = Map AccountID (Map NetworkID IrcConnection)

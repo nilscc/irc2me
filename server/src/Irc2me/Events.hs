@@ -9,9 +9,10 @@ import Control.Monad.State
 import Control.Monad.Reader
 import System.IO
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.Foldable as Foldable
+import qualified Data.Map       as Map
+import qualified Data.Set       as Set
+import qualified Data.Sequence  as Seq
+import qualified Data.Foldable  as Foldable
 
 -- lens
 import Control.Lens
@@ -92,10 +93,11 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
 
         NewIrcConnectionEvent nid con ident -> do
 
-          let ircState = IrcState { _ircConnection = con
-                                  , _ircIdentity   = ident
-                                  , _ircChannels   = Set.empty
-                                  , _ircUsers      = Map.empty
+          let ircState = IrcState { _ircConnection     = con
+                                  , _ircIdentity       = ident
+                                  , _ircNetworkBacklog = Seq.empty
+                                  , _ircChannels       = Map.empty
+                                  , _ircQueries        = Map.empty
                                   }
 
           accState . connectedIrcNetworks %= Map.insert nid ircState

@@ -9,10 +9,13 @@
 module Irc2me.Events.Types where
 
 import Data.Map (Map)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 
 import Data.Set (Set)
-import qualified Data.Set as S
+import qualified Data.Set as Set
+
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 -- text
 import Data.Text (Text)
@@ -80,21 +83,50 @@ data AccountState = AccountState
   { _connectedIrcNetworks   :: Map NetworkID IrcState
   , _connectedClients       :: Set ClientID
   }
+  deriving (Eq, Show)
 
 instance AsEmpty AccountState where
-  _Empty = nearly (AccountState M.empty S.empty) $ \as ->
-    S.null (_connectedClients     as) &&
-    M.null (_connectedIrcNetworks as)
+  _Empty = nearly empty (== empty)
+   where
+    empty = AccountState Map.empty Set.empty
 
 type Channelname = Text
 type Nickname = Text
 
+type Backlog = Seq ChatMessage
+
 data IrcState = IrcState
-  { _ircConnection :: IrcConnection
-  , _ircIdentity   :: Identity
-  , _ircChannels   :: Set Text
-  , _ircUsers      :: Map Channelname (Set Nickname)
+  { _ircConnection      :: IrcConnection
+  , _ircIdentity        :: Identity
+  , _ircNetworkBacklog  :: Backlog
+  , _ircQueries         :: Map Nickname    QueryState
+  , _ircChannels        :: Map Channelname ChannelState
   }
+  deriving (Eq, Show)
+
+data ChannelState = ChannelState
+  { _channelUsers   :: Set Nickname
+  , _channelBacklog :: Backlog
+  , _channelStatus  :: ChannelStatus
+  , _channelTopic   :: Maybe Text
+  }
+  deriving (Eq, Show)
+
+instance AsEmpty ChannelState where
+  _Empty = nearly empty (== empty)
+   where
+    empty = ChannelState Set.empty Seq.empty OFFLINE Nothing
+
+data QueryState = QueryState
+  { _queryBacklog :: Backlog
+  -- , _queryStatus  :: ChannelStatus
+  }
+  deriving (Eq, Show)
+
+instance AsEmpty QueryState where
+  _Empty = nearly empty (== empty)
+   where
+    empty = QueryState Seq.empty
 
 --
 -- Client state
@@ -115,4 +147,6 @@ data ClientState = ClientState
 makeLenses ''EventLoopState
 makeLenses ''AccountState
 makeLenses ''IrcState
+makeLenses ''ChannelState
+makeLenses ''QueryState
 makeLenses ''ClientState
