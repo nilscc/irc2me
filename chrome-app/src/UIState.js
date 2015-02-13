@@ -5,6 +5,8 @@
 
 define(function(require) {
 
+    "use strict";
+
     var ChromeMessage = require("src/ChromeMessage");
 
     var UIState = function () {

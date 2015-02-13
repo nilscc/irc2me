@@ -3,29 +3,12 @@
 
 <title>irc2me</title>
 
-<!-- dependencies -->
-<script type="text/javascript" src="../libs/require.js" data-main="main"></script>
-<!--
-<script type="text/javascript" src="../libs/jquery-2.1.1.min.js"></script>
-<script type="text/javascript" src="../libs/jquery-regex-filter.js"></script>
-<script type="text/javascript" src="../libs/jquery-ajax-blob-arraybuffer.js"></script>
-<script type="text/javascript" src="../libs/mustache.min.js"></script>
-<script type="text/javascript" src="../libs/Long.min.js"></script>
-<script type="text/javascript" src="../libs/Autolinker.min.js"></script>
--->
-
-<!--
-<script type="text/javascript" src="../src/ChromeMessage.js"></script>
-<script type="text/javascript" src="../src/Irc2me.js"></script>
-<script type="text/javascript" src="../src/UIState.js"></script>
--->
-
-<!-- content scripts -->
-<!--
-<script type="text/javascript" src="helper.js"></script>
-<script type="text/javascript" src="main.js"></script>
-<script type="text/javascript" src="MainPage/Backlog.js"></script>
--->
+<!-- load require.js -->
+<script
+    type="text/javascript"
+    src="../libs/require.js"
+    data-main="main.js">
+</script>
 
 <!-- style sheets -->
 <link rel="stylesheet" type="text/css" href="../styles/Roboto.css">
@@ -75,10 +58,8 @@
     {{/network}}
 </script>
 
-<script type="text/x-handlebars-template" id="network-channel-list-item-template">
-    {{#channel}}
-        <li class="channel" data-channel="{{channel.name}}">{{channel.name}}</li>
-    {{/channel}}
+<script type="text/x-handlebars-template" id="network-list-item-template">
+<li class="entry {{class}}" data-id="{{id}}">{{name}}</li>
 </script>
 
 <script type="text/x-handlebars-template" id="user-list-template">

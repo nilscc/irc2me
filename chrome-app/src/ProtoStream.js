@@ -6,6 +6,8 @@
 
 define(function(require) {
 
+    "use strict";
+
     var Logger     = require("src/Logger");
     var ByteBuffer = require("ByteBuffer");
 

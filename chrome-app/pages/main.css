@@ -28,7 +28,6 @@ body
 {
     flex: 0 100pt;
 
-    margin-right: 8pt;
     border-left: 0;
 
     display: flex;
@@ -80,6 +79,8 @@ body
 
 .main-view
 {
+    margin-left: 8pt;
+    margin-right: 8pt;
     flex: 1;
 
     display: flex;
@@ -185,7 +186,6 @@ body
 
 .user-list-view
 {
-    margin-left: 8pt;
     border-right: 0;
     flex: 0 100pt;
 

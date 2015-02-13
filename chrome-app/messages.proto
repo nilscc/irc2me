@@ -83,27 +83,25 @@ message Network
         }
 
         // epoch timestamp in miliseconds
-        optional uint64 timestamp = 5;
+        optional uint64 timestamp   = 5;
 
-        oneof from {
-            User   user   = 10;
-            string server = 11;
-        }
+        optional User   user        = 10;
+        optional string server      = 11;
 
-        optional string content = 20;
+        optional string content     = 20;
+    };
+
+    enum Status
+    {
+        OFFLINE            = 1;
+        ONLINE             = 2;
+        NEWMESSAGES        = 3;
+        NEWNOTIFICATIONS   = 4;
     };
 
     // Channels
     message Channel
     {
-        enum Status
-        {
-            OFFLINE            = 1;
-            ONLINE             = 2;
-            NEWMESSAGES        = 3;
-            NEWNOTIFICATIONS   = 4;
-        };
-
         optional int64   id       = 1;
         optional string  name     = 2;
         optional Status  status   = 3;
@@ -112,9 +110,23 @@ message Network
         repeated User    users    = 20;
     };
 
-    repeated Channel channels               = 30;
-    repeated Message messages               = 40;
+    // Queries
+    message Query
+    {
+        required User    user     = 1;
+        optional Status  status   = 2;
 
+        repeated Message messages = 10;
+    };
+
+    // Server messages
+    repeated Message messages               = 30;
+
+    // Private queries
+    repeated Query   queries                = 40;
+
+    // Public channels
+    repeated Channel channels               = 50;
 };
 
 /*
@@ -173,6 +185,7 @@ message ClientMsg
         optional string               type_raw      = 2;
         optional int64                network_id    = 3;
 
+        optional Network.User         to_user       = 5;
         repeated string               params        = 15;
         optional string               content       = 20;
     };

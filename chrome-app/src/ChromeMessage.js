@@ -1,5 +1,7 @@
 define(function (require) {
 
+    "use strict";
+
     // Constructor
     var ChromeMessage = function (id) {
 

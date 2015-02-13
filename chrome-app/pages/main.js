@@ -1,4 +1,3 @@
-
 var deps =
     [ "main/Backlog"
     , "main/ChatView"
@@ -6,25 +5,17 @@ var deps =
     ];
 
 var main = function(Backlog, ChatView, Irc2me) {
-};
 
-require(["../require-common"], function (common) {
-    require(deps, main);
-});
+    var backlog  = new Backlog();
+    var chatview = new ChatView(backlog);
 
-/*
- * Main page class
- *
- */
+    chatview.listenForNewMessages();
+    chatview.bindKeyEvents($("#input-prompt"));
 
-/*
-var page;
-
-function MainPage () {
-}
-
-MainPage.prototype.listen = function () {
-    var self = this;
+    /*
+     * Setup signals
+     *
+     */
 
     Irc2me.Signals.disconnected.addListener(function () {
         UIState.ConnectionWindow.open();
@@ -32,96 +23,13 @@ MainPage.prototype.listen = function () {
     });
 
     Irc2me.Signals.incomingMessage.addListener(function (msg) {
-        // loop over networks
-        for (var n = 0; n < msg.networks.length; n++) {
-            var network    = msg.networks[n],
-                network_id = dcodeIO.Long.prototype.toNumber.call(network.id);
-
-            // handle network messages
-            if (network.messages && network.messages.length > 0) {
-                self.Backlog.append(network_id, network.messages);
-                self.Chatview.append(network_id, network.messages);
-            }
-
-            // handle channel messages
-            for (var c = 0; network.channels && c < network.channels.length; c++) {
-                var chan = network.channels[c];
-
-                if (chan.messages.length > 0) {
-                    self.Backlog.append(network_id, chan.name, chan.messages);
-                    self.Chatview.append(network_id, chan.name, chan.messages);
-                }
-
-                if (chan.users.length > 0) {
-                    self.Backlog.setUserlist(network_id, chan.name, chan.users);
-                    self.Chatview.setUserlist(network_id, chan.name, chan.users);
-                }
-            }
-        }
+        backlog.incomingMessage(msg);
     });
-}
-*/
-
-/*
- * Backlog
- *
- */
-
-/*
-MainPage.prototype.Backlog = {
-    _backlog: {},
-    _userlist: {},
 };
 
-MainPage.prototype.Backlog.append = function (network_id, channel_name, messages) {
-
-    var self = this;
-
-    // optional 'channel_name' argument
-    if (typeof channel_name == "object") {
-        messages = channel_name;
-        channel_name = null;
-    }
-
-    // init and alias network backlog
-    var backlog = self._backlog[network_id] = self._backlog[network_id] || {};
-
-    for (var i = 0; i < messages.length; i++) {
-
-        var msg  = messages[i],
-            name = channel_name || msg.server || (msg.user && msg.user.nick);
-
-        if (name) {
-            // init 'name' backlog
-            backlog[name] = backlog[name] || [];
-            // append message
-            backlog[name].push(msg);
-        } else {
-            console.log(msg);
-            console.error("Invalid Backlog.append message");
-        }
-    }
-}
-
-MainPage.prototype.Backlog.setUserlist = function (network_id, channel_name, users) {
-    var self = this;
-
-    var userlist = self._userlist[network_id] = self._userlist[network_id] || {};
-    userlist[channel_name] = users;
-}
-
-MainPage.prototype.Backlog.get = function (network_id, name) {
-
-    var self = this;
-
-    var backlog  = self._backlog[network_id]  || {},
-        userlist = self._userlist[network_id] || {};
-
-    return { backlog:  backlog[name]  || []
-           , userlist: userlist[name] || [] };
-}
-
-*/
+require(["../require-common"], function (common) {
+    require(deps, main);
+});
 
 /*
  * UI: Chat view

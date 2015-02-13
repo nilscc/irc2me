@@ -5,6 +5,8 @@
 
 define(function (require) {
 
+    "use strict";
+
     var ChromeMessage = require("src/ChromeMessage");
     var ProtoStream   = require("src/ProtoStream");
     var Logger        = require("src/Logger");
@@ -284,10 +286,16 @@ define(function (require) {
         var msg = new messages.ClientMsg({
             send: new messages.ClientMsg.SendMessage({
                 network_id: network_id,
-                params: parameters,
                 content: content,
             }),
         });
+
+        if (typeof parameters == "object" && parameters.hasOwnProperty("nick")) {
+            msg.send.to_user = parameters;
+        }
+        else {
+            msg.send.params = parameters;
+        }
 
         if (typeof type == "string") {
             msg.send.type_raw = type;
@@ -298,6 +306,8 @@ define(function (require) {
         if (typeof cb == "function") {
             msg.response_id = self.addCallback(cb);
         }
+
+        console.log(msg);
 
         stream.sendMessage(msg);
     }
@@ -388,7 +398,7 @@ define(function (require) {
             // alias
             var PRIVMSG = self._messages.Network.Message.Type.PRIVMSG;
 
-            self.sendMessage(netw, PRIVMSG, txt, [to], sendResponse);
+            self.sendMessage(netw, PRIVMSG, txt, to, sendResponse);
 
             return true; // async callback
         });

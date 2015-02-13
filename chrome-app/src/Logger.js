@@ -1,5 +1,7 @@
 define(function(require) {
 
+    "use strict";
+
     // Logger class
     var Logger = function(where, callback)
     {
