@@ -121,7 +121,17 @@ fromUser usr = IRC.UserInfo
 
 toUser :: IRC.UserInfo -> User
 toUser ui = emptyUser &~ do
-  userNick .= IRC.userNick ui ^. encoded
+
+  case B8.uncons $ IRC.userNick ui of
+    Just ('@', n) -> do
+      userFlag .= Just Operator
+      userNick .= n ^. encoded
+    Just ('+', n) -> do
+      userFlag .= Just Voice
+      userNick .= n ^. encoded
+    _ -> do
+      userNick .= IRC.userNick ui ^. encoded
+
   userName .= IRC.userName ui ^? _Just . encoded
   userHost .= IRC.userHost ui ^? _Just . encoded
 

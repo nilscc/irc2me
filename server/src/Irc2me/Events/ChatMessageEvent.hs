@@ -198,7 +198,17 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
         -- build user list message
         let msg = serverMessage $ network & networkChannels .~ [ emptyChannel &~ do
                     channelName  .= Just chan
-                    channelUsers .= map (\nick -> emptyUser & userNick .~ nick)
+                    channelUsers .= map (\nick -> emptyUser &~ do
+                                          case Text.uncons nick of
+                                            Just ('@', n) -> do
+                                              userFlag .= Just Operator
+                                              userNick .= n
+                                            Just ('+', n) -> do
+                                              userFlag .= Just Voice
+                                              userNick .= n
+                                            _ -> do
+                                              userNick .= nick
+                                        )
                                         (Set.toList ul)
                     ]
         return msg
