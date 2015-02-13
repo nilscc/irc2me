@@ -261,6 +261,9 @@ define(function(require) {
         var self = this;
 
         var netw = self.backlog.network(network_id);
+
+        self.messageCallback = null
+
         loadMessages(netw.messages);
         hideUserlist();
         setActiveEntry("network", network_id);
@@ -300,6 +303,8 @@ define(function(require) {
         for (var i = 0; i < query.messages.length; i++) {
             query.messages[i].user = query.messages[i].user || user;
         }
+
+        self.messageCallback = null
 
         loadMessages(query.messages);
         hideUserlist();
