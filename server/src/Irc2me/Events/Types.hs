@@ -50,7 +50,7 @@ data ClientEvent
 data AccountEvent
   = ClientMessageEvent        ClientConnection ClientMessage
   | NewIrcConnectionEvent     NetworkID IrcConnection Identity
-  | ChatMessageEvent          NetworkID ChatMessage
+  | ChatMessageEvent          NetworkID (Maybe User) ChatMessage
   deriving (Show)
 
 type EventRW m = EventT RW Event m

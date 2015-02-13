@@ -13,12 +13,7 @@ import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
-import Data.Int
-
 import System.IO
-
--- time
-import Data.Time.Clock.POSIX
 
 -- irc-bytestring
 import Network.IRC.ByteString.Parser as IRC
@@ -38,7 +33,7 @@ import Control.Concurrent.Event
 import Irc2me.Events.Types
 
 import Irc2me.Frontend.Messages        as M hiding (_networkId)
--- import Irc2me.Frontend.Messages.Helper as M
+import Irc2me.Frontend.Messages.Helper as M
 
 import Irc2me.Database.Query            as DB
 import Irc2me.Database.Tables.Accounts  as DB
@@ -129,16 +124,13 @@ reconnectAll con = withCon con $ do
 
 raiseChatMessageEvent :: EventQueue WO Event -> AccountID -> NetworkID -> (UTCTime, IRCMsg) -> IO ()
 raiseChatMessageEvent eq aid nid (t,msg) =
-  writeEventIO eq $ AccountEvent aid $ ChatMessageEvent nid cm
+  writeEventIO eq $ AccountEvent aid $ ChatMessageEvent nid Nothing cm
  where
-
-  epoch :: Int64
-  epoch = floor $ utcTimeToPOSIXSeconds t * 1000
 
   cm = msg ^. chatMessage &~ do
 
     -- add timestamp
-    messageTimestamp .= Just epoch
+    messageTimestamp .= Just (t ^. M.epoch)
 
 
 {-

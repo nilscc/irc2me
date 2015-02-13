@@ -59,6 +59,7 @@ data SendMessage = SendMessage
 
   , _sendNetworkID       :: Optional 3  (Value ID_T)
 
+  , _sendToUser          :: Optional 5  (Message User)
   , _sendParams          :: Repeated 15 (Value Text)
   , _sendContent         :: Optional 20 (Value Text)
   }

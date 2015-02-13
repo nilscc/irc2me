@@ -4,31 +4,43 @@
 
 module Irc2me.Events.ChatMessageEvent where
 
+import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Maybe
 
 import Data.Maybe
 
-import qualified Data.Text as Text
+import qualified Data.Text    as Text
+import qualified Data.Text.IO as Text
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+
+import System.IO
+
+-- time
+import Data.Time.Format
+import System.Locale
 
 -- lens
 import Control.Lens hiding (Identity)
 
 -- local
 import Irc2me.Database.Tables.Networks
-import Irc2me.Frontend.Messages as Msg
+import Irc2me.Frontend.Messages        as Msg
+-- import Irc2me.Frontend.Messages.Helper as Msg
 import Irc2me.Events.Types
 -- import Irc2me.Events.Helper
 
 buildChatMessageResponse
   :: (MonadIO m, MonadState AccountState m)
   => NetworkID
+  -> Maybe User
   -> ChatMessage
   -> m (Maybe ServerMessage)
-buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
+buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
+
+  printMessage cm
 
   mident <- preuse $ connectedIrcNetworks . at nid . _Just . ircIdentity
   let mnick = mident ^. _Just . identityNick
@@ -48,6 +60,54 @@ buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
    -}
 
   case cm ^. messageType of
+
+    -- private messages
+    Just PRIVMSG
+
+      | isRecipient -> return sendPrivate
+
+      | fromSelf
+      , Just u <- mqueryuser
+      -> do
+        return $ sendQuery u cm
+
+      | otherwise -> return $ sendToChannels params
+
+    -- notifications
+    Just NOTICE
+
+      | isRecipient -> return sendPrivate
+      | otherwise   -> return $ sendToChannels params
+
+    -- topic
+    Just TOPIC
+
+      | isRecipient
+      , [_, c] <- params
+      -> do
+        return $ sendToChannels [c]
+
+      | [c] <- params
+      -> do
+        return $ sendToChannels [c]
+
+      | otherwise -> do
+        liftIO $ hPutStrLn stderr "Invalid TOPIC"
+        sendNothing
+
+    -- who set topic / what time
+    Nothing
+      | isTopicWho
+      , isRecipient
+      , [_, _c, _u, _t] <- params
+      -> do
+        sendNothing -- TODO: Implement TOPIC WHO
+
+    -- invites
+    Just INVITE
+
+      | isRecipient -> return sendPrivate
+      | otherwise   -> return $ sendToChannels params
 
     -- handle JOIN events
     Just JOIN
@@ -99,7 +159,7 @@ buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
       | fromSelf
       -> do
 
-        liftIO $ putStrLn "No implemented: Own QUIT message" -- TODO
+        liftIO $ hPutStrLn stderr "Not implemented: Own QUIT message" -- TODO
         sendNothing
 
       | not fromSelf
@@ -111,7 +171,6 @@ buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
         let channels = Map.keys $ Map.filter (Set.member nick) usrs
 
         return $ sendToChannels channels
-
 
     -- handle NAMES list
     Nothing
@@ -145,7 +204,7 @@ buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
         return msg
 
     -- other messages
-    _ | isRecipient -> return sendFromNetwork -- private/network message
+    _ | isRecipient -> return sendPrivate
       | otherwise   -> return $ sendToChannels params
 
  where
@@ -162,8 +221,20 @@ buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
     in
     serverMessage $ network & networkChannels .~ netchans
 
-  sendFromNetwork =
-    serverMessage $ network & networkMessages .~ [ cm ]
+  sendPrivate
+
+    | Just u <- cm ^. messageFromUser
+    = let cm' = cm & messageFromUser .~ Nothing
+      in sendQuery u cm'
+
+    | otherwise
+    = serverMessage $ network & networkMessages .~ [ cm ]
+
+  sendQuery u cm' =
+
+    let query = emptyPrivateQuery u & queryMessages .~ [ cm' ]
+    in
+    serverMessage $ network & networkQueries .~ [ query ]
 
   sendNothing = mzero
 
@@ -185,3 +256,39 @@ buildChatMessageResponse nid@(NetworkID nid') cm = runMaybeT $ do
 
   isNamesList      = otherType == Just "353"
   isEndOfNamesList = otherType == Just "366"
+  isTopicWho       = otherType == Just "333"
+
+-- Pretty printing chat messages
+printMessage :: MonadIO m => ChatMessage -> m ()
+printMessage cm = liftIO . Text.putStrLn
+  . Text.intercalate " "
+  . catMaybes
+  $ [ par "[" "]" <$> timestamp
+    , ty
+    , from'
+    , par "[" "]" <$> to'
+    , cont
+    ]
+ where
+  infixr 5 .++
+  (.++) = Text.append
+
+  par l r t = l .++ t .++ r
+
+  timestamp = cm ^? messageTime . to txt
+   where
+    txt = Text.pack . formatTime defaultTimeLocale "%R"
+
+  ty
+    | Just t <- cm ^. messageType
+    = Just . Text.pack $ show t
+    | Just t <- cm ^. messageTypeOther
+    = Just . Text.pack $ show t
+    | otherwise = Nothing
+
+  from' =  (cm ^? messageFromUser . _Just . userNick . to (par "<" ">"))
+       <|> (cm ^? messageFromServer . _Just          . to (par "(" ")"))
+
+  to' = Just $ Text.intercalate ", " (cm ^. messageParams)
+
+  cont = cm ^. messageContent
