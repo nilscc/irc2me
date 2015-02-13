@@ -217,11 +217,11 @@ define(function (require) {
             for (var c = 0; network.channels && c < network.channels.length; c++) {
                 var chan = network.channels[c];
 
-                self.appendChannelMessages(network_id, chan.name, chan.messages);
-
                 if (chan.users.length > 0) {
                     self.setUserlist(network_id, chan.name, chan.users);
                 }
+
+                self.appendChannelMessages(network_id, chan.name, chan.messages);
             }
         }
     };

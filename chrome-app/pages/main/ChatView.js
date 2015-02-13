@@ -43,7 +43,7 @@ define(function(require) {
      *
      */
 
-    var protoMsgTypes;
+    var protoMsgTypes, protoUserflags;
 
     var loadProtoMsgTypes = function (cb) {
         Irc2me.getProtobufMesageTypes(function (tys) {
@@ -51,7 +51,10 @@ define(function(require) {
             for (var ty in tys) {
                 protoMsgTypes[tys[ty]] = ty;
             }
-            cb();
+            Irc2me.getProtobufUserflags(function (uf) {
+                protoUserflags = uf;
+                cb();
+            });
         });
     };
 
@@ -122,8 +125,48 @@ define(function(require) {
      *
      */
 
+    var userlistTemplate;
+
     var loadUserlist = function (users) {
+
+        userlistTemplate = userlistTemplate || $("#user-list-template").html();
+
+        var template_data = {
+            operators: [],
+            voice: [],
+            users: [],
+        };
+
+        var flags = protoUserflags;
+
+        for (var i = 0; i < users.length; i++) {
+
+            var user = users[i];
+
+            if (user.flag != null) {
+                switch (user.flag) {
+                    case flags.OPERATOR: {
+                        template_data.operators.push(user);
+                        break;
+                    }
+                    case flags.VOICE: {
+                        template_data.voice.push(user);
+                        break;
+                    }
+                    default: {
+                        console.error("Unexpected user flag", user.flag);
+                    }
+                }
+            } else {
+                template_data.users.push(user);
+            }
+        }
+
+        // the compiled template
+        var html = $(Mustache.to_html(userlistTemplate, template_data));
+
         $(".user-list-view").show();
+        $("#user-list").html(html);
     };
 
     var emptyUserlist = function () {
@@ -260,7 +303,7 @@ define(function(require) {
 
         loadMessages(query.messages);
         hideUserlist();
-        setTopic(user.nick, "(" + Helper.userNameHost(user) + ")");
+        setTopic(Helper.userFullname(user));
         setActiveEntry("query", Helper.userFullname(user));
         focusInput();
 
