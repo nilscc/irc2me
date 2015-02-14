@@ -28,7 +28,7 @@ module Control.Concurrent.Event
 import Control.Applicative
 import Control.Monad.Except
 import Control.Monad.Reader
-import Control.Monad.Maybe
+import Control.Monad.Trans.Maybe
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Monad.Cont
