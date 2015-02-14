@@ -350,7 +350,9 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
 
   ircState    = connectedIrcNetworks . at nid . _Just
   chanState c = ircState . ircChannels . at' c
-  qryState  u = ircState . ircQueries . at' (u ^. userNick)
+  qryState  u = ircState . ircQueries . at' u'
+   where
+    u' = u & userHost .~ Nothing & userFlag .~ Nothing
 
   -- backlog functions
 

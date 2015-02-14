@@ -80,7 +80,7 @@ data User = User
   , _userHost           :: Optional 3 (Value Text)
   , _userFlag           :: Optional 4 (Enumeration Userflag)
   }
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 instance Encode User
 instance Decode User

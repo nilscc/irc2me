@@ -99,7 +99,7 @@ data IrcState = IrcState
   { _ircConnection      :: IrcConnection
   , _ircIdentity        :: Identity
   , _ircNetworkBacklog  :: Backlog
-  , _ircQueries         :: Map Nickname    QueryState
+  , _ircQueries         :: Map User        QueryState
   , _ircChannels        :: Map Channelname ChannelState
   }
   deriving (Eq, Show)
