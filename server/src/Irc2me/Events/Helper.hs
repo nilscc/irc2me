@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Maybe
+import Control.Monad.Trans.Maybe
 
 import Data.Maybe
 

@@ -7,7 +7,7 @@ module Irc2me.Events.ChatMessageEvent where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Maybe
+import Control.Monad.Trans.Maybe
 
 import Data.Maybe
 
