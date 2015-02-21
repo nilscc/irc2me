@@ -2,9 +2,10 @@ var deps =
     [ "main/Backlog"
     , "main/ChatView"
     , "src/Irc2me"
+    , "jquery"
     ];
 
-var main = function(Backlog, ChatView, Irc2me) {
+var main = function(Backlog, ChatView, Irc2me, $) {
 
     var backlog  = new Backlog();
     var chatview = new ChatView(backlog);

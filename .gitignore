@@ -5,3 +5,7 @@ server/server
 *.swp
 .hs_tags
 *.pro.user
+
+*.pem
+*.csr
+*.srl
