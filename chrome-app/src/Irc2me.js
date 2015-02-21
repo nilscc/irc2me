@@ -174,7 +174,7 @@ define(function (require) {
      */
 
     Irc2me.prototype.isConnected = function () {
-        return self._authenticated;
+        return self._authenticated || false;
     }
 
     Irc2me.prototype.connect = function(hostname, port, username, password) {
@@ -310,6 +310,49 @@ define(function (require) {
         stream.sendMessage(msg);
     }
 
+    /*
+     * GET request messages
+     *
+     */
+
+    var list_request = function (lreq, cb) {
+        var self = this;
+
+        var messages = self._messages,
+            stream = self._protoStream;
+
+        // build client message
+        var message = new messages.ClientMsg({
+            get: new messages.ClientMsg.GET({
+                list: lreq,
+            }),
+        });
+
+        if (typeof cb == "function") {
+            message.response_id = self.addCallback(function (resp) {
+                if (resp.networks && resp.networks.length > 0) {
+                    cb(resp.networks);
+                }
+            });
+        }
+
+        stream.sendMessage(message);
+    };
+
+    Irc2me.prototype.getNetworkList = function (cb) {
+        var self = this;
+        var LIST_NETWORKS = self._messages.ClientMsg.GET.ListRequest.LIST_NETWORKS;
+
+        list_request.call(self, LIST_NETWORKS, cb);
+    };
+
+
+    Irc2me.prototype.getConversationList = function (cb) {
+        var self = this;
+        var LIST_CONVERSATIONS = self._messages.ClientMsg.GET.ListRequest.LIST_CONVERSATIONS;
+
+        list_request.call(self, LIST_CONVERSATIONS, cb);
+    };
 
     /*
      * Chrome message interface: Incoming messages
@@ -329,6 +372,10 @@ define(function (require) {
     Irc2me.sendMessage        = new ChromeMessage("Irc2me.sendMessage");
     Irc2me.sendPrivateMessage = new ChromeMessage("Irc2me.sendPrivateMessage");
     Irc2me.sendCommand        = new ChromeMessage("Irc2me.sendCommand");
+
+    // GET requests
+    Irc2me.getNetworkList       = new ChromeMessage("Irc2me.getNetworkList");
+    Irc2me.getConversationList  = new ChromeMessage("Irc2me.getConversationList");
 
     Irc2me.prototype.listen = function () {
 
@@ -418,6 +465,21 @@ define(function (require) {
             self.sendMessage(netw, cmd, cnt, pars, sendResponse);
 
             return true; // async callback
+        });
+
+        /*
+         * GET requests
+         *
+         */
+
+        Irc2me.getNetworkList.addListener(function(content, sendResponse) {
+            self.getNetworkList(sendResponse);
+            return true; // async
+        });
+
+        Irc2me.getConversationList.addListener(function(content, sendResponse) {
+            self.getConversationList(sendResponse);
+            return true; // async
         });
     }
 

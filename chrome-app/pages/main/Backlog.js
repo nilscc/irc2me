@@ -67,7 +67,7 @@ define(function (require) {
     };
 
     B.channel = function(network_id, channel) {
-        return this.backlog[network_id].channels[channel] || {
+        return (this.network(network_id) && this.network(network_id).channels[channel]) || {
             messages: [],
             users: [],
             topic: "",
@@ -75,7 +75,7 @@ define(function (require) {
     };
 
     B.query = function (network_id, user) {
-        return this.backlog[network_id].queries[Helper.userFullname(user)] || {
+        return (this.network(network_id) && this.network(network_id).queries[Helper.userFullname(user)]) || {
             messages: [],
         };
     };

@@ -41,11 +41,11 @@ define(["jquery"], function ($) {
     };
 
     Helper.userNameHost = function (user) {
-        return user.name + "@" + user.host;
+        return user.name ? (user.name + (user.host ? ("@" + user.host) : "")) : "?";
     };
 
     Helper.userFullname = function (user) {
-        return user.nick + " (" + Helper.userNameHost(user) + ")";
+        return user.nick + (user.name ? (" (" + Helper.userNameHost(user) + ")") : "");
     };
 
     return Helper;

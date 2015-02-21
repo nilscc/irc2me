@@ -10,8 +10,14 @@ var main = function(Backlog, ChatView, Irc2me, $) {
     var backlog  = new Backlog();
     var chatview = new ChatView(backlog);
 
+    /*
+     * Setup channel view
+     *
+     */
+
     chatview.listenForNewMessages();
     chatview.bindKeyEvents($("#input-prompt"));
+    chatview.loadConversations();
 
     /*
      * Setup signals

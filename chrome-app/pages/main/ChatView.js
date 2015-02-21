@@ -322,7 +322,8 @@ define(function(require) {
 
     var networklistTemplate;
 
-    var unreadMessage = function (network_id, id, class_, name, click_cb) {
+    // get (or create) network HTML element
+    var getNetworkElement = function (network_id, network_name) {
         var network = $(".network-list .network[data-network_id=" + network_id + "]");
 
         // check if network exists
@@ -334,6 +335,7 @@ define(function(require) {
             var data = {
                 network: {
                     id: network_id,
+                    name: network_name,
                 },
             };
 
@@ -342,6 +344,13 @@ define(function(require) {
 
             $(".network-list").append(network);
         }
+
+        return network;
+    };
+
+    // get (or create) network entry HTML element
+    var getNetworkEntryElement = function (network_id, class_, id, name) {
+        var network = getNetworkElement(network_id);
 
         var entry = $("> .entry." + class_ + "[data-id=\"" + id + "\"]", network);
 
@@ -363,6 +372,15 @@ define(function(require) {
             // add to list
             network.append(entry);
         }
+
+        return entry;
+    };
+
+    var unreadMessage = function (network_id, id, class_, name, click_cb) {
+
+        var entry = getNetworkEntryElement(network_id, class_, id, name);
+
+        console.log(arguments);
 
         // set as 'unread'
         entry.addClass("unread");
@@ -395,6 +413,41 @@ define(function(require) {
 
         unreadMessage(network_id, Helper.userFullname(user), "query", user.nick, function () {
             self.loadQuery(network_id, user);
+        });
+    };
+
+    C.loadConversations = function () {
+        var self = this;
+
+        Irc2me.getConversationList(function (networks) {
+
+            var entry;
+
+            for (var i = 0; i < networks.length; i++) {
+
+                var network     = networks[i],
+                    network_id  = Long.prototype.toNumber.call(network.id);
+
+                getNetworkElement(network_id, network.name);
+
+                // add channels
+                for (var j = 0; j < network.channels.length; j++) {
+                    var channel = network.channels[j];
+                    getNetworkEntryElement(network_id, "channel", channel.name, channel.name)
+                        .click((function (network_id, channel) {
+                            return function () { self.loadChannel(network_id, channel); };
+                        })(network_id, channel.name));
+                }
+
+                // add queries
+                for (var j = 0; j < network.queries.length; j++) {
+                    var query = network.queries[j];
+                    getNetworkEntryElement(network_id, "query", query.user.nick, query.user.nick)
+                        .click((function (network_id, user) {
+                            return function () { self.loadQuery(network_id, user); };
+                        })(network_id, query.user));
+                }
+            }
         });
     };
 

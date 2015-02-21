@@ -169,7 +169,25 @@ message ClientMsg
 
     message GET
     {
-        repeated Network network = 1;
+        enum ListRequest
+        {
+            LIST_NETWORKS                   = 0;
+            LIST_CONVERSATIONS              = 1;
+        };
+
+        optional ListRequest list           = 10;
+
+        message BacklogRequest
+        {
+            optional uint64 before          = 1;
+            optional uint64 after           = 2;
+            optional uint32 limit           = 3;
+            optional int64  network_id      = 10;
+            optional string query_nickname  = 20;
+            optional string channel_name    = 30;
+        };
+
+        optional BacklogRequest backlogs    = 20;
     };
 
     optional GET get  = 10;
