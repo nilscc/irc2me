@@ -132,12 +132,17 @@ handleEvents = evalStateT `flip` eventState $ forever $ do
         ClientMessageEvent cc cm -> do
 
           -- handle client message event
-          success <- useAccountState $ clientMessageEvent account cc cm
+          res <- useAccountState $ clientMessageEvent account cc cm
 
-          unless success $
-            liftIO $ hPutStrLn stderr $ "Unhandled client message: " ++ show cm
+          case res of
+            Left err ->
+              putErrLn $ "SQL error: " ++ show err
+            Right success ->
+              unless success $
+                putErrLn $ "Unhandled client message: " ++ show cm
 
  where
   eventState :: EventLoopState
   eventState = EventLoopState Map.empty Map.empty
 
+  putErrLn = liftIO . hPutStrLn stderr
