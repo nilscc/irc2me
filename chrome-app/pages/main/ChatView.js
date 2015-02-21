@@ -196,7 +196,7 @@ define(function(require) {
 
     var setTopic = function (channel_name, topic) {
         $("#channel-name").html(channel_name);
-        $("#topic").html(topic || "");
+        $("#topic").html(autolinker.link(topic || ""));
     };
 
     var focusInput = function () {

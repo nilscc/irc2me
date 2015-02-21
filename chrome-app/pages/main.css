@@ -94,7 +94,7 @@ body
     text-overflow: ellipsis;
 }
 
-.main-view .group-title:hover
+.main-view .group-title.expand
 {
     white-space: normal;
 }
