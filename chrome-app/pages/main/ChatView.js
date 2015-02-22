@@ -355,7 +355,7 @@ define(function(require) {
     };
 
     // get (or create) network entry HTML element
-    var getNetworkEntryElement = function (network_id, class_, id, name) {
+    var getNetworkEntryElement = function (network_id, class_, id, name, click_cb) {
         var network = getNetworkElement(network_id);
 
         var entry = $("> .entry." + class_ + "[data-id=\"" + id + "\"]", network);
@@ -375,6 +375,9 @@ define(function(require) {
             // compile template to jquery object
             entry = $( Mustache.to_html(src, data) );
 
+            // add click event
+            entry.click(click_cb);
+
             // add to list
             network.append(entry);
         }
@@ -384,13 +387,10 @@ define(function(require) {
 
     var unreadMessage = function (network_id, id, class_, name, click_cb) {
 
-        var entry = getNetworkEntryElement(network_id, class_, id, name);
+        var entry = getNetworkEntryElement(network_id, class_, id, name, click_cb);
 
         // set as 'unread'
         entry.addClass("unread");
-
-        // add 'click' event
-        entry.unbind('click').click(click_cb);
 
         return entry;
     };
@@ -437,19 +437,21 @@ define(function(require) {
                 // add channels
                 for (var j = 0; j < network.channels.length; j++) {
                     var channel = network.channels[j];
-                    getNetworkEntryElement(network_id, "channel", channel.name, channel.name)
-                        .unbind('click').click((function (network_id, channel) {
+                    getNetworkEntryElement(network_id, "channel", channel.name, channel.name,
+                        (function (network_id, channel) {
                             return function () { self.loadChannel(network_id, channel); };
-                        })(network_id, channel.name));
+                        })(network_id, channel.name)
+                    );
                 }
 
                 // add queries
                 for (var j = 0; j < network.queries.length; j++) {
                     var query = network.queries[j];
-                    getNetworkEntryElement(network_id, "query", query.user.nick, query.user.nick)
-                        .unbind('click').click((function (network_id, user) {
+                    getNetworkEntryElement(network_id, "query", query.user.nick, query.user.nick,
+                        (function (network_id, user) {
                             return function () { self.loadQuery(network_id, user); };
-                        })(network_id, query.user));
+                        })(network_id, query.user)
+                    );
                 }
             }
         });
