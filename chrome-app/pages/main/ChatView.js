@@ -209,14 +209,20 @@ define(function(require) {
      */
 
     var messagelist;
+    var msgbuffer = [];
 
     var appendMessages = function (messages, cb) {
 
         // make sure protobuf message types are loaded
         if (typeof protoMsgTypes != "object") {
-            loadProtoMsgTypes(function () {
-                appendMessages(messages, cb);
-            });
+            var first = msgbuffer.length == 0;
+            msgbuffer = msgbuffer.concat(messages);
+            if (first) {
+                loadProtoMsgTypes(function () {
+                    appendMessages(msgbuffer, cb);
+                    msgbuffer = [];
+                });
+            }
             return; //quit
         }
 
@@ -380,13 +386,11 @@ define(function(require) {
 
         var entry = getNetworkEntryElement(network_id, class_, id, name);
 
-        console.log(arguments);
-
         // set as 'unread'
         entry.addClass("unread");
 
         // add 'click' event
-        entry.click(click_cb);
+        entry.unbind('click').click(click_cb);
 
         return entry;
     };
@@ -434,7 +438,7 @@ define(function(require) {
                 for (var j = 0; j < network.channels.length; j++) {
                     var channel = network.channels[j];
                     getNetworkEntryElement(network_id, "channel", channel.name, channel.name)
-                        .click((function (network_id, channel) {
+                        .unbind('click').click((function (network_id, channel) {
                             return function () { self.loadChannel(network_id, channel); };
                         })(network_id, channel.name));
                 }
@@ -443,7 +447,7 @@ define(function(require) {
                 for (var j = 0; j < network.queries.length; j++) {
                     var query = network.queries[j];
                     getNetworkEntryElement(network_id, "query", query.user.nick, query.user.nick)
-                        .click((function (network_id, user) {
+                        .unbind('click').click((function (network_id, user) {
                             return function () { self.loadQuery(network_id, user); };
                         })(network_id, query.user));
                 }
