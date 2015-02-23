@@ -13,8 +13,12 @@ import Control.Monad.Trans
 import Control.Monad.Except
 import Control.Monad.Reader
 
+import Data.Maybe
+import Data.Foldable as Foldable
+
 -- containers
 import qualified Data.Map as Map
+import qualified Data.Sequence as Seq
 
 -- time
 import Data.Time
@@ -63,8 +67,9 @@ clientMessageEvent
   -> m (Either SqlError Bool)
 clientMessageEvent aid cc clm = oneOf
 
-  [ handleGetMessage  aid clm
-  , handleSendMessage aid clm
+  [ handleGetListMessage    aid clm
+  , handleGetBacklogMessage aid clm
+  , handleSendMessage       aid clm
   ]
 
  where
@@ -78,12 +83,13 @@ clientMessageEvent aid cc clm = oneOf
  -
  -}
 
-handleGetMessage
+-- | Simple list requests
+handleGetListMessage
   :: MonadCMH m
   => AccountID
   -> ClientMessage
   -> m ServerMessage
-handleGetMessage aid clm
+handleGetListMessage aid clm
 
   -- list all stored networks
   | Just LIST_NETWORKS <- listRequest clm = do
@@ -123,6 +129,84 @@ handleGetMessage aid clm
 listRequest :: ClientMessage -> Maybe ListRequest
 listRequest clm = clm ^? clGET   . _Just
                        . getList . _Just
+
+-- | Backlog requests
+handleGetBacklogMessage
+  :: MonadCMH m
+  => AccountID
+  -> ClientMessage
+  -> m ServerMessage
+handleGetBacklogMessage _aid clm
+
+  | Just bl <- backlogRequest clm = do
+
+    let nid = bl ^. backlogRequestNetwork
+
+    -- state helper
+    let ircState    = connectedIrcNetworks . at (NetworkID $ fromIntegral nid) . _Just
+        chanState c = ircState . ircChannels . at' c
+        qryState  n = ircState . ircQueries  . at' u
+         where
+          u = emptyUser & userNick .~ n
+
+    backlog <- asks . flip (^.) $ case () of
+      _ | Just nick <- bl ^. backlogRequestQuery -> do
+          qryState nick . queryBacklog
+        | Just chan <- bl ^. backlogRequestChannel -> do
+          chanState chan . channelBacklog
+        | otherwise -> do
+          ircState . ircNetworkBacklog
+
+    let filteredBacklog = toList $ limitBacklog bl backlog
+
+    -- build response message
+    return $ serverMsg $ emptyNetwork &~ do
+
+      M.networkId .= Just nid
+
+      case () of
+
+        _ | Just n <- bl ^. backlogRequestQuery -> do
+            let u = emptyUser & userNick .~ n
+            netwQry $ emptyPrivateQuery u &~
+              queryMessages .= filteredBacklog
+
+          | Just c <- bl ^. backlogRequestChannel -> do
+            netwChn $ emptyChannel &~ do
+              channelName     .= Just c
+              channelMessages .= filteredBacklog
+
+          | otherwise -> do
+            M.networkMessages .= filteredBacklog
+
+  | otherwise = mzero
+ where
+
+  -- message building helper
+  serverMsg netw = emptyServerMessage & serverNetworks .~ [ netw ]
+  netwQry q = M.networkQueries  .= [ q ]
+  netwChn c = M.networkChannels .= [ c ]
+
+  -- take `i` elements from the right end of a sequence
+  taker i s = Seq.drop (Seq.length s - i) s
+
+  -- apply "limit", "before" and "after" filters to given backlog
+  limitBacklog blreq bl
+    = taker (fromIntegral $ blreq ^. backlogLimit . non 50)
+    . fromMaybe id (blreq ^? backlogBefore . _Just . to filterBefore)
+    . fromMaybe id (blreq ^? backlogAfter  . _Just . to filterAfter)
+    $ bl
+   where
+    filterAfter t = Seq.dropWhileR $ \msg -> fromMaybe False $ do
+      t' <- msg ^. messageTimestamp
+      return $ t < t'
+    filterBefore t = Seq.dropWhileR $ \msg -> fromMaybe False $ do
+      t' <- msg ^. messageTimestamp
+      return $ t > t'
+
+backlogRequest :: ClientMessage -> Maybe BacklogRequest
+backlogRequest clm = clm ^?
+    clGET . _Just . getBacklog . _Just
 
 {-
  - Sending messages

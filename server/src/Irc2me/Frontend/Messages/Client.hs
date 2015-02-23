@@ -48,7 +48,7 @@ instance Decode ClientMessage
 
 data GET = GET
   { _getList                :: Optional 10 (Enumeration ListRequest)
-  , _getBacklogs            :: Optional 20 (Message BacklogRequest)
+  , _getBacklog             :: Optional 20 (Message BacklogRequest)
   }
   deriving (Eq, Show, Generic)
 
@@ -69,7 +69,7 @@ data BacklogRequest = BacklogRequest
   , _backlogAfter           :: Optional 2  (Value EpochTimestamp)
   , _backlogLimit           :: Optional 3  (Value Int32)
 
-  , _backlogRequestNetwork  :: Optional 10 (Value ID_T)
+  , _backlogRequestNetwork  :: Required 10 (Value ID_T)
   , _backlogRequestQuery    :: Optional 20 (Value NickName)
   , _backlogRequestChannel  :: Optional 30 (Value ChannelName)
   }
