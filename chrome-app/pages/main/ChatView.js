@@ -14,6 +14,7 @@ define(function(require) {
     var $           = require("jquery");
     var Mustache    = require("Mustache");
     var Long        = require("Long");
+    var linkify     = require("linkify-string");
 
     /*
      * Constructor
@@ -55,7 +56,9 @@ define(function(require) {
 
     var setTopic = function (channel_name, topic) {
         $("#channel-name").html(channel_name);
-        $("#topic").html(autolinker.link(topic || ""));
+        $("#topic").html(Helper.escapeHtml(topic || "")).html(function (_, h) {
+            return linkify(h);
+        });
     };
 
     var focusInput = function () {
