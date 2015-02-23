@@ -38,14 +38,12 @@ var WhenLoaded = (function () {
 chrome.app.runtime.onLaunched.addListener(function () {
 
     WhenLoaded(function(irc2me, uistate) {
-        irc2me.init(function () {
-            if (irc2me.isConnected()) {
-                uistate.MainWindow.open();
-            }
-            else {
-                uistate.ConnectionWindow.open();
-            }
-        });
+        if (irc2me.isConnected()) {
+            uistate.MainWindow.open();
+        }
+        else {
+            uistate.ConnectionWindow.open();
+        }
     });
 
 });

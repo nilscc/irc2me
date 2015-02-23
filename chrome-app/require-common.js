@@ -8,6 +8,7 @@ require.config({
 
         // require.js
         require:                        "../libs/require",
+        text:                           "../libs/require-text",
 
         // proto buf libs
         ProtoBuf:                       "../libs/ProtoBuf.min",
