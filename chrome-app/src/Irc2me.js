@@ -342,6 +342,76 @@ define(function (require) {
         list_request.call(self, LIST_CONVERSATIONS, cb);
     };
 
+    // Backlog requests
+
+    var backlog_request = function (request, callback) {
+        var self = this;
+
+        var messages = Irc2me.ProtobufMessages,
+            stream   = self._protoStream;
+
+        // build message
+        var message = new messages.ClientMsg({
+            get: new messages.ClientMsg.GET({
+                backlogs: request,
+            }),
+        });
+
+        if (typeof callback == "function") {
+            message.response_id = self.addCallback(function (resp) {
+                if (resp.networks && resp.networks.length > 0) {
+                    callback(resp.networks);
+                }
+            });
+        }
+
+        stream.sendMessage(message);
+    };
+
+    var new_backlog_request = function (network_id, options, callback) {
+        var self = this;
+
+        if (typeof options == "function") {
+            callback = options;
+            options = null;
+        }
+        options = options || {};
+
+        // build request
+        var request = new Irc2me.ProtobufMessages.ClientMsg.GET.BacklogRequest({
+            network_id: network_id,
+            limit: options.limit,
+            before: options.before,
+            after: options.after,
+        });
+
+        request.send = function () {
+            backlog_request.call(self, request, callback);
+        };
+
+        return request;
+    };
+
+    // get network message backlog
+    Irc2me.prototype.getNetworkBacklog = function (network_id, options, callback) {
+        new_backlog_request.call(this, network_id, options, callback)
+            .send();
+    };
+
+    // get private query backlog
+    Irc2me.prototype.getQueryBacklog = function (network_id, nickname, options, callback) {
+        var req = new_backlog_request.call(this, network_id, options, callback);
+        req.query_nickname = nickname;
+        req.send();
+    };
+
+    // get public channel backlog
+    Irc2me.prototype.getChannelBacklog = function (network_id, channel, options, callback) {
+        var req = new_backlog_request.call(this, network_id, options, callback);
+        req.channel_name = channel;
+        req.send();
+    };
+
     /*
      * Chrome message interface: Incoming messages
      *
@@ -364,6 +434,11 @@ define(function (require) {
     // GET requests
     Irc2me.getNetworkList       = new ChromeMessage("Irc2me.getNetworkList");
     Irc2me.getConversationList  = new ChromeMessage("Irc2me.getConversationList");
+
+    // GET backlog requests
+    Irc2me.getNetworkBacklog    = new ChromeMessage("Irc2me.getNetworkBacklog");
+    Irc2me.getChannelBacklog    = new ChromeMessage("Irc2me.getChannelBacklog");
+    Irc2me.getQueryBacklog      = new ChromeMessage("Irc2me.getQueryBacklog");
 
     Irc2me.prototype.listen = function () {
 
@@ -453,6 +528,23 @@ define(function (require) {
 
         Irc2me.getConversationList.addListener(function(content, sendResponse) {
             self.getConversationList(sendResponse);
+            return true; // async
+        });
+
+        // backlog requests
+
+        Irc2me.getNetworkBacklog.addListener(function (content, sendResponse) {
+            self.getNetworkBacklog(content.network_id, content, sendResponse);
+            return true; // async
+        });
+
+        Irc2me.getChannelBacklog.addListener(function (content, sendResponse) {
+            self.getChannelBacklog(content.network_id, content.channel_name, content, sendResponse);
+            return true; // async
+        });
+
+        Irc2me.getQueryBacklog.addListener(function (content, sendResponse) {
+            self.getQueryBacklog(content.network_id, content.query_nickname, content, sendResponse);
             return true; // async
         });
     }
