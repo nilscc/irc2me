@@ -9,6 +9,8 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 
+import qualified Control.Exception as Exception
+
 import Data.Maybe
 
 import qualified Data.Text      as Text
@@ -383,7 +385,8 @@ buildChatMessageResponse nid@(NetworkID nid') mqueryuser cm = runMaybeT $ do
 
 -- Pretty printing chat messages
 printMessage :: MonadIO m => ChatMessage -> m ()
-printMessage cm = liftIO . Text.putStrLn
+printMessage cm = liftIO . Exception.handle excHandler
+  . Text.putStrLn
   . Text.intercalate " "
   . catMaybes
   $ [ par "[" "]" <$> timestamp
@@ -393,6 +396,9 @@ printMessage cm = liftIO . Text.putStrLn
     , cont
     ]
  where
+  excHandler :: Exception.SomeException -> IO ()
+  excHandler e = putStrLn $ show e
+
   infixr 5 .++
   (.++) = Text.append
 
