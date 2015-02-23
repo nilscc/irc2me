@@ -88,7 +88,9 @@ define(function (require) {
     B.subscribe = function (subscription_id, callback) {
         var self = this;
 
+        // create jquery collection
         self.subs = self.subs || $({});
+
         self.subs.on(subscription_id, function () {
             var args = Array.prototype.slice.call(arguments, 1);
             callback.apply(callback, args);
@@ -99,6 +101,7 @@ define(function (require) {
         var self = this;
 
         if (!self.subs) { return; }
+
         self.subs.off(subscription_id);
     };
 
@@ -106,6 +109,7 @@ define(function (require) {
         var self = this;
 
         if (!self.subs) { return; }
+
         var args = Array.prototype.slice.call(arguments, 1);
         self.subs.trigger(subscription_id, args);
     };
