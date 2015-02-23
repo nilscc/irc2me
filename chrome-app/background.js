@@ -1,6 +1,8 @@
+var irc2me, uistate;
+
 var WhenLoaded = (function () {
 
-    var irc2me, uistate;
+    // var irc2me, uistate;
     var funcs = [];
 
     var run = function () {
