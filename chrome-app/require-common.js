@@ -11,12 +11,14 @@ require.config({
 
         // proto buf libs
         ProtoBuf:                       "../libs/ProtoBuf.min",
-        Autolinker:                     "../libs/Autolinker.min",
         ByteBuffer:                     "../libs/ByteBufferAB.min",
         Long:                           "../libs/Long.min",
 
         // mustache templates
         Mustache:                       "../libs/mustache.min",
+
+        linkify:                        "../libs/linkify.amd.min",
+        "linkify-string":               "../libs/linkify-string.amd.min",
 
         // jquery + plugins
         jquery:                         "../libs/jquery-2.1.1.min",
