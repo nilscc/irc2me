@@ -182,7 +182,7 @@ message ClientMsg
             optional uint64 before          = 1;
             optional uint64 after           = 2;
             optional uint32 limit           = 3;
-            optional int64  network_id      = 10;
+            required int64  network_id      = 10;
             optional string query_nickname  = 20;
             optional string channel_name    = 30;
         };
