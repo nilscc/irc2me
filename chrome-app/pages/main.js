@@ -1,14 +1,16 @@
 var deps =
-    [ "main/Backlog"
-    , "main/ChatView"
+    [ "src/Backlog"
     , "src/Irc2me"
+    , "main/ChatView"
     , "jquery"
     ];
 
-var main = function(Backlog, ChatView, Irc2me, $) {
+var backlog, chatview;
 
-    var backlog  = new Backlog();
-    var chatview = new ChatView(backlog);
+var main = function(Backlog, Irc2me, ChatView, $) {
+
+    backlog  = new Backlog();
+    chatview = new ChatView(backlog);
 
     /*
      * Setup channel view
@@ -16,7 +18,7 @@ var main = function(Backlog, ChatView, Irc2me, $) {
      */
 
     chatview.listenForNewMessages();
-    chatview.bindKeyEvents($("#input-prompt"));
+    chatview.bindKeyEvents();
     chatview.loadConversations();
 
     /*

@@ -187,7 +187,7 @@ body
  *
  */
 
-.user-list-view
+#user-list-view
 {
     border-right: 0;
     flex: 0 100pt;
@@ -196,32 +196,32 @@ body
     flex-direction: column;
 }
 
-.user-list-view > #user-list
+#user-list-view > .user-list
 {
     flex: 1;
     overflow: auto;
 }
 
-.user-list-view .users
+#user-list-view .users
 {
     list-style: none;
     padding: 0 8pt 0;
 }
 
-.user-list-view .users .operator
+#user-list-view .users .operator
 {
     font-weight: bold;
 }
-.user-list-view .users .operator::before
+#user-list-view .users .operator::before
 {
     content: "@";
 }
 
-.user-list-view .users .voice
+#user-list-view .users .voice
 {
     font-style: italic;
 }
-.user-list-view .users .voice::before
+#user-list-view .users .voice::before
 {
     content: "+";
 }
