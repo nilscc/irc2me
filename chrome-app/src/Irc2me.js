@@ -12,7 +12,7 @@ define(function (require) {
     var Logger        = require("src/Logger");
 
     // lib imports
-    var ProtoBuf      = require("ProtoBuf");
+    var ProtoBuf = require("ProtoBuf");
 
     var Irc2me = function() {
         var self = this;
@@ -24,10 +24,19 @@ define(function (require) {
     };
 
     /*
-     * Logging
+     * Protobuf messages
      *
      */
 
+    Irc2me.ProtobufMessages = (function () {
+        var proto = require("text!/messages.proto");
+        return ProtoBuf.loadProto(proto).build("Irc2me");
+    })();
+
+    /*
+     * Logging
+     *
+     */
 
     Irc2me.prototype.setLogger = function(callback) {
 
@@ -49,12 +58,6 @@ define(function (require) {
      *
      */
 
-    Irc2me.prototype.init = function (cb) {
-        var self = this;
-
-        self._loadMessages(cb);
-    }
-
     Irc2me.prototype.suspend = function () {
         var self = this;
 
@@ -67,27 +70,10 @@ define(function (require) {
      *
      */
 
-    Irc2me.prototype._loadMessages = function(cb) {
-        var self = this;
-
-        ProtoBuf.loadProtoFile("messages.proto", function (err, builder) {
-
-            if (err != null) {
-                return console.error(err);
-            }
-
-            self._messages = builder.build("Irc2me");
-
-            if (typeof cb == "function") {
-                cb();
-            }
-        });
-    }
-
     Irc2me.prototype.messageTypeByString = function (ty_string) {
         var self = this;
 
-        var Type = self._messages.Network.Message.Type;
+        var Type = Irc2me.ProtobufMessages.Network.Message.Type;
 
         if (Type.hasOwnProperty(ty_string.toUpperCase())) {
             return Type[ty_string.toUpperCase()];
@@ -103,7 +89,7 @@ define(function (require) {
         var log = self.getLogger("_handleAuthenticationResponse");
 
         // alias
-        var ServerMsg = self._messages.ServerMsg;
+        var ServerMsg = Irc2me.ProtobufMessages.ServerMsg;
 
         // decode as ServerMsg
         var msg = ServerMsg.decode(buffer);
@@ -149,7 +135,7 @@ define(function (require) {
         var self = this;
 
         // alias
-        var ServerMsg = self._messages.ServerMsg;
+        var ServerMsg = Irc2me.ProtobufMessages.ServerMsg;
 
         // decode as ServerMsg
         var msg = ServerMsg.decode(buffer);
@@ -186,7 +172,7 @@ define(function (require) {
 
         // aliases
         var stream   = self._protoStream,
-            messages = self._messages;
+            messages = Irc2me.ProtobufMessages;
 
         stream.connect(hostname, port, function (success, errmsg) {
 
@@ -218,7 +204,7 @@ define(function (require) {
 
         // aliases
         var stream   = self._protoStream,
-            messages = self._messages;
+            messages = Irc2me.ProtobufMessages;
 
         // action to perform when actually disconnecting
         var do_disconnect = function (success, errmsg) {
@@ -280,7 +266,7 @@ define(function (require) {
 
         var self = this;
 
-        var messages = self._messages,
+        var messages = Irc2me.ProtobufMessages,
             stream   = self._protoStream;
 
         var msg = new messages.ClientMsg({
@@ -315,10 +301,12 @@ define(function (require) {
      *
      */
 
+    // LIST requrests
+
     var list_request = function (lreq, cb) {
         var self = this;
 
-        var messages = self._messages,
+        var messages = Irc2me.ProtobufMessages,
             stream = self._protoStream;
 
         // build client message
@@ -341,7 +329,7 @@ define(function (require) {
 
     Irc2me.prototype.getNetworkList = function (cb) {
         var self = this;
-        var LIST_NETWORKS = self._messages.ClientMsg.GET.ListRequest.LIST_NETWORKS;
+        var LIST_NETWORKS = Irc2me.ProtobufMessages.ClientMsg.GET.ListRequest.LIST_NETWORKS;
 
         list_request.call(self, LIST_NETWORKS, cb);
     };
@@ -349,7 +337,7 @@ define(function (require) {
 
     Irc2me.prototype.getConversationList = function (cb) {
         var self = this;
-        var LIST_CONVERSATIONS = self._messages.ClientMsg.GET.ListRequest.LIST_CONVERSATIONS;
+        var LIST_CONVERSATIONS = Irc2me.ProtobufMessages.ClientMsg.GET.ListRequest.LIST_CONVERSATIONS;
 
         list_request.call(self, LIST_CONVERSATIONS, cb);
     };
@@ -382,25 +370,11 @@ define(function (require) {
         var self = this;
 
         Irc2me.getProtobufUserflags.addListener(function (content, sendResponse) {
-            var send = function () { sendResponse(self._messages.Network.User.Userflag); };
-
-            if (!self._messages) {
-                self._loadMessages(send);
-                return true; // _loadMessages is async
-            } else {
-                send();
-            }
+            sendResponse(Irc2me.ProtobufMessages.Network.User.Userflag);
         });
 
         Irc2me.getProtobufMesageTypes.addListener(function (content, sendResponse) {
-            var send = function () { sendResponse(self._messages.Network.Message.Type); };
-
-            if (!self._messages) {
-                self._loadMessages(send);
-                return true; // _loadMessages is async
-            } else {
-                send();
-            }
+            sendResponse(Irc2me.ProtobufMessages.Network.Message.Type);
         });
 
         Irc2me.connect.addListener(function(content, sendResponse) {
@@ -441,7 +415,7 @@ define(function (require) {
                 txt  = content.text;
 
             // alias
-            var PRIVMSG = self._messages.Network.Message.Type.PRIVMSG;
+            var PRIVMSG = Irc2me.ProtobufMessages.Network.Message.Type.PRIVMSG;
 
             self.sendMessage(netw, PRIVMSG, txt, to, sendResponse);
 
@@ -456,7 +430,7 @@ define(function (require) {
                 pars = content.parameters || [];
 
             // alias
-            var Type = self._messages.Network.Message.Type;
+            var Type = Irc2me.ProtobufMessages.Network.Message.Type;
 
             if (typeof cmd == "string") {
                 cmd = self.messageTypeByString(cmd);
