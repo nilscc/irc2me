@@ -33,6 +33,22 @@ define(function(require) {
     var C = ChatView.prototype;
 
     /*
+     * jQuery helper
+     *
+     */
+
+    C.mainview = function (opt_selector) {
+        var mv = $("#main-view", this.jquery_context);
+
+        if (opt_selector != null) {
+            return $(opt_selector, mv);
+        }
+        else {
+            return mv;
+        }
+    };
+
+    /*
      * UI helper
      *
      */
@@ -253,7 +269,14 @@ define(function(require) {
      */
 
     C.bindKeyEvents = function (jquery_context) {
-        this.userinput.bindKeyEvents();
+        var self = this;
+
+        self.userinput.bindKeyEvents();
+
+        self.mainview().keydown(function (e) {
+            self.userinput.focus();
+            self.userinput.input().trigger(e);
+        });
     };
 
     /*

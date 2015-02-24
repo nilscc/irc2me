@@ -157,12 +157,15 @@ define(function (require) {
     U.bindKeyEvents = function () {
         var self = this;
 
-        self.input().keypress(function (e) {
+        self.input().keydown(function (e) {
+
+            e.stopPropagation();
 
             var input = $(this);
 
             // enter key
             if (e.which == 13) {
+                e.preventDefault();
                 self.send(input.val(), function () {
                     input.val("");
                 });
