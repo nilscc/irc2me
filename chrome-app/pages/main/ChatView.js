@@ -59,8 +59,6 @@ define(function(require) {
      *
      */
 
-    var messagelist;
-
     C.loadNetwork = function (network_id) {
         var self = this;
 
@@ -122,31 +120,9 @@ define(function(require) {
     };
 
     /*
-     * Channel list
+     * Initialize conversation list
      *
      */
-
-    var unreadNetworkMessage = function (network_id) {
-        var self = this;
-        self.conversationlist.setUnreadNetworkMessage(network_id, function () {
-            self.loadNetwork(network_id);
-        });
-    };
-
-    var unreadPublicMessage = function (network_id, channel) {
-        var self = this;
-        self.conversationlist.setUnreadPublicMessage(network_id, channel, function () {
-            self.loadChannel(network_id, channel);
-        });
-    };
-
-    var unreadPrivateMessage = function (network_id, user) {
-        var self = this;
-
-        unreadMessage(network_id, Helper.userFullname(user), "query", user.nick, function () {
-            self.loadQuery(network_id, user);
-        });
-    };
 
     C.loadConversations = function () {
         var self = this;
@@ -200,10 +176,34 @@ define(function(require) {
      *
      */
 
+    var unreadNetworkMessage = function (network_id) {
+        var self = this;
+        self.conversationlist.setUnreadNetworkMessage(network_id, function () {
+            self.loadNetwork(network_id);
+        });
+    };
+
+    var unreadPublicMessage = function (network_id, channel) {
+        var self = this;
+        self.conversationlist.setUnreadPublicMessage(network_id, channel, function () {
+            self.loadChannel(network_id, channel);
+        });
+    };
+
+    var unreadPrivateMessage = function (network_id, user) {
+        var self = this;
+
+        unreadMessage(network_id, Helper.userFullname(user), "query", user.nick, function () {
+            self.loadQuery(network_id, user);
+        });
+    };
+
     C.listenForNewMessages = function () {
         var self = this;
 
         var backlog = self.backlog;
+
+        // Helper
 
         var isCurrentNetwork = function (network_id) {
             return self.currentNetworkID === network_id;
@@ -218,6 +218,8 @@ define(function(require) {
                 && self.currentQuery
                 && Helper.userFullname(self.currentQuery) === Helper.userFullname(user);
         }
+
+        // Setup backlog subscriptions
 
         backlog.subscribe(backlog.newMessageSubscriptionID, function (nid, msg) {
             if (isCurrentNetwork(nid) && !self.currentChannel) {
@@ -246,12 +248,9 @@ define(function(require) {
     };
 
     /*
-     * Sending messages
+     * Handle user input
      *
      */
-
-    /*
-    */
 
     C.bindKeyEvents = function (jquery_context) {
         this.userinput.bindKeyEvents();
@@ -261,5 +260,6 @@ define(function(require) {
      * End of module
      *
      */
+
     return ChatView;
 });
