@@ -3,10 +3,10 @@ define(function(require) {
     "use strict";
 
     // sub modules
-    var UserList         = require("main/UserList");
-    var MessageView      = require("main/MessageView");
-    var UserInput        = require("main/UserInput");
-    var ConversationList = require("main/ConversationList");
+    var UserList         = require("main/ChatView/UserList");
+    var MessageView      = require("main/ChatView/MessageView");
+    var UserInput        = require("main/ChatView/UserInput");
+    var ConversationList = require("main/ChatView/ConversationList");
 
     // dependencies
     var Irc2me           = require("src/Irc2me");
