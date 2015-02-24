@@ -118,10 +118,24 @@ body
 #main-view #message-list .message
 {
     -webkit-user-select: auto;
-    padding-left: 1em;
-    text-indent: -1em;
+    padding-left: 2em;
+    text-indent: -2em;
 
     margin-bottom: 2pt;
+    display: block;
+}
+
+#main-view #message-list .message.type-privmsg .nickname
+{
+    display: inline-block;
+    min-width: 80pt;
+    text-align: right;
+}
+
+#main-view #message-list .message.type-privmsg
+{
+    padding-left: 86pt;
+    text-indent: -86pt;
 }
 
 #main-view #message-list .message.type-privmsg .nickname::before { content: "<"; }
