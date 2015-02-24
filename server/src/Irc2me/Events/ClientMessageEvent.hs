@@ -197,12 +197,12 @@ handleGetBacklogMessage _aid clm
     . fromMaybe id (blreq ^? backlogAfter  . _Just . to filterAfter)
     $ bl
    where
-    filterAfter t = Seq.dropWhileR $ \msg -> fromMaybe False $ do
+    filterAfter t = Seq.takeWhileR $ \msg -> fromMaybe False $ do
       t' <- msg ^. messageTimestamp
       return $ t < t'
     filterBefore t = Seq.dropWhileR $ \msg -> fromMaybe False $ do
       t' <- msg ^. messageTimestamp
-      return $ t > t'
+      return $ t < t'
 
 backlogRequest :: ClientMessage -> Maybe BacklogRequest
 backlogRequest clm = clm ^?
