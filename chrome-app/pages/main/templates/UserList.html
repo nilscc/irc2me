@@ -1,0 +1,11 @@
+<ul class="users">
+    {{#operators}}
+    <li class="operator" data-nickname="{{nick}}">{{nick}}</li>
+    {{/operators}}
+    {{#voice}}
+    <li class="voice" data-nickname="{{nick}}">{{nick}}</li>
+    {{/voice}}
+    {{#users}}
+    <li class="user" data-nickname="{{nick}}">{{nick}}</li>
+    {{/users}}
+</ul>

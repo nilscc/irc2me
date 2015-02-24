@@ -4,6 +4,10 @@ define(function (require) {
 
     var Irc2me = require("src/Irc2me");
 
+    var templates = {
+        UserList: require("text!main/templates/UserList.html"),
+    };
+
     /*
      * Constructor
      *
@@ -94,7 +98,7 @@ define(function (require) {
 
         // compile & insert the template
         userList.call(self).html(
-            $(Mustache.to_html(userlistTemplate, template_data))
+            $(Mustache.to_html(templates.UserList, template_data))
         );
 
         userListView.call(self).show();

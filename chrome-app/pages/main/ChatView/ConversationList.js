@@ -3,6 +3,11 @@ define(function (require) {
     var $        = require("jquery");
     var Mustache = require("Mustache");
 
+    var templates = {
+        NetworkList:     require("text!main/templates/NetworkList.html"),
+        NetworkListItem: require("text!main/templates/NetworkListItem.html"),
+    };
+
     /*
      * Constructor
      *
@@ -39,8 +44,6 @@ define(function (require) {
      *
      */
 
-    var networklistTemplate, networklistitemTemplate;
-
     // get (or create) network HTML element
     var getNetworkElement = function (network_id, network_name, click_cb) {
         var self = this;
@@ -49,10 +52,6 @@ define(function (require) {
 
         // check if network exists
         if (network.length == 0) {
-
-            // load template
-            networklistTemplate = networklistTemplate ||
-                $("#network-list-template").html();
 
             // template data
             var data = {
@@ -63,7 +62,7 @@ define(function (require) {
             };
 
             // compile template to jquery object
-            network = $( Mustache.to_html(networklistTemplate, data) );
+            network = $( Mustache.to_html(templates.NetworkList, data) );
 
             // make clickable
             if (typeof click_cb == "function") {
@@ -91,10 +90,6 @@ define(function (require) {
         // check if entry exists
         if (entry.length == 0 && name) {
 
-            // load template
-            networklistitemTemplate = networklistitemTemplate ||
-                $("#network-list-item-template").html();
-
             // template data
             var data = {
                 id: id,
@@ -103,7 +98,7 @@ define(function (require) {
             };
 
             // compile template to jquery object
-            entry = $( Mustache.to_html(networklistitemTemplate, data) );
+            entry = $( Mustache.to_html(templates.NetworkListItem, data) );
 
             // add click event
             if (typeof click_cb == "function") {

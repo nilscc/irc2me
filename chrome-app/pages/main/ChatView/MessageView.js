@@ -9,6 +9,10 @@ define(function (require) {
 
     var linkify     = require("linkify-string");
 
+    var templates = {
+        Message: require("text!main/templates/Message.html"),
+    };
+
     /*
      * Constructor
      *

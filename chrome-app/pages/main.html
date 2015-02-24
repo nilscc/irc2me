@@ -18,66 +18,6 @@
 
 <!-- templates -->
 
-<script type="text/x-handlebars-template" id="message-template">
-    {{#messages}}
-        <div class="message {{classes}}">
-            <span class="timestamp">{{timestamp}}</span>
-            {{#user}}
-                <span class="nickname {{flag}}"
-                    data-username="{{name}}"
-                    data-nickname="{{nick}}"
-                    data-host="{{host}}">{{nick}}</span>
-            {{/user}}
-            {{#server}}
-                <span class="servermessage"
-                    data-servername="{{server}}">{{server}}</span>
-            {{/server}}
-            {{#invite}}
-                <span class="invite">invited you to join</span>
-            {{/invite}}
-            {{#join}}
-                <span class="join">has joined</span>
-            {{/join}}
-            {{#part}}
-                <span class="part">has left</span>
-            {{/part}}
-            {{#quit}}
-                <span class="quit">has quit</span>
-            {{/quit}}
-            {{#topic}}
-                <span class="topic">has changed the topic to</span>
-            {{/topic}}
-            {{#content}}
-                <span class="text">{{content}}</span>
-            {{/content}}
-        </div>
-    {{/messages}}
-</script>
-
-<script type="text/x-handlebars-template" id="network-list-template">
-    {{#network}}
-        <ul class="network" data-network_id="{{network.id}}" data-network="{{network.name}}">
-        </ul>
-    {{/network}}
-</script>
-
-<script type="text/x-handlebars-template" id="network-list-item-template">
-<li class="entry {{class}}" data-id="{{id}}">{{name}}</li>
-</script>
-
-<script type="text/x-handlebars-template" id="user-list-template">
-    <ul class="users">
-        {{#operators}}
-            <li class="operator" data-nickname="{{nick}}">{{nick}}</li>
-        {{/operators}}
-        {{#voice}}
-            <li class="voice" data-nickname="{{nick}}">{{nick}}</li>
-        {{/voice}}
-        {{#users}}
-            <li class="user" data-nickname="{{nick}}">{{nick}}</li>
-        {{/users}}
-    </ul>
-</script>
 <!-- main body -->
 
 <div class="horizontal-flex">

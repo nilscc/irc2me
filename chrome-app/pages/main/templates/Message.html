@@ -1,0 +1,33 @@
+{{#messages}}
+<div class="message {{classes}}">
+    <span class="timestamp">{{timestamp}}</span>
+    {{#user}}
+    <span class="nickname {{flag}}"
+        data-username="{{name}}"
+        data-nickname="{{nick}}"
+        data-host="{{host}}">{{nick}}</span>
+    {{/user}}
+    {{#server}}
+    <span class="servermessage"
+        data-servername="{{server}}">{{server}}</span>
+    {{/server}}
+    {{#invite}}
+    <span class="invite">invited you to join</span>
+    {{/invite}}
+    {{#join}}
+    <span class="join">has joined</span>
+    {{/join}}
+    {{#part}}
+    <span class="part">has left</span>
+    {{/part}}
+    {{#quit}}
+    <span class="quit">has quit</span>
+    {{/quit}}
+    {{#topic}}
+    <span class="topic">has changed the topic to</span>
+    {{/topic}}
+    {{#content}}
+    <span class="text">{{content}}</span>
+    {{/content}}
+</div>
+{{/messages}}
