@@ -173,7 +173,11 @@ define(function (require) {
 
         // make links clickable
         $(".text", msg).html(function (_, t) {
-            return linkify(t);
+            return linkify(t, {
+                linkAttributes: {
+                    tabindex: -1,
+                },
+            });
         });
 
         messagelist.append(msg);
