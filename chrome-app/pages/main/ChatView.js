@@ -2,19 +2,20 @@ define(function(require) {
 
     "use strict";
 
-    // dependencies
-    var Irc2me      = require("src/Irc2me");
-    var Helper      = require("common/Helper");
+    // sub modules
+    var UserList         = require("main/UserList");
+    var MessageView      = require("main/MessageView");
+    var UserInput        = require("main/UserInput");
+    var ConversationList = require("main/ConversationList");
 
-    var UserList    = require("main/UserList");
-    var MessageView = require("main/MessageView");
-    var UserInput   = require("main/UserInput");
+    // dependencies
+    var Irc2me           = require("src/Irc2me");
+    var Helper           = require("common/Helper");
 
     // externel dependencies
-    var $           = require("jquery");
-    var Mustache    = require("Mustache");
-    var Long        = require("Long");
-    var linkify     = require("linkify-string");
+    var $                = require("jquery");
+    var Long             = require("Long");
+    var linkify          = require("linkify-string");
 
     /*
      * Constructor
@@ -22,10 +23,11 @@ define(function(require) {
      */
 
     var ChatView = function (backlog, jquery_context) {
-        this.backlog     = backlog;
-        this.userlist    = new UserList(jquery_context);
-        this.messageview = new MessageView(jquery_context);
-        this.userinput   = new UserInput(jquery_context);
+        this.backlog          = backlog;
+        this.userlist         = new UserList(jquery_context);
+        this.messageview      = new MessageView(jquery_context);
+        this.userinput        = new UserInput(jquery_context);
+        this.conversationlist = new ConversationList(jquery_context);
     };
 
     var C = ChatView.prototype;
@@ -45,24 +47,11 @@ define(function(require) {
         self.userinput.setSendTo(network_id, [channel || queryuser.nick]);
     };
 
-    var setActiveEntry = function (class_, id, opt_ctxt) {
-        $(".network-list .entry.active:not([data-id=\"" + id + "\"])", opt_ctxt)
-            .removeClass("active");
-
-        $(".network-list .entry." + class_ + "[data-id=\"" + id + "\"]", opt_ctxt)
-            .removeClass("unread")
-            .addClass("active");
-    };
-
     var setTopic = function (channel_name, topic) {
         $("#channel-name").html(channel_name);
         $("#topic").html(Helper.escapeHtml(topic || "")).html(function (_, h) {
             return linkify(h);
         });
-    };
-
-    var focusInput = function () {
-        $("#input-prompt input").focus();
     };
 
     /*
@@ -81,9 +70,9 @@ define(function(require) {
 
         self.messageview.load(netw.messages);
         self.userlist.hide();
+        self.conversationlist.setActiveNetwork(network_id);
 
-        setActiveEntry("network", network_id);
-        focusInput();
+        self.userinput.focus();
 
         setCurrent.call(self, network_id, null, null);
     };
@@ -101,12 +90,11 @@ define(function(require) {
         };
 
         self.messageview.load(chan.messages, self.messageCallback);
-
         self.userlist.load(chan.users);
+        self.conversationlist.setActiveChannel(network_id, channel);
 
         setTopic(channel, chan.topic);
-        setActiveEntry("channel", channel);
-        focusInput();
+        self.userinput.focus();
 
         setCurrent.call(self, network_id, channel, null);
     };
@@ -125,9 +113,10 @@ define(function(require) {
 
         self.messageview.load(query.messages);
         self.userlist.hide();
+        self.conversationlist.setActiveQuery(network_id, user);
+
         setTopic(Helper.userFullname(user));
-        setActiveEntry("query", Helper.userFullname(user));
-        focusInput();
+        self.userinput.focus();
 
         setCurrent.call(self, network_id, null, user);
     };
@@ -137,88 +126,16 @@ define(function(require) {
      *
      */
 
-    var networklistTemplate;
-
-    // get (or create) network HTML element
-    var getNetworkElement = function (network_id, network_name) {
-        var network = $(".network-list .network[data-network_id=" + network_id + "]");
-
-        // check if network exists
-        if (network.length == 0) {
-
-            // load template
-            networklistTemplate = networklistTemplate || $("#network-list-template").html();
-
-            var data = {
-                network: {
-                    id: network_id,
-                    name: network_name,
-                },
-            };
-
-            // compile template to jquery object
-            network = $( Mustache.to_html(networklistTemplate, data) );
-
-            $(".network-list").append(network);
-        }
-
-        return network;
-    };
-
-    // get (or create) network entry HTML element
-    var getNetworkEntryElement = function (network_id, class_, id, name, click_cb) {
-        var network = getNetworkElement(network_id);
-
-        var entry = $("> .entry." + class_ + "[data-id=\"" + id + "\"]", network);
-
-        // check if entry exists
-        if (entry.length == 0) {
-
-            // load template
-            var src = $("#network-list-item-template").html();
-
-            var data = {
-                id: id,
-                name: name,
-                "class": class_,
-            };
-
-            // compile template to jquery object
-            entry = $( Mustache.to_html(src, data) );
-
-            // add click event
-            entry.click(click_cb);
-
-            // add to list
-            network.append(entry);
-        }
-
-        return entry;
-    };
-
-    var unreadMessage = function (network_id, id, class_, name, click_cb) {
-
-        var entry = getNetworkEntryElement(network_id, class_, id, name, click_cb);
-
-        // set as 'unread'
-        entry.addClass("unread");
-
-        return entry;
-    };
-
     var unreadNetworkMessage = function (network_id) {
         var self = this;
-
-        // TODO: get network name
-        unreadMessage(network_id, network_id, "network", "<network>", function () {
+        self.conversationlist.setUnreadNetworkMessage(network_id, function () {
             self.loadNetwork(network_id);
         });
     };
 
     var unreadPublicMessage = function (network_id, channel) {
         var self = this;
-
-        unreadMessage(network_id, channel, "channel", channel, function () {
+        self.conversationlist.setUnreadPublicMessage(network_id, channel, function () {
             self.loadChannel(network_id, channel);
         });
     };
@@ -236,7 +153,6 @@ define(function(require) {
 
         Irc2me.getConversationList(function (networks) {
 
-            var entry;
             var first = true;
 
             for (var i = 0; i < networks.length; i++) {
@@ -244,17 +160,20 @@ define(function(require) {
                 var network     = networks[i],
                     network_id  = Long.prototype.toNumber.call(network.id);
 
-                getNetworkElement(network_id, network.name);
+                self.conversationlist.addNetwork(network_id, network.name);
 
                 // add channels
                 for (var j = 0; j < network.channels.length; j++) {
                     var channel = network.channels[j];
-                    getNetworkEntryElement(network_id, "channel", channel.name, channel.name,
-                        (function (network_id, channel) {
-                            this.loadChannel(network_id, channel);
-                        }).bind(self, network_id, channel.name));
 
-                    // load the first channel (if any)
+                    // add channel to conversation list
+                    self.conversationlist.addChannel(network_id, channel,
+                        (function (network_id, channel_name) {
+                            this.loadChannel(network_id, channel_name);
+                        }).bind(self, network_id, channel.name)
+                    );
+
+                    // load the first channel
                     if (first) {
                         self.loadChannel(network_id, channel.name);
                         first = false;
@@ -264,10 +183,13 @@ define(function(require) {
                 // add queries
                 for (var j = 0; j < network.queries.length; j++) {
                     var query = network.queries[j];
-                    getNetworkEntryElement(network_id, "query", query.user.nick, query.user.nick,
+
+                    // add query to conversation list
+                    self.conversationlist.addQuery(network_id, query.user,
                         (function (network_id, user) {
                             this.loadQuery(network_id, user);
-                        }).bind(self, network_id, query.user));
+                        }).bind(self, network_id, query.user)
+                    );
                 }
             }
         });

@@ -10,6 +10,19 @@ define(function (require) {
     var U = UserInput.prototype;
 
     /*
+     * jQuery helper
+     *
+     */
+
+    U.input = function () {
+        return $("#input-prompt input", this.jquery_context);
+    };
+
+    U.focus = function () {
+        this.input().focus();
+    };
+
+    /*
      * Setter
      *
      */
@@ -67,8 +80,6 @@ define(function (require) {
         // Handle user command
 
         var types = Irc2me.ProtobufMessages.Network.Message.Type;
-
-        console.log(types);
 
         if (cmd) {
 
@@ -146,7 +157,7 @@ define(function (require) {
     U.bindKeyEvents = function () {
         var self = this;
 
-        $("#input-prompt input", self.jquery_context).keypress(function (e) {
+        self.input().keypress(function (e) {
 
             var input = $(this);
 
