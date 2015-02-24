@@ -58,21 +58,8 @@ define(function (require) {
      *
      */
 
-    var protoUserflags;
-    var userlistTemplate;
-
     U.load = function (users, callback) {
         var self = this;
-
-        if (!protoUserflags) {
-            Irc2me.getProtobufUserflags(function (uf) {
-                protoUserflags = uf;
-                self.load(users, callback);
-            });
-            return;
-        }
-
-        userlistTemplate = userlistTemplate || $("#user-list-template").html();
 
         var template_data = {
             operators: [],
@@ -84,13 +71,15 @@ define(function (require) {
 
             var user = users[i];
 
+            var userflags = Irc2me.ProtobufMessages.Network.User.Userflag;
+
             if (user.flag != null) {
                 switch (user.flag) {
-                    case protoUserflags.OPERATOR: {
+                    case userflags.OPERATOR: {
                         template_data.operators.push(user);
                         break;
                     }
-                    case protoUserflags.VOICE: {
+                    case userflags.VOICE: {
                         template_data.voice.push(user);
                         break;
                     }

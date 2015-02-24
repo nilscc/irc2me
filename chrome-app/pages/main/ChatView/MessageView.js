@@ -45,29 +45,22 @@ define(function (require) {
      *
      */
 
-    var protoMsgTypes;
-
-    var loadProtoMsgTypes = function (cb) {
-        Irc2me.getProtobufMesageTypes(function (tys) {
-            protoMsgTypes = Array();
-            for (var ty in tys) {
-                protoMsgTypes[tys[ty]] = ty;
-            }
-        });
-    };
+    var protoMsgTypes = (function () {
+        var res = Array();
+        var tys = Irc2me.ProtobufMessages.Network.Message.Type;
+        for (var ty in tys) {
+            res[tys[ty]] = ty;
+        }
+        return res;
+    })();
 
     /*
      * Mustache template helper functions
      *
      */
 
-    var messageTemplate;
-
     var compileMessageTemplate = function (template_data) {
-
-        messageTemplate = messageTemplate || $("#message-template").html();
-
-        return $(Mustache.to_html(messageTemplate, { messages: template_data }));
+        return $(Mustache.to_html(templates.Message, { messages: template_data }));
     };
 
     var getTemplateData = function (message) {

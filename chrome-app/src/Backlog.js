@@ -41,17 +41,14 @@ define(function (require) {
      *
      */
 
-    var protoMsgTypes;
-
-    var loadProtoMsgTypes = function (cb) {
-        Irc2me.getProtobufMesageTypes(function (tys) {
-            protoMsgTypes = Array();
-            for (var ty in tys) {
-                protoMsgTypes[tys[ty]] = ty;
-            }
-            cb();
-        });
-    };
+    var protoMsgTypes = (function () {
+        var res = Array();
+        var tys = Irc2me.ProtobufMessages.Network.Message.Type;
+        for (var ty in tys) {
+            res[tys[ty]] = ty;
+        }
+        return res;
+    })();
 
     /*
      * Loading messages
@@ -185,24 +182,9 @@ define(function (require) {
         self.channel(network_id, channel).users = users;
     };
 
-    var buff = [];
-
     B.incomingMessage = function (msg, force) {
 
         var self = this;
-
-        if (buff && !force) {
-            // first message loads proto types
-            if (buff.push(msg) == 1) {
-                loadProtoMsgTypes(function () {
-                    while (buff.length > 0) {
-                        self.incomingMessage(buff.shift(), true);
-                    }
-                    buff = null;
-                });
-            }
-            return; // quit
-        };
 
         // loop over networks
         for (var n = 0; n < msg.networks.length; n++) {

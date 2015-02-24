@@ -417,10 +417,6 @@ define(function (require) {
      *
      */
 
-    // data
-    Irc2me.getProtobufMesageTypes = new ChromeMessage("Irc2me.getProtobufMesageTypes");
-    Irc2me.getProtobufUserflags   = new ChromeMessage("Irc2me.getProtobufUserflags");
-
     // connection
     Irc2me.connect     = new ChromeMessage("Irc2me.connect");
     Irc2me.isConnected = new ChromeMessage("Irc2me.isConnected");
@@ -443,14 +439,6 @@ define(function (require) {
     Irc2me.prototype.listen = function () {
 
         var self = this;
-
-        Irc2me.getProtobufUserflags.addListener(function (content, sendResponse) {
-            sendResponse(Irc2me.ProtobufMessages.Network.User.Userflag);
-        });
-
-        Irc2me.getProtobufMesageTypes.addListener(function (content, sendResponse) {
-            sendResponse(Irc2me.ProtobufMessages.Network.Message.Type);
-        });
 
         Irc2me.connect.addListener(function(content, sendResponse) {
 
