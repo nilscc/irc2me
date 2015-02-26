@@ -123,6 +123,8 @@ define(function (require) {
     B.appendNetworkMessages = function(network_id, messages) {
         var self = this;
 
+        if (messages.length == 0) { return; }
+
         // initialize network
         initNetwork.call(self, network_id);
 
@@ -133,12 +135,15 @@ define(function (require) {
         for (var i = 0; i < messages.length; i++) {
             var msg = messages[i];
             self.network(network_id).messages.push(msg);
-            publish.call(self, sub_id, network_id, msg);
         }
+
+        publish.call(self, sub_id, network_id, messages);
     };
 
     B.appendChannelMessages = function(network_id, channel, messages) {
         var self = this;
+
+        if (messages.length == 0) { return; }
 
         // init channel
         var chan = initChannel.call(self, network_id, channel);
@@ -156,12 +161,15 @@ define(function (require) {
                 chan.topic = msg.content;
             }
 
-            publish.call(self, sub_id, network_id, channel, msg);
         }
+
+        publish.call(self, sub_id, network_id, channel, messages);
     };
 
     B.appendQueryMessages = function (network_id, user, messages) {
         var self = this;
+
+        if (messages.length == 0) { return; }
 
         // init query
         initQuery.call(self, network_id, user);
@@ -173,8 +181,9 @@ define(function (require) {
         for (var i = 0; i < messages.length; i++) {
             var msg = messages[i];
             self.query(network_id, user).messages.push(msg);
-            publish.call(self, sub_id, network_id, user, msg);
         }
+
+        publish.call(self, sub_id, network_id, user, messages);
     };
 
     B.setUserlist = function (network_id, channel, users) {

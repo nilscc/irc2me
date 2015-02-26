@@ -111,44 +111,8 @@ define(function (require) {
         return template_data;
     };
 
-    /*
-     * Load messages
-     *
-     */
-
-    proto.load = function (messages, callback) {
+    proto.renderMessages = function (messages) {
         var self = this;
-
-        self.messagelist().empty();
-        self.append(messages, callback);
-    };
-
-    proto.append = function (messages, callback) {
-        var self = this;
-
-        // make sure protobuf message types are loaded
-        if (typeof protoMsgTypes != "object") {
-            if (! self._msgbuffer) {
-
-                // first call to 'append': create message buffer object
-                self._msgbuffer = messages;
-
-                loadProtoMsgTypes(function () {
-                    // append all messages from the message buffer
-                    self.append(self._msgbuffer, callback);
-                    // clean message buffer
-                    self._msgbuffer = null;
-                });
-            }
-            else {
-                // append messages to buffer until protobuf message types are loaded
-                self._msgbuffer = self._msgbuffer.concat(messages);
-            }
-
-            return; //quit
-        }
-
-        var messagelist = self.messagelist();
 
         var template_data = [];
         for (var i = 0; i < messages.length; i++) {
@@ -165,9 +129,6 @@ define(function (require) {
             template_data.push(data);
         }
 
-        // get current scroll position
-        var atBottom = Helper.scrollAtBottom(messagelist);
-
         // the compiled template
         var msg = compileMessageTemplate(template_data);
 
@@ -180,12 +141,98 @@ define(function (require) {
             });
         });
 
-        messagelist.append(msg);
+        return msg;
+    };
 
-        // update scroll position
-        if (atBottom) {
-            Helper.scrollToBottom(messagelist);
+    /*
+     * Keep track of message timestamps
+     *
+     */
+
+    var isOlder = function (message) {
+        return (this.oldestMessageTimestamp != null && message.timestamp != null)
+            && Helper.messageTimestamp(message) < this.oldestMessageTimestamp
+    };
+
+    var isNewer = function (message) {
+        return (this.newestMessageTimestamp != null && message.timestamp != null)
+            && this.newestMessageTimestamp < Helper.messageTimestamp(message);
+    };
+
+    // set oldest/newest message timestamp
+    var updateTimestamps = function (first, last) {
+        var self = this;
+
+        var f = Helper.messageTimestamp(first),
+            l = Helper.messageTimestamp(last);
+
+        if (! self.oldestMessageTimestamp || f < self.oldestMessageTimestamp) {
+            self.oldestMessageTimestamp = f;
         }
+        if (! self.newestMessageTimestamp || self.newestMessageTimestamp < l) {
+            self.newestMessageTimestamp = l;
+        }
+    };
+
+    var resetTimestamps = function () {
+        self.oldestMessageTimestamp = null;
+        self.newestMessageTimestamp = null;
+    };
+
+    /*
+     * Load messages
+     *
+     */
+
+    proto.load = function (messages, callback) {
+        var self = this;
+
+        // reset all
+        resetTimestamps.call(self);
+        self.messagelist().empty();
+
+        self.append(messages, callback);
+    };
+
+
+    proto.append = function (messages, callback) {
+        var self = this;
+
+        if (messages.length == 0) { return; }
+
+        console.log("append:", messages);
+
+        // first and last message
+        var first = messages[0],
+            last  = messages[messages.length - 1];
+
+        // render messages
+        var rendered = self.renderMessages(messages);
+
+        // jquery ui element
+        var messagelist = self.messagelist();
+
+        if (isOlder.call(self, last)) {
+            messagelist.prepend(rendered);
+            // TODO: update scroll position
+        }
+        else {
+            if (self.newestMessageTimestamp && !isNewer.call(self, first)) {
+                console.warn("Messages not in chronological order", messages);
+            }
+
+            // get current scroll position
+            var atBottom = Helper.scrollAtBottom(messagelist);
+
+            messagelist.append(rendered);
+
+            // update scroll position
+            if (atBottom) {
+                Helper.scrollToBottom(messagelist);
+            }
+        }
+
+        updateTimestamps.call(self, first, last);
     };
 
     /*

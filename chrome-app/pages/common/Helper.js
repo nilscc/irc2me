@@ -3,7 +3,10 @@
  *
  */
 
-define(["jquery"], function ($) {
+define(function (require) {
+
+    var $ = require("jquery");
+    var Long = require("Long");
 
     var Helper = function () { };
 
@@ -20,6 +23,11 @@ define(["jquery"], function ($) {
 
         return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     };
+
+    /*
+     * jQuery helper
+     *
+     */
 
     // helper to access input fields by name
     Helper.inputByName = function(name, context) {
@@ -38,6 +46,19 @@ define(["jquery"], function ($) {
         }
         return (elem.scrollTop() + 1)
             >= (elem.prop("scrollHeight") - elem.innerHeight());
+    };
+
+    /*
+     * protobuf helper
+     *
+     */
+
+    Helper.longToNumber = function (l) {
+        return Long.prototype.toNumber.call(l);
+    };
+
+    Helper.messageTimestamp = function (message) {
+        return message.timestamp && new Date(Helper.longToNumber(message.timestamp));
     };
 
     Helper.userNameHost = function (user) {

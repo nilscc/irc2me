@@ -237,26 +237,28 @@ define(function(require) {
 
         // Setup backlog subscriptions
 
-        backlog.subscribe(backlog.newMessageSubscriptionID, function (nid, msg) {
+        backlog.subscribe(backlog.newMessageSubscriptionID, function (nid, messages) {
             if (isCurrentNetwork(nid) && !self.currentChannel) {
-                self.messageview.append([msg]);
+                self.messageview.append(messages);
             } else {
                 unreadNetworkMessage.call(self, nid);
             }
         });
 
-        backlog.subscribe(backlog.newPublicMessageSubscriptionID, function (nid, chan, msg) {
+        backlog.subscribe(backlog.newPublicMessageSubscriptionID, function (nid, chan, messages) {
             if (isCurrentChannel(nid, chan)) {
-                self.messageview.append([msg], self.messageCallback);
+                self.messageview.append(messages, self.messageCallback);
             } else {
                 unreadPublicMessage.call(self, nid, chan);
             }
         });
 
-        backlog.subscribe(backlog.newPrivateMessageSubscriptionID, function (nid, user, msg) {
+        backlog.subscribe(backlog.newPrivateMessageSubscriptionID, function (nid, user, messages) {
             if (isCurrentQuery(nid, user)) {
-                msg.user = msg.user || user;
-                self.messageview.append([msg]);
+                for (var i = 0; i < messages.length; i++) {
+                    messages[i].user = messages[i].user || user;
+                }
+                self.messageview.append(messages);
             } else {
                 unreadPrivateMessage.call(self, nid, user);
             }
