@@ -24,7 +24,7 @@
         {
             "scripts":
                 [ "libs/require.js"
-                , "background.js"
+                , "pages/background.js"
                 ],
             "persistent": false
         }

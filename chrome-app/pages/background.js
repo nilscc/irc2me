@@ -83,8 +83,8 @@ var mods =
 
 var main = function(Irc2me, UIState) {
 
-    var irc2me  = new Irc2me();
-    var uistate = new UIState();
+    var irc2me  = new Irc2me.Class();
+    var uistate = new UIState.Class();
 
     irc2me.setLogger(function(statusObject) {
         uistate.addSystemLog(statusObject);
@@ -96,6 +96,8 @@ var main = function(Irc2me, UIState) {
     irc2me.listen();
 };
 
-require(["./require-common"], function (common) {
+var background;
+
+require(["../require-common"], function (common) {
     require(mods, main);
 });
