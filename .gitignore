@@ -1,6 +1,7 @@
 dist/
 build-*/
 server/server
+chrome-app/build/
 
 *.swp
 .hs_tags
