@@ -1,4 +1,4 @@
-declare module "src/libs/dcodeIO/ByteBuffer" {
+declare module "ByteBuffer" {
 
     function calculateVarint64(number) : number;
     function wrap(bytes : any) : Class;

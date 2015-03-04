@@ -1,4 +1,4 @@
-declare module "src/libs/dcodeIO/ProtoBuf" {
+declare module "ProtoBuf" {
 
     export class Builder {
         build(path? : string) : any;

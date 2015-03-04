@@ -2,14 +2,6 @@ require.config({
 
     basePath: "/build",
 
-    map: {
-        "*": {
-            "src/libs/dcodeIO/ProtoBuf":    "ProtoBuf",
-            "src/libs/dcodeIO/ByteBuffer":  "ByteBuffer",
-            "src/libs/dcodeIO/Long":        "Long",
-        },
-    },
-
     paths: {
 
         // paths
@@ -24,7 +16,6 @@ require.config({
         text:                           "/libs/require-text",
 
         // proto buf libs
-        dcodeIO:                        "/libs/dcodeIO",
         ProtoBuf:                       "/libs/dcodeIO/ProtoBuf.min",
         ByteBuffer:                     "/libs/dcodeIO/ByteBufferAB.min",
         Long:                           "/libs/dcodeIO/Long.min",

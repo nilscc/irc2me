@@ -1,7 +1,9 @@
+/// <reference path="libs/dcodeIO/ProtoBuf" />
+
 "use strict";
 
 import proto_messages = require("proto/messages");
-import ProtoBuf       = require("src/libs/dcodeIO/ProtoBuf");
+import ProtoBuf       = require("ProtoBuf");
 
 import ChromeMessage  = require("src/ChromeMessage");
 import Logger         = require("src/Logger");
@@ -41,7 +43,7 @@ export var getChannelBacklog    = new ChromeMessage("Irc2me.getChannelBacklog");
 export var getQueryBacklog      = new ChromeMessage("Irc2me.getQueryBacklog");
 
 // Signals
-module Signals {
+export module Signals {
     export var connected        = new ChromeMessage("Irc2me.Signals.connected");
     export var disconnected     = new ChromeMessage("Irc2me.Signals.disconnected");
     export var incomingMessage  = new ChromeMessage("Irc2me.Signals.incomingMessage");
@@ -535,10 +537,4 @@ export class Class {
             return true; // async
         });
     }
-
-    /*
-     * Chrome message interface: Outgoing signals
-     *
-     */
-
 }

@@ -1,4 +1,4 @@
-declare module "src/libs/dcodeIO/Long" {
+declare module "Long" {
     export class Class {
         toNumber() : number;
     }

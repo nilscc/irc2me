@@ -1,9 +1,10 @@
 /// <reference path="libs/chrome" />
+/// <reference path="libs/dcodeIO/ByteBuffer" />
 
 "use strict";
 
 import Logger     = require("src/Logger");
-import ByteBuffer = require("src/libs/dcodeIO/ByteBuffer");
+import ByteBuffer = require("ByteBuffer");
 
 export interface Message {
     encodeAB : () => EncodedMessage;
