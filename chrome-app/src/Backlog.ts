@@ -1,7 +1,7 @@
 /// <reference path="libs/dcodeIO/Long" />
 /// <reference path="libs/jquery" />
 
-import Irc2me  = require("src/Irc2me");
+import Irc2me  = require("Irc2me");
 import Helper  = require("common/Helper");
 import Long    = require("Long");
 import $       = require("jquery");
@@ -23,8 +23,8 @@ export class Class {
         this.backlog = {};
 
         // load protobuf message types
-        var res = Array();
         var tys = Irc2me.ProtobufMessages.Network.Message.Type;
+        this.protoMsgTypes = {};
         for (var ty in tys) {
             this.protoMsgTypes[tys[ty]] = ty;
         }

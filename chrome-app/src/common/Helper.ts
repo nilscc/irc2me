@@ -1,8 +1,9 @@
 /// <reference path="../libs/jquery.d.ts" />
 /// <reference path="../libs/dcodeIO/Long" />
 
-import $    = require("jquery");
-import Long = require("Long");
+import $     = require("jquery");
+import Long  = require("Long");
+import Types = require("common/Types");
 
 export function escapeHtml (text : string) {
 
@@ -50,24 +51,14 @@ export function longToNumber (l) {
     return Long.prototype.toNumber.call(l);
 }
 
-export interface Message {
-    timestamp? : Object;
-}
-
-export function messageTimestamp (message : Message) : Date {
+export function messageTimestamp (message : Types.Message) : Date {
     return message.timestamp && new Date(longToNumber(message.timestamp));
 }
 
-export interface User {
-    nick : string;
-    name? : string;
-    host? : string;
-}
-
-export function userNameHost (user : User) : string {
+export function userNameHost (user : Types.User) : string {
     return user.name ? (user.name + (user.host ? ("@" + user.host) : "")) : "?";
 }
 
-export function userFullname (user : User) : string {
+export function userFullname (user : Types.User) : string {
     return user.nick + (user.name ? (" (" + userNameHost(user) + ")") : "");
 }

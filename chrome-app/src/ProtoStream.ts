@@ -67,7 +67,7 @@ export class ProtoStream {
         var totalLength = varintLength + byteLength;
 
         // allocate byte buffer
-        var buffer = new ByteBuffer.Class(totalLength);
+        var buffer = new ByteBuffer(totalLength);
 
         // prefix message length and append encoded message
         buffer.writeVarint64(byteLength);
@@ -94,7 +94,7 @@ export class ProtoStream {
         });
     }
 
-    private _incompleteMessageBuffer : ByteBuffer.Class;
+    private _incompleteMessageBuffer : ByteBuffer;
     private _incomingCB : (any) => void;
 
     setIncomingCallback (handleIncoming : (any) => void) {
@@ -239,11 +239,11 @@ export class ProtoStream {
                 // (try to) disable delay
                 chrome.sockets.tcp.setNoDelay(this.socket, true, (res) => {
 
-                    var reason = chrome.runtime.lastError ? chrome.runtime.lastError.message : res.toString();
+                    var reason = chrome.runtime.lastError && chrome.runtime.lastError.message;
 
                     // check error
-                    if (reason) {
-                        log.warn("Could not set NoDelay (" + reason + ").");
+                    if (reason || res) {
+                        log.warn("Could not set NoDelay (" + (reason || res.toString()) + ").");
                     }
                 });
 
