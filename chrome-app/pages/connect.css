@@ -19,7 +19,7 @@ input[type="password"]
     border-bottom: 1pt solid rgba(0,0,0,0.2);
 }
 
-.title
+.title, .title span
 {
     font-size: 24pt;
     font-weight: bold;
