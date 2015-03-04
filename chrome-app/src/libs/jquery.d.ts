@@ -2469,7 +2469,7 @@ interface JQuery {
      * @param event A jQuery.Event object.
      * @param extraParameters Additional parameters to pass along to the event handler.
      */
-    trigger(event: JQueryEventObject, extraParameters?: any[]|Object): JQuery;
+    trigger(event: JQueryEventObject|JQueryKeyEventObject, extraParameters?: any[]|Object): JQuery;
 
     /**
      * Execute all handlers attached to an element for an event.
