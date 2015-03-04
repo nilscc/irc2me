@@ -2,16 +2,21 @@
 # Targets
 #
 
-PAGES		= background
+PAGES		= connect connect/ui connect/connection-status connect/systemlog \
+			  main
 
 CLASSES 	= ChromeMessage \
 			  ProtoStream \
 			  Logger \
+			  Backlog \
 			  UIState \
-			  Irc2me
+			  Irc2me \
+			  common/Helper \
+			  ui/ChatView
 
 DEFINITIONS = dcodeIO/ProtoBuf dcodeIO/Long dcodeIO/ByteBuffer \
-			  chrome
+			  chrome filesystem filewriter \
+			  jquery
 
 MESSAGES	= proto/messages
 

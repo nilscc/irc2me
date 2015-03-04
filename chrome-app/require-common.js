@@ -1,6 +1,6 @@
 require.config({
 
-    basePath: "/build",
+    baseUrl: "/build",
 
     paths: {
 
