@@ -1,11 +1,6 @@
 /// <reference path="../libs/jquery.d.ts" />
 /// <reference path="../libs/dcodeIO/Long" />
 
-/*
- * Helper namespace
- *
- */
-
 import $    = require("jquery");
 import Long = require("Long");
 
@@ -23,12 +18,11 @@ export function escapeHtml (text : string) {
 }
 
 /*
-    /*
-     * jQuery helper
-     *
-     */
+ * jQuery helper
+ *
+ */
 
-    // helper to access input fields by name
+// helper to access input fields by name
 export function inputByName (name, context) {
     return $("input[name='" + name + "']", context).val();
 }
