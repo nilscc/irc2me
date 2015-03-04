@@ -72,7 +72,7 @@ export class Class {
      *
      */
 
-    private _logger_cb : (Object) => void;
+    private _logger_cb : (msg : Logger.LogMessage) => void;
 
     private setLogger (callback) {
 
@@ -84,7 +84,7 @@ export class Class {
 
     // Set up logger for internal logging
     private getLogger (where) {
-        return new Logger("Irc2me." + where, this._logger_cb);
+        return new Logger.Class("Irc2me." + where, this._logger_cb);
     }
 
     /*

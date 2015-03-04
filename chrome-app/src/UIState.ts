@@ -35,9 +35,14 @@ module Signals {
  *
  */
 
+export interface SystemLog extends Logger.LogMessage {
+    time?        : Date;
+    time_string? : string;
+};
+
 export class Class {
 
-    private _systemLogs : string[];
+    private _systemLogs : SystemLog[];
 
     constructor () {
         this._systemLogs = [];
@@ -102,10 +107,11 @@ export class Class {
      *
      */
 
-    addSystemLog (msg) {
+    addSystemLog (msg : SystemLog) {
 
         // add current time & date to backlog message
-        msg.time = new Date().toLocaleTimeString();
+        msg.time        = msg.time || new Date();
+        msg.time_string = msg.time.toLocaleTimeString();
 
         // store in state
         this._systemLogs.push(msg);

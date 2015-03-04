@@ -16,7 +16,7 @@ export interface EncodedMessage {
 
 export class ProtoStream {
 
-    private logger    : (string) => void;
+    private logger    : (msg : Logger.LogMessage) => void;
 
     private socket    : any;
     private connected : boolean = false;
@@ -30,15 +30,13 @@ export class ProtoStream {
      *
      */
 
-    setLogger (f : (string) => void) {
+    setLogger (f) {
         this.logger = f;
     }
 
-    getLogger (where, ...args) : Logger {
+    getLogger (where, ...args) : Logger.Class {
         where = "ProtoStream." + where + "(" + args.join(", ") + ")";
-        return new Logger(where, (state) => {
-            this.logger(state.toString());
-        });
+        return new Logger.Class(where, this.logger || ((o) => { console.log(o); }));
     }
 
     /*

@@ -1,17 +1,17 @@
 "use strict";
 
-interface Status {
-    state : string;
-    where : string;
+export interface LogMessage {
+    state?  : string;
+    where?  : string;
     message : string;
 }
 
-class Logger {
+export class Class {
 
     where : string;
-    callback : (Status) => void;
+    callback : (msg : LogMessage) => void;
 
-    constructor (where : string, callback : (Status) => void) {
+    constructor (where : string, callback : (msg : LogMessage) => void) {
         this.where = where;
         this.callback = callback;
     }
@@ -36,5 +36,3 @@ class Logger {
         this.log("Error", message);
     }
 }
-
-export = Logger;
