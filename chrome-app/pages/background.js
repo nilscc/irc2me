@@ -96,8 +96,6 @@ var main = function(Irc2me, UIState) {
     irc2me.listen();
 };
 
-var background;
-
 require(["../require-common"], function (common) {
     require(mods, main);
 });

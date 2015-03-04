@@ -7,9 +7,6 @@ require.config({
         // paths
         libs:                           "/libs",
         src:                            "/build",
-        build:                          "/build",
-        pages:                          "/build/pages",
-        proto:                          "/build/proto",
 
         // require.js
         require:                        "/libs/require",
