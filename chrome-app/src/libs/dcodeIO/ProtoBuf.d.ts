@@ -1,7 +1,7 @@
 declare module "ProtoBuf" {
 
     export class Builder {
-        build(path? : string) : any;
+        build<T>(path? : string) : T;
     }
 
     export function loadProto(proto : string, builder? : Builder, filename? : string) : Builder;

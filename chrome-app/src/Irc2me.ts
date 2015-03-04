@@ -16,7 +16,7 @@ import ProtoStream    = protostream.ProtoStream;
  *
  */
 
-export var ProtobufMessages = ProtoBuf.loadProto(proto_messages).build("Irc2me");
+export var ProtobufMessages = ProtoBuf.loadProto(proto_messages).build<any /* FIXME */>("Irc2me");
 
 /*
  * Messages & signals
