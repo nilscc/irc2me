@@ -23,7 +23,7 @@ SRC_DIR   = src
 BUILD_DIR = build
 
 TSC 	  = tsc
-TSC_FLAGS = -m amd --outDir $(BUILD_DIR)
+TSC_FLAGS = -m amd --outDir $(BUILD_DIR) --sourceMap
 
 #
 # Main definition
