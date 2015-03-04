@@ -1,14 +1,14 @@
 declare module "ByteBuffer" {
 
-    function calculateVarint64(number) : number;
-    function wrap(bytes : any) : Class;
-
-    export class Class {
+    class ByteBuffer {
 
         offset : any;
         limit : any;
 
-        constructor (totalLength : number);
+        constructor (capacity? : number, littleEndian? : boolean, noAssert? : boolean);
+
+        static calculateVarint64(number) : number;
+        static wrap(bytes : any) : ByteBuffer;
 
         /*
          * Class members
@@ -27,4 +27,5 @@ declare module "ByteBuffer" {
         toArrayBuffer() : any;
     }
 
+    export = ByteBuffer;
 }
