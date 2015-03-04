@@ -1,5 +1,7 @@
 declare module "Long" {
-    export class Class {
+    class Long {
         toNumber() : number;
     }
+
+    export = Long;
 }
