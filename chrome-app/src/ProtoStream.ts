@@ -3,7 +3,7 @@
 
 "use strict";
 
-import Logger     = require("src/Logger");
+import Logger     = require("Logger");
 import ByteBuffer = require("ByteBuffer");
 
 export interface Message {

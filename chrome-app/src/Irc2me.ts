@@ -5,10 +5,10 @@
 import proto_messages = require("proto/messages");
 import ProtoBuf       = require("ProtoBuf");
 
-import ChromeMessage  = require("src/ChromeMessage");
-import Logger         = require("src/Logger");
+import ChromeMessage  = require("ChromeMessage");
+import Logger         = require("Logger");
 
-import protostream    = require("src/ProtoStream");
+import protostream    = require("ProtoStream");
 import ProtoStream    = protostream.ProtoStream;
 
 /*

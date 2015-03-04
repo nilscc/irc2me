@@ -2,7 +2,8 @@
 
 "use strict";
 
-import ChromeMessage = require("src/ChromeMessage");
+import ChromeMessage = require("ChromeMessage");
+import Logger        = require("Logger");
 
 /*
  * Messages & signals
