@@ -52,8 +52,6 @@ export function appendSystemLog (statusObject : SystemLog.SystemLog) {
 
     log = log || $("#connection-log");
 
-    console.log(statusObject);
-
     log.append("<p title=\"" + Helper.escapeHtml(statusObject.where || "") + "\">"
             + "[" + statusObject.time_string + "] "
             + statusObject.message + "</p>");

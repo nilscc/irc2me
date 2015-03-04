@@ -6,15 +6,15 @@ export function load (callback : (connected : boolean) => void) {
 }
 
 export function listen (connectedCallback : () => void, disconnectedCallback? : () => void) {
-    Irc2me.Signals.connected.addListener(connectedCallback);
+    Irc2me.Signals.connected.addListener(() => {
+        connectedCallback();
 
-    Irc2me.Signals.disconnected.addListener(() => {
+        // open main window & close connection page
         UIState.MainWindow.open.call();
         UIState.ConnectionWindow.close.call();
-
-        if (disconnectedCallback) {
-            disconnectedCallback();
-        }
     });
 
+    if (disconnectedCallback) {
+        Irc2me.Signals.disconnected.addListener(disconnectedCallback);
+    }
 }
