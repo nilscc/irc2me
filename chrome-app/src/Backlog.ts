@@ -184,7 +184,7 @@ export class Class {
         this.channel(network_id, channel).users = users;
     }
 
-    incomingMessage (msg, force) {
+    incomingMessage (msg) {
 
         // loop over networks
         for (var n = 0; n < msg.networks.length; n++) {
