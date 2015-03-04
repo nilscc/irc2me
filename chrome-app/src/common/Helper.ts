@@ -23,7 +23,7 @@ export function escapeHtml (text : string) {
  */
 
 // helper to access input fields by name
-export function inputByName (name, context) {
+export function inputByName (name : string, context?) : string {
     return $("input[name='" + name + "']", context).val();
 }
 
