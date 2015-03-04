@@ -1,4 +1,4 @@
-/// <amd-dependency path="text!messages.proto"
+/// <amd-dependency path="text!/messages.proto"
 
 // hack to get around non-code amd modules, see:
 //
@@ -7,5 +7,6 @@
 //
 declare function require(name : string) : string;
 
-var messages = require("text!messages.proto");
+var messages = require("text!/messages.proto");
+
 export = messages;
