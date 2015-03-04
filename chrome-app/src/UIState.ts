@@ -24,9 +24,9 @@ export var ConnectionWindow = {
 
 export var closeAllWindows = new ChromeMessage("UIState.closeAllWindows");
 
-module Signals {
+export module Signals {
 
-    export var addSystemLog = new ChromeMessage ("UIState.Signals.addSystemLog");
+    export var addSystemLog = new ChromeMessage("UIState.Signals.addSystemLog");
 
 }
 
