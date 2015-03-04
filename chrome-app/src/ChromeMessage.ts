@@ -24,7 +24,7 @@ class ChromeMessage {
      *
      */
 
-    addListener (run : (Object, any) => void) {
+    addListener (run : (Object, any) => boolean|void) {
 
         chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 

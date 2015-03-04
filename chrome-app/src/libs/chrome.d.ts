@@ -214,15 +214,15 @@ declare module chrome.runtime {
     }
 
     interface Event {
-        addListener(callback : () => void) : void;
+        addListener(callback : () => boolean|void) : void;
     }
 
     interface Event1<T> {
-        addListener(callback : (info : T) => void) : void;
+        addListener(callback : (info : T) => boolean|void) : void;
     }
 
     interface Event3<T1, T2, T3> {
-        addListener(callback : (a:T1, b:T2, c:T3) => void) : void;
+        addListener(callback : (a:T1, b:T2, c:T3) => boolean|void) : void;
     }
 
     var lastError : { message? : string; };

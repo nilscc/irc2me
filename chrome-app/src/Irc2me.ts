@@ -158,11 +158,7 @@ export class Class {
         }
     }
 
-    private _callbacks : any;
-
     private _handleIncomingMessages (buffer) {
-
-        var self = this;
 
         // alias
         var ServerMsg = ProtobufMessages.ServerMsg;
@@ -225,7 +221,7 @@ export class Class {
         });
     }
 
-    disconnect () {
+    disconnect (callback?) {
 
         var log = this.getLogger("disconnect");
 
@@ -249,6 +245,10 @@ export class Class {
                 // set status & send signal
                 this._authenticated = false;
                 Signals.disconnected.call();
+
+                if (callback !== null) {
+                    callback();
+                }
             });
         };
 
@@ -273,6 +273,8 @@ export class Class {
      */
 
     private _nextId : number;
+
+    private _callbacks : any;
 
     // Add a callback, returns the callback ID
     addCallback (cb) {
@@ -355,14 +357,14 @@ export class Class {
 
         var LIST_NETWORKS = ProtobufMessages.ClientMsg.GET.ListRequest.LIST_NETWORKS;
 
-        this.list_request.call(this, LIST_NETWORKS, cb);
+        this.list_request(LIST_NETWORKS, cb);
     }
 
     getConversationList (cb) {
 
         var LIST_CONVERSATIONS = ProtobufMessages.ClientMsg.GET.ListRequest.LIST_CONVERSATIONS;
 
-        this.list_request.call(this, LIST_CONVERSATIONS, cb);
+        this.list_request(LIST_CONVERSATIONS, cb);
     }
 
     // Backlog requests
@@ -391,7 +393,6 @@ export class Class {
     }
 
     private new_backlog_request (network_id, options, callback) {
-        var self = this;
 
         if (typeof options == "function") {
             callback = options;
@@ -408,7 +409,7 @@ export class Class {
         });
 
         request.send = () => {
-            this.backlog_request.call(this, request, callback);
+            this.backlog_request(request, callback);
         };
 
         return request;
@@ -416,20 +417,20 @@ export class Class {
 
     // get network message backlog
     getNetworkBacklog (network_id, options, callback) {
-        this.new_backlog_request.call(this, network_id, options, callback)
+        this.new_backlog_request(network_id, options, callback)
             .send();
     }
 
     // get private query backlog
     getQueryBacklog (network_id, nickname, options, callback) {
-        var req = this.new_backlog_request.call(this, network_id, options, callback);
+        var req = this.new_backlog_request(network_id, options, callback);
         req.query_nickname = nickname;
         req.send();
     }
 
     // get public channel backlog
     getChannelBacklog (network_id, channel, options, callback) {
-        var req = this.new_backlog_request.call(this, network_id, options, callback);
+        var req = this.new_backlog_request(network_id, options, callback);
         req.channel_name = channel;
         req.send();
     }
@@ -439,7 +440,7 @@ export class Class {
      *
      */
 
-    listen = function () {
+    listen () {
 
         connect.addListener((content, sendResponse) => {
 
