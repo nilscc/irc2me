@@ -1,43 +1,5 @@
-var deps =
-    [ "src/Backlog"
-    , "src/Irc2me"
-    , "main/ChatView"
-    , "jquery"
-    ];
-
-var backlog, chatview;
-
-var main = function(Backlog, Irc2me, ChatView, $) {
-
-    backlog  = new Backlog();
-    chatview = new ChatView(backlog);
-
-    /*
-     * Setup channel view
-     *
-     */
-
-    chatview.listenForNewMessages();
-    chatview.bindKeyEvents();
-    chatview.loadConversations();
-
-    /*
-     * Setup signals
-     *
-     */
-
-    Irc2me.Signals.disconnected.addListener(function () {
-        UIState.ConnectionWindow.open();
-        UIState.MainWindow.close();
-    });
-
-    Irc2me.Signals.incomingMessage.addListener(function (msg) {
-        backlog.incomingMessage(msg);
-    });
-};
-
 require(["../require-common"], function (common) {
-    require(deps, main);
+    require(["pages/main"]);
 });
 
 /*
