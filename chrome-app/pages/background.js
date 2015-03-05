@@ -33,7 +33,7 @@ var WhenLoaded = (function () {
 })();
 
 /*
- * Application launch
+ * Set up chrome application
  *
  */
 
@@ -50,11 +50,6 @@ chrome.app.runtime.onLaunched.addListener(function () {
 
 });
 
-/*
- * Other runtime events
- *
- */
-
 chrome.runtime.onStartup.addListener(function () {
 
     WhenLoaded(function(irc2me, uistate) {
@@ -70,6 +65,21 @@ chrome.runtime.onSuspend.addListener(function () {
     });
 
 });
+
+/*
+ * Test environment
+ *
+ */
+
+var tests;
+var runTests = function () {
+    WhenLoaded(function () {
+        require(["tests"], function (t) {
+            tests = t;
+            tests.run();
+        });
+    });
+}
 
 /*
  * Load irc2me and UI state

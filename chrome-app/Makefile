@@ -4,6 +4,8 @@
 
 PAGES = connect main
 
+TESTS = tests
+
 #
 # Compiler options
 #
@@ -34,4 +36,5 @@ clean:
 
 # Build dependencies
 
-SOURCES = $(PAGES:%=$(SRC_DIR)/pages/%.ts)
+SOURCES	= $(PAGES:%=$(SRC_DIR)/pages/%.ts) \
+		  $(TESTS:%=$(SRC_DIR)/%.ts)
