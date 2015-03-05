@@ -10,9 +10,20 @@ class ChromeMessage {
         this.id = id;
     }
 
-    call (content? : Object, callback? : (any) => void) {
+    // overloaded method with only one callback and no data
+    call (callback? : (any) => void);
+    call (content : {}, callback? : (any) => void);
 
-        chrome.runtime.sendMessage(null, {
+    // implementation
+    call (content, callback?) {
+
+        // test for callback-only overload
+        if (typeof content === "function") {
+            callback = content;
+            content  = {};
+        }
+
+        chrome.runtime.sendMessage({
             id: this.id,
             content: content || {},
         }, callback);

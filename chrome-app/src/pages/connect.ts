@@ -29,7 +29,7 @@ function connect () {
 }
 
 function disconnect () {
-    Irc2me.disconnect.call(null, () => {
+    Irc2me.disconnect.call(() => {
         UI.setDisconnected(() => {
             connect();
         });

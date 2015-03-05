@@ -238,7 +238,12 @@ declare module chrome.runtime {
     export function restart() : void;
     export function connect(extensionId? : string, connectInfo? : { name? : string; includeTlsChannelId? : boolean }) : Port;
     export function connectNative(application : string) : Port;
+
+    // type overloads for sendMessage: optional first parameter (extensionId), optional this parameter (options?)
+    export function sendMessage(message : any, responseCallback? : (any) => void) : void;
+    export function sendMessage(message : any, options? : { includeTlsChannelId? : boolean }, responseCallback? : (any) => void) : void;
     export function sendMessage(extensionId : string, message : any, options? : { includeTlsChannelId? : boolean }, responseCallback? : (any) => void) : void;
+
     export function sendNativeMessage(application : string, message : Object, responseCallback : (any) => void) : void;
     export function getPlatformInfo(callback : (PlatformInfo) => void) : void;
     export function getPackageDirectoryEntry(callback : (DirectoryEntry) => void) : void;
