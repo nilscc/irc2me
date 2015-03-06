@@ -27,7 +27,7 @@ export class Class {
         }
 
         // return jquery object
-        if (selector !== null) {
+        if (selector) {
             return $(selector, this.jquery_userlistview);
         }
         else {

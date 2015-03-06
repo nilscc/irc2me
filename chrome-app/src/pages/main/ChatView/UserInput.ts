@@ -150,11 +150,11 @@ export class Class {
 
     bindKeyEvents () {
 
-        this.input().keydown((e) => {
+        var input = this.input();
+
+        input.keydown((e) => {
 
             e.stopPropagation();
-
-            var input = $(this);
 
             // enter key
             if (e.which == 13) {

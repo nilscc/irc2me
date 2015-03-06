@@ -51,7 +51,7 @@ export class Class {
     private mainview (selector? : string) {
         var mv = $("#main-view", this.jquery_context);
 
-        if (selector !== null) {
+        if (selector) {
             return $(selector, mv);
         }
         else {
@@ -75,7 +75,7 @@ export class Class {
 
     private setTopic (channel_name, topic?) {
         $("#channel-name").html(channel_name);
-        $("#topic").html(Helper.escapeHtml(topic || "")).html(function (_, h) {
+        $("#topic").html(Helper.escapeHtml(topic || "")).html((_, h) => {
             return linkify(h);
         });
     }
@@ -200,12 +200,21 @@ export class Class {
      */
 
     private unreadNetworkMessage (network_id : number) {
+        this.conversationlist.setUnreadNetworkMessage(network_id, () => {
+            this.loadNetwork(network_id);
+        });
     }
 
     private unreadPublicMessage (network_id : number, channel : string) {
+        this.conversationlist.setUnreadPublicMessage(network_id, channel, () => {
+            this.loadChannel(network_id, channel);
+        });
     }
 
     private unreadPrivateMessage (network_id : number, user : Types.User) {
+        this.conversationlist.setUnreadPrivateMessage(network_id, user, () => {
+            this.loadQuery(network_id, user);
+        });
     }
 
     listen () {

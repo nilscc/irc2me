@@ -48,7 +48,7 @@ export class Class {
             this._messagelist = $("#message-list", this.jquery_context);
         }
 
-        if (selector !== null) {
+        if (selector) {
             return $(selector, this._messagelist);
         }
         else {

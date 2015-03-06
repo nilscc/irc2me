@@ -55,10 +55,6 @@ $(document).ready(() => {
         () => { UI.setDisconnected(connect); }
     );
 
-    $("#connect").one("click", () => {
-        connect();
-    });
-
     $("#quit").click(() => {
         Irc2me.disconnect.call();
         UIState.closeAllWindows.call();

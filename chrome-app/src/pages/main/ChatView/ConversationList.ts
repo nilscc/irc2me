@@ -34,11 +34,11 @@ export class Class {
 
     private networkList (selector? : string) {
 
-        if (!this._networklist) {
+        if (this._networklist == null) {
             this._networklist = $(".network-list", this.jquery_context);
         }
 
-        if (selector !== null) {
+        if (selector) {
             return $(selector, this._networklist);
         }
         else {

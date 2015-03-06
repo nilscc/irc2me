@@ -1,5 +1,9 @@
+var main;
+
 require(["../require-common"], function (common) {
-    require(["pages/main"]);
+    require(["pages/main"], function (m) {
+        main = m;
+    });
 });
 
 /*
