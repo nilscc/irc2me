@@ -127,7 +127,7 @@ export class Class {
 
     // Set active conversation
 
-    private setActiveConversation (network_id, class_, id) {
+    private setActiveConversation (network_id, class_, id : number|string) {
 
         // unset other 'active' conversations
         this.networkList(".entry.active:not([data-id=\"" + id + "\"])")
@@ -153,7 +153,7 @@ export class Class {
 
     // Unread messages
 
-    private unreadMessage (network_id, id, class_, name, click_cb) {
+    private unreadMessage (network_id, id : number|string, class_, name, click_cb) {
         return this.getNetworkEntryElement(network_id, class_, id, name, click_cb)
             .addClass("unread");
     }
