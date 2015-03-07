@@ -26,7 +26,7 @@ all:
 	@echo "Building files: $(SOURCES)"
 	@$(TSC) $(TSC_FLAGS) $(SOURCES)
 
-watch: | $(BUILD_DIR)
+watch:
 	@echo "Watching files: $(SOURCES)"
 	@$(TSC) $(TSC_FLAGS) -w $(SOURCES)
 
