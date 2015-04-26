@@ -2,8 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Network.WebSockets.Routing
-  ( WebSocketsRoute
-  , routeWebSockets
+  ( WebSocketsRoute, routeWebSockets
   , askPending
     -- * Accepting a request
   , routeAccept
@@ -25,14 +24,20 @@ import qualified Data.ByteString.Char8 as B8
 import           Network.WebSockets
 import           System.FilePath (makeRelative, splitDirectories)
 
-newtype WebSocketsRoute a = WebSocketsRoute { unWebSocketsRoute :: ReaderT PendingConnection IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
+newtype WebSocketsRoute a = WebSocketsRoute
+  { unWebSocketsRoute :: ReaderT PendingConnection IO a
+  } deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
 
+-- | Route websocket requests. If no route is accepted the connection will be
+-- rejected.
 routeWebSockets :: WebSocketsRoute () -> ServerApp
 routeWebSockets route pending =
   runReaderT (unWebSocketsRoute (route <|> reject)) pending
  where
   reject = liftIO $ rejectRequest pending ""
+
+--------------------------------------------------------------------------------
+-- Helper functions
 
 askPending :: WebSocketsRoute PendingConnection
 askPending = WebSocketsRoute ask
@@ -49,6 +54,23 @@ paths = map B8.unpack . filter (not . B8.null) . B8.split '/' . requestPath . pe
 
 unpaths :: [String] -> ByteString
 unpaths = B8.intercalate "/" . map B8.pack
+
+--------------------------------------------------------------------------------
+-- Accept requests
+
+-- | Accept a request. Every request should only be accepted once.
+routeAccept :: (Connection -> IO a) -> WebSocketsRoute a
+routeAccept go = do
+  pending <- askPending
+  liftIO $ go =<< acceptRequest pending
+
+routeAcceptWith :: AcceptRequest -> (Connection -> IO a) -> WebSocketsRoute a
+routeAcceptWith req go = do
+  pending <- askPending
+  liftIO $ go =<< acceptRequestWith pending req
+
+--------------------------------------------------------------------------------
+-- Route by path info
 
 -- | Pop a path element and run the supplied handler if it matches the given
 -- string.
@@ -103,17 +125,3 @@ path r = do
   case paths pending of
     (p:ps) -> withPending (setPath ps) (r p)
     _      -> mzero
-
---------------------------------------------------------------------------------
--- Accept & rejection
-
--- | Accept a request. Automatically enables TLS if supported.
-routeAccept :: (Connection -> IO a) -> WebSocketsRoute a
-routeAccept go = do
-  pending <- askPending
-  liftIO $ go =<< acceptRequest pending
-
-routeAcceptWith :: AcceptRequest -> (Connection -> IO a) -> WebSocketsRoute a
-routeAcceptWith req go = do
-  pending <- askPending
-  liftIO $ go =<< acceptRequestWith pending req
