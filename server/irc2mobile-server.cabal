@@ -7,7 +7,7 @@ synopsis:            IRC to mobile server
 -- description:         
 homepage:            http://github.com/mcmaniac/irc2mobile
 -- license:             
-license-file:        LICENSE
+-- license-file:        LICENSE
 author:              Nils Schweinsberg
 maintainer:          mail@nils.cc
 -- copyright:           
