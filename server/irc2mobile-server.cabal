@@ -23,14 +23,15 @@ executable irc2mobile-server
   build-depends:       base == 4.*,
                        bytestring,
                        containers,
-                       mtl >= 2.2.1, transformers >= 0.4,
+                       mtl >= 2.2.1, transformers >= 0.4, exception-transformers,
                        network,
+                       filepath,
                        time, old-locale,
                        stm,
                        attoparsec,
                        irc-bytestring >= 0.1.1,
-                       protobuf,
-                       cereal,
+                       -- protobuf,
+                       -- cereal,
                        text,
                        data-default-class,
                        x509, x509-store, x509-validation, x509-system,
@@ -40,8 +41,9 @@ executable irc2mobile-server
                        scrypt,
                        parsec,
                        lens >= 4.2,
-                       protobuf-fieldlenses-th,
-                       pipes, pipes-attoparsec, pipes-parse
+                       -- protobuf-fieldlenses-th,
+                       pipes, pipes-attoparsec, pipes-parse,
+                       websockets, aeson
 
 -- executable backend-tests
 --   main-is:             Test/Main.hs
