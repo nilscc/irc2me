@@ -78,9 +78,7 @@ runSimpleTLSServer host port cert key opt_ca app = do
       -- TLS server parameters
       let params = def
             { serverCACertificates = ca
-            , serverShared = def
-                { sharedCredentials = Credentials [cred]
-                }
+            , serverShared = def { sharedCredentials = Credentials [cred] }
             , serverSupported = def { supportedCiphers  = TLS.ciphersuite_strong }
             }
 
