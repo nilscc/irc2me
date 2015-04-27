@@ -7,6 +7,7 @@ module Irc2me.Backends.IRC.Connection
   ) where
 
 import Control.Concurrent
+import Control.Concurrent.STM
 
 import Network
 
@@ -20,14 +21,15 @@ import Network.IRC.ByteString.Parser (IRCMsg, ircMsg, msgCmd)
 
 -- lens
 import Control.Lens hiding (Identity)
-import Data.Text.Lens
+--import Data.Text.Lens
 
 -- local
 import Network.IRC.Connection
 
 import Irc2me.Backends.IRC.Helper
-import Irc2me.Frontend.Messages.Helper
-import Irc2me.Frontend.Messages
+import Irc2me.Backends.IRC.Types
+-- import Irc2me.Frontend.Messages.Helper
+-- import Irc2me.Frontend.Messages
 
 ------------------------------------------------------------------------------
 -- IRC broadcasting
@@ -35,21 +37,20 @@ import Irc2me.Frontend.Messages
 ircConnect
   :: Server
   -> Identity
-  -> ((UTCTime, IRCMsg) -> IO ())
   -> IO (Maybe IrcConnection)
-ircConnect server ident broadcast
+ircConnect server ident
 
     -- server
-  | Just hostname <- server ^? serverHost . _Just . _Text
-  , Just port     <- server ^. serverPort
+  | hostname <- server ^. serverHost -- . _Just . _Text
+  , port     <- server ^. serverPort
 
     -- identity
-  , Just nick     <- ident ^? identityNick . _Just . from encoded
-  , Just username <- ident ^? identityName . _Just . from encoded
+  , nick     <- ident ^. identityNick . from encoded -- . _Just . from encoded
+  , username <- ident ^. identityName . from encoded -- . _Just . from encoded
 
   = do
 
-    let tlsSettings = if server ^. serverUseTLS . non False
+    let tlsSettings = if server ^. serverUseTLS
                         then TLS
                         else Plaintext -- FIXME: Use OptionalTLS
 
@@ -69,11 +70,16 @@ ircConnect server ident broadcast
         sendIrc con $ ircMsg "USER" [ nick, "*", "*", username ] ""
         sendIrc con $ ircMsg "NICK" [ nick ] ""
 
-        tid <- forkIO $ handleIncoming con
+        -- new broadcast channel
+        broadcast <- newBroadcastTChanIO
+
+        -- start new thread for IRC connection
+        tid <- forkIO $ handleIncoming con broadcast
 
         return $ Just $ IrcConnection
           { _ircThread   = tid
-          , _ircSend     = \cm -> sendIrc con (cm ^. from chatMessage)
+          , _ircSend     = sendIrc con
+          , _ircMessages = broadcast
           }
 
   | otherwise = do
@@ -82,7 +88,7 @@ ircConnect server ident broadcast
 
  where
   -- handle incoming messages
-  handleIncoming con = do
+  handleIncoming con bc = do
     mce <- handleIrcMessages con $ \tmsg@(_,msg) -> do
 
       if msgCmd msg == "PING" then
@@ -96,3 +102,6 @@ ircConnect server ident broadcast
       Just ce -> do
         hPutStrLn stderr $ "Connection error: " ++ show ce
         closeConnection con
+
+   where
+    broadcast = atomically . writeTChan bc

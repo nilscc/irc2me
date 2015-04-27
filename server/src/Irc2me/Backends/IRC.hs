@@ -16,7 +16,7 @@ import Control.Monad.Trans.Maybe
 import System.IO
 
 -- irc-bytestring
-import Network.IRC.ByteString.Parser as IRC
+--import Network.IRC.ByteString.Parser as IRC
 
 -- containers
 import qualified Data.Map as Map
@@ -32,14 +32,15 @@ import Data.Text.Lens
 import Control.Concurrent.Event
 import Irc2me.Events.Types
 
-import Irc2me.Frontend.Messages        as M hiding (_networkId)
-import Irc2me.Frontend.Messages.Helper as M
+-- import Irc2me.Frontend.Messages        as M hiding (_networkId)
+-- import Irc2me.Frontend.Messages.Helper as M
 
-import Irc2me.Database.Query            as DB
-import Irc2me.Database.Tables.Accounts  as DB
-import Irc2me.Database.Tables.Networks  as DB
+import Irc2me.Database.Query                as DB
+import Irc2me.Database.Tables.Accounts      as DB
+import Irc2me.Database.Tables.IRC.Networks  as DB
 
-import Irc2me.Backends.IRC.Helper
+--import Irc2me.Backends.IRC.Helper
+import Irc2me.Backends.IRC.Types
 import Irc2me.Backends.IRC.Connection as C
 
 runIrcBackend
@@ -61,17 +62,15 @@ runIrcBackend = do
 -- Starting up
 
 reconnectAll
-  :: (MonadIO m, MonadError SqlError m, MonadEventW m Event)
+  :: (MonadIO m, MonadError SqlError m)
   => IrcConnections
-  -> m ()
+  -> m IrcConnections
 reconnectAll con = withCon con $ do
-
-  eq <- getEventQueue
 
   accs <- runQuery selectAccounts
   for accs $ \accid -> do
 
-    let log' s = liftIO . putStrLn $ "[" ++ show (_accountId accid) ++ "] " ++ s
+    let log' s = liftIO . putStrLn $ "[" ++ show accid ++ "] " ++ s
 
     servers <- runQuery $ selectServersToReconnect accid
     for servers $ \(netid, server) -> do
@@ -90,26 +89,24 @@ reconnectAll con = withCon con $ do
           ident <- require $ runQuery $ selectNetworkIdentity accid netid
 
           -- connect to IRC and raise events for all incoming messages
-          mc'  <- liftIO $ ircConnect server ident $
-                             raiseChatMessageEvent eq accid netid
+          mc'  <- liftIO $ ircConnect server ident
 
           case mc' of
             Just c -> do
 
               log' $ "Connected to "
-                ++ (server ^. serverHost . _Just . _Text)
+                ++ (server ^. serverHost . _Text)
                 ++ ":"
-                ++ show (server ^. serverPort . non 0)
+                ++ show (server ^. serverPort)
                 ++ " ("
-                ++ (if server ^. serverUseTLS . non False then "using TLS" else "plaintext")
+                ++ (if server ^. serverUseTLS then "using TLS" else "plaintext")
                 ++ ")"
 
-              -- notify event handler of new connection
-              lift $ lift $ raiseEvent $ AccountEvent accid $
-                NewIrcConnectionEvent netid c ident
+              -- store new connection
+              at accid . _Just . at netid .= Just c
 
             Nothing -> do
-              log' $ "Failed to connect to Network " ++ show (_networkId netid)
+              log' $ "Failed to connect to Network " ++ show netid
  where
   for :: Monad m => [a] -> (a -> MaybeT m ()) -> m ()
   for   l m = do
@@ -117,11 +114,12 @@ reconnectAll con = withCon con $ do
     return ()
 
   require m = maybe mzero return =<< m
-  withCon c = evalStateT `flip` c
+  withCon c = execStateT `flip` c
 
 --------------------------------------------------------------------------------
 -- IRC message evaluation & network state
 
+{-
 raiseChatMessageEvent :: EventQueue WO Event -> AccountID -> NetworkID -> (UTCTime, IRCMsg) -> IO ()
 raiseChatMessageEvent eq aid nid (t,msg) =
   writeEventIO eq $ AccountEvent aid $ ChatMessageEvent nid Nothing cm
@@ -131,6 +129,7 @@ raiseChatMessageEvent eq aid nid (t,msg) =
 
     -- add timestamp
     messageTimestamp .= Just (t ^. M.epoch)
+-}
 
 
 {-
