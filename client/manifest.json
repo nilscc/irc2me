@@ -1,0 +1,17 @@
+{
+    "name": "irc2me-client",
+    "description": "irc2me client, attempt #2",
+    "version": "0.0.1",
+    "manifest_version": 2,
+
+    "permissions": [ ],
+
+    "optional_permissions": [ ],
+
+    "app": {
+        "background": {
+            "scripts": [ "build/background.js" ]
+        }
+    }
+
+}
