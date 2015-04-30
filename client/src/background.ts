@@ -1,5 +1,4 @@
 /// <reference path="declare/chrome" />
-// <reference path="typings/chrome/chrome" />
 
 "use strict"
 
@@ -19,5 +18,3 @@ chrome.app.runtime.onLaunched.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
 });
-
-
