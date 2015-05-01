@@ -256,8 +256,8 @@ declare module chrome.runtime {
     var onUpdateAvailable           : Event1<{ details : { version : string } }>;
     var onConnect                   : Event1<Port>;
     var onConnectExternal           : Event1<Port>;
-    var onMessage                   : Event3<any, MessageSender, () => void>;
-    var onMessageExternal           : Event3<any, MessageSender, () => void>;
+    var onMessage                   : Event3<any, MessageSender, (a? : any) => void>;
+    var onMessageExternal           : Event3<any, MessageSender, (a? : any) => void>;
     var onRestartRequired           : Event1<string>;
 }
 

@@ -10,7 +10,7 @@
 
     "app": {
         "background": {
-            "scripts": [ "build/background.js" ]
+            "page": "static/background.html"
         }
     }
 

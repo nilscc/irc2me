@@ -2,19 +2,16 @@
 
 "use strict"
 
-chrome.app.runtime.onLaunched.addListener(() => {
+/*
+ * Manage authentication
+ *
+ */
 
-    chrome.app.window.create("static/login.html", {
-        id: "login-window",
-        frame: "chrome",
-        innerBounds: {
-            minWidth: 500,
-            minHeight: 500,
-        },
-        resizable: true,
-    });
+import token = require("auth/token");
 
-});
+var authToken : string;
 
-chrome.runtime.onStartup.addListener(() => {
+token.listen({
+    getToken: ()  => { return authToken; },
+    setToken: (t) => { authToken = t; },
 });

@@ -2,7 +2,7 @@
 # Targets
 #
 
-TARGETS = background login
+TARGETS = background background/chrome-handler login
 
 SOURCES	= $(TARGETS:%=$(SRC_DIR)/%.ts)
 

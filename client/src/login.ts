@@ -4,6 +4,6 @@
 
 import $ = require("jquery");
 
-$(document).ready(function () {
-    $("p").text(".iH");
+$(document).ready(() => {
+
 });
