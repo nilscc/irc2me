@@ -1,19 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Network.TLS.Pipes where
 
 import qualified Data.ByteString.Char8 as B8
 
-import Control.Applicative
 import Control.Exception
 import Control.Monad.Except
 
 import Data.ByteString
 
 import System.IO.Error
-
--- crypto
-import Crypto.Random
 
 -- tls package
 import Network.TLS
@@ -35,8 +32,7 @@ fromTLS h params = do
   mctxt <- runExceptT $ mkSafe $ do
 
     -- in IO monad
-    rng  <- cprgCreate <$> createEntropyPool :: IO SystemRNG
-    ctxt <- contextNew h params rng
+    ctxt <- contextNew h params
     handshake ctxt
     return ctxt
 
@@ -58,6 +54,7 @@ fromTLS h params = do
   toResult ctxt p = Right ( either Just (const Nothing) <$> runExceptT p
                           , ctxt)
 
+  mkSafe :: (MonadIO m, MonadError (Either TLSException IOException) m) => IO a -> m a
   mkSafe io = do
     r <- liftIO $ handle (\(e :: TLSException) -> return (Left (Left e)))
                 . handle (\(e :: IOException ) -> return (Left (Right e)))
