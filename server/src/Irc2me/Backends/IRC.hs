@@ -8,6 +8,7 @@ module Irc2me.Backends.IRC
   ( runIrcBackend
   ) where
 
+import Control.Concurrent
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
@@ -39,7 +40,7 @@ import Irc2me.Database.Query                as DB
 import Irc2me.Database.Tables.Accounts      as DB
 import Irc2me.Database.Tables.IRC.Networks  as DB
 
---import Irc2me.Backends.IRC.Helper
+import Irc2me.Backends.IRC.Events
 import Irc2me.Backends.IRC.Types
 import Irc2me.Backends.IRC.Connection as C
 
@@ -49,9 +50,10 @@ runIrcBackend
 runIrcBackend = do
   mcs <- runExceptT $ reconnectAll Map.empty
   case mcs of
-    Right _cs -> do -- TODO
-      --_  <- liftIO $ forkIO $ runEventTRW eq $
-        --manageIrcConnections cs
+    Right cs -> do
+      eq <- getEventQueue
+      _  <- liftIO $ forkIO $ runEventTRW eq $
+        manageIrcConnections cs
       return True
     Left err -> do
       liftIO $ hPutStrLn stderr $

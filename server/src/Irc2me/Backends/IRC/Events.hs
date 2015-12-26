@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds #-}
+
 module Irc2me.Backends.IRC.Events where
 
 import Control.Concurrent
@@ -19,13 +22,16 @@ import Control.Concurrent.Event
 
 import Irc2me.Events.Types
 import Irc2me.Backends.IRC.Helper
+import Irc2me.Backends.IRC.Types
 import Irc2me.Database.Tables.Accounts
 
 --------------------------------------------------------------------------------
 -- Managing IRC connections
 
-manageIrcConnections :: MonadIO m => IrcConnections -> EventRW m ()
+manageIrcConnections :: MonadIO m => IrcConnections -> EventT 'RW Event m ()
 manageIrcConnections = fix $ \loop irc -> do
+
+  Event <- getEvent
 
 {-
   AccountEvent aid ev <- getEvent
