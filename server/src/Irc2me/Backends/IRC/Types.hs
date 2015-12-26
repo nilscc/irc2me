@@ -10,7 +10,7 @@ import Data.Time (UTCTime)
 import Data.Map (Map)
 import Data.Text (Text)
 
-import Irc2me.Types
+import qualified Irc2me.Types as Ty
 import Network.IRC.ByteString.Parser (IRCMsg)
 
 --------------------------------------------------------------------------------
@@ -24,10 +24,10 @@ data IrcConnection = IrcConnection
 
 makeLenses ''IrcConnection
 
-type NetworkID = ID
-type IdentityID = ID
+type NetworkID = Ty.ID
+type IdentityID = Ty.ID
 
-type IrcConnections = Map AccountID (Map NetworkID IrcConnection)
+type IrcConnections = Map Ty.AccountID (Map NetworkID IrcConnection)
 
 --------------------------------------------------------------------------------
 -- Users & identities

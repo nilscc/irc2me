@@ -9,11 +9,28 @@ import Data.Time
 import Data.Text (Text)
 import qualified Data.Text as Text
 
---------------------------------------------------------------------------------
--- Chat messages
-
 data OneOf a b c = First a | Second b | Third c
   deriving (Show, Eq, Ord)
+
+--------------------------------------------------------------------------------
+-- Status messages
+
+data StatusMessage
+  = StatusOK
+  | StatusFailed (Maybe Text)
+  deriving (Eq, Show, Ord)
+
+--------------------------------------------------------------------------------
+-- Account messages
+
+data CreateAccount = CreateAccount
+  { createAccountLogin :: Text
+  , createAccountPassword :: Text
+  }
+  deriving (Eq, Show, Ord)
+
+--------------------------------------------------------------------------------
+-- Chat messages
 
 type Server = Text
 
@@ -55,6 +72,10 @@ data ChatMessage = ChatMessage
 --------------------------------------------------------------------------------
 -- Aeson instances: To JSON
 
+instance ToJSON StatusMessage where
+  toJSON StatusOK               = ""
+  toJSON (StatusFailed mreason) = object [ "fail" .= mreason ]
+
 instance ToJSON User where
   toJSON (User nick name host flag) = object
     [ "nick" .= nick
@@ -86,6 +107,13 @@ instance ToJSON ChatMessage where
 
 --------------------------------------------------------------------------------
 -- Aeson instances: From JSON
+
+instance FromJSON CreateAccount where
+  parseJSON (Object o) =
+    CreateAccount
+      <$> o .: "login"
+      <*> o .: "password"
+  parseJSON j = fail $ "Cannot parse CreateAccount from non-object: " ++ show j
 
 instance FromJSON User where
   parseJSON (Object o) =

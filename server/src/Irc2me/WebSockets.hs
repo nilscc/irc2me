@@ -6,7 +6,10 @@ module Irc2me.WebSockets
 
 --import Control.Concurrent.Event
 import Control.Monad
-import Control.Monad.Trans
+import Control.Monad.Except
+import Crypto.Scrypt
+import Data.Aeson
+import Data.Text.Encoding
 
 import Network.WebSockets
 import Network.WebSockets.Routing
@@ -14,6 +17,8 @@ import Network.WebSockets.TLS
 
 -- import Irc2me.Events
 import Irc2me.Types
+import qualified Irc2me.Database.Query as DB
+import qualified Irc2me.Database.Tables.Accounts as DB
 
 -- | Run a websockets server using TLS
 runWebSockets
@@ -29,18 +34,17 @@ runWebSockets (ServerConfig host port cert key mca) = liftIO $ do
 mainRoute :: WebSocketsRoute ()
 mainRoute = msum
 
-  [ dir "echo" $ msum
+  [ dir "account" $ msum
 
-    [ dir "twice" $ routeAccept $ \con -> forever $ do
-        -- echo twice
-        s <- receive con
-        send con s
-        send con s
-
-    , routeAccept $ \con -> forever $ do
-        -- echo once
-        s <- receive con
-        send con s
+    [ dir "create" $ routeAccept $ \con -> do
+        bs <- receiveData con
+        case decode bs of
+          Just (CreateAccount login pw) -> do
+            encpw <- liftIO $ encryptPassIO' (Pass $ encodeUtf8 pw)
+            mid <- runExceptT $ DB.runUpdate $ DB.createAccount login encpw
+            case mid of
+              Right (Just _i) -> sendTextData con $ encode StatusOK
+              _               -> sendTextData con $ encode (StatusFailed Nothing)
+          Nothing -> sendTextData con $ encode (StatusFailed Nothing)
     ]
-
   ]
