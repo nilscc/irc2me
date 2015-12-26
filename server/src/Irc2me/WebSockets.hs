@@ -39,12 +39,27 @@ mainRoute = msum
     [ dir "create" $ routeAccept $ \con -> do
         bs <- receiveData con
         case decode bs of
-          Just (CreateAccount login pw) -> do
+          Just (Account login (Just pw)) -> do
             encpw <- liftIO $ encryptPassIO' (Pass $ encodeUtf8 pw)
             mid <- runExceptT $ DB.runUpdate $ DB.createAccount login encpw
             case mid of
               Right (Just _i) -> sendTextData con $ encode StatusOK
               _               -> sendTextData con $ encode (StatusFailed Nothing)
-          Nothing -> sendTextData con $ encode (StatusFailed Nothing)
+          _ -> sendTextData con $ encode (StatusFailed Nothing)
+
+    , dir "auth" $ routeAccept $ \con -> do
+      bs <- receiveData con
+      case decode bs of
+        Just (Account login (Just pw)) -> do
+          mepw <- runExceptT $ DB.runQuery $ DB.selectAccountPassword login
+          case mepw of
+            Right (Just epw) -> do
+              if verifyPass' (Pass $ encodeUtf8 pw) epw then do
+                sendTextData con $ encode StatusOK
+               else
+                sendTextData con $ encode (StatusFailed Nothing)
+            _ ->
+              sendTextData con $ encode (StatusFailed Nothing)
+        _ -> sendTextData con $ encode (StatusFailed Nothing)
     ]
   ]

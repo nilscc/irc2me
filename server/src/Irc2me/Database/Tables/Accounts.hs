@@ -24,3 +24,11 @@ createAccount login pw = UpdateReturning
   \RETURNING id"
   [ toSql login, byteaPack (getEncryptedPass pw) ]
   (convertOne toID)
+
+selectAccountPassword
+  :: Text  -- ^ Account login
+  -> Query (Maybe EncryptedPass)
+selectAccountPassword login = Query
+  "SELECT password FROM accounts WHERE login = ?"
+  [ toSql login ]
+  (convertOne $ fmap EncryptedPass . fromBytea)

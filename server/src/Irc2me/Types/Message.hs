@@ -23,9 +23,9 @@ data StatusMessage
 --------------------------------------------------------------------------------
 -- Account messages
 
-data CreateAccount = CreateAccount
-  { createAccountLogin :: Text
-  , createAccountPassword :: Text
+data Account = Account
+  { accountLogin    :: Text
+  , accountPassword :: Maybe Text
   }
   deriving (Eq, Show, Ord)
 
@@ -73,7 +73,7 @@ data ChatMessage = ChatMessage
 -- Aeson instances: To JSON
 
 instance ToJSON StatusMessage where
-  toJSON StatusOK               = ""
+  toJSON StatusOK               = Null
   toJSON (StatusFailed mreason) = object [ "fail" .= mreason ]
 
 instance ToJSON User where
@@ -108,12 +108,12 @@ instance ToJSON ChatMessage where
 --------------------------------------------------------------------------------
 -- Aeson instances: From JSON
 
-instance FromJSON CreateAccount where
+instance FromJSON Account where
   parseJSON (Object o) =
-    CreateAccount
-      <$> o .: "login"
-      <*> o .: "password"
-  parseJSON j = fail $ "Cannot parse CreateAccount from non-object: " ++ show j
+    Account
+      <$> o .:  "login"
+      <*> o .:? "password"
+  parseJSON j = fail $ "Cannot parse Account from non-object: " ++ show j
 
 instance FromJSON User where
   parseJSON (Object o) =
