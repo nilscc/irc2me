@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Irc2me.WebSockets
   ( runWebSockets
   ) where
 
 --import Control.Concurrent.Event
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Except
 import Crypto.Scrypt
@@ -34,32 +36,54 @@ runWebSockets (ServerConfig host port cert key mca) = liftIO $ do
 mainRoute :: WebSocketsRoute ()
 mainRoute = msum
 
+  ---------------------------------------------------------------------------
+  -- ACCOUNT ROUTES
+
   [ dir "account" $ msum
 
-    [ dir "create" $ routeAccept $ \con -> do
-        bs <- receiveData con
-        case decode bs of
-          Just (Account login (Just pw)) -> do
-            encpw <- liftIO $ encryptPassIO' (Pass $ encodeUtf8 pw)
-            mid <- runExceptT $ DB.runUpdate $ DB.createAccount login encpw
-            case mid of
-              Right (Just _i) -> sendTextData con $ encode StatusOK
-              _               -> sendTextData con $ encode (StatusFailed Nothing)
-          _ -> sendTextData con $ encode (StatusFailed Nothing)
+    [ dir "create" $ accept (failMsg "Failed to create account.") $ \con -> do
+        Account login (Just pw) <- receiveDecoded con
+        -- encrypt the password
+        encpw     <- liftIO $ encryptPassIO' (Pass $ encodeUtf8 pw)
+        -- store the encrypted pw in the DB. returns the ID if successful
+        Just _id  <- runUpdate $ DB.createAccount login encpw
+        send' con StatusOK
 
-    , dir "auth" $ routeAccept $ \con -> do
-      bs <- receiveData con
-      case decode bs of
-        Just (Account login (Just pw)) -> do
-          mepw <- runExceptT $ DB.runQuery $ DB.selectAccountPassword login
-          case mepw of
-            Right (Just epw) -> do
-              if verifyPass' (Pass $ encodeUtf8 pw) epw then do
-                sendTextData con $ encode StatusOK
-               else
-                sendTextData con $ encode (StatusFailed Nothing)
-            _ ->
-              sendTextData con $ encode (StatusFailed Nothing)
-        _ -> sendTextData con $ encode (StatusFailed Nothing)
+    , dir "auth" $ accept (failMsg "Invalid login or password.") $ \con -> do
+        Account login (Just pw) <- receiveDecoded con
+        -- lookup the accounts encrypted password
+        Just epw <- runQuery $ DB.selectAccountPassword login
+        -- make sure the passwords match
+        guard $ verifyPass' (Pass $ encodeUtf8 pw) epw
+        send' con StatusOK
     ]
+
+  ---------------------------------------------------------------------------
+  -- IRC ROUTES
+
+  , dir "irc" $ msum
+
+    [
+    ]
+
   ]
+ where
+
+  -- Directly send JSON messages
+  send' con a = sendTextData con $ encode a
+
+  -- Accept route and send fail message if it fails
+  accept msgOnFail go = routeAccept $ \con -> go con <|> send' con msgOnFail
+  failMsg msg = StatusFailed $ Just msg
+
+  -- Receive JSON encoded messages (fails if parse not possible)
+  receiveDecoded con = do
+    Just d <- decode <$> receiveData con
+    return d
+
+  -- Wrapper for cleaner DB queries/updates
+  runDB db = do
+    Right e <- runExceptT db
+    return e
+  runUpdate u = runDB $ DB.runUpdate u
+  runQuery  q = runDB $ DB.runQuery q
