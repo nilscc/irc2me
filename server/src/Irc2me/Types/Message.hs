@@ -13,6 +13,15 @@ data OneOf a b c = First a | Second b | Third c
   deriving (Show, Eq, Ord)
 
 --------------------------------------------------------------------------------
+-- General messages
+
+data WebSocketMessage a = WebSocketMessage
+  { wsId    :: Int
+  , wsMsg   :: a
+  }
+  deriving (Eq, Show, Ord)
+
+--------------------------------------------------------------------------------
 -- Status messages
 
 data StatusMessage
@@ -72,6 +81,9 @@ data ChatMessage = ChatMessage
 --------------------------------------------------------------------------------
 -- Aeson instances: To JSON
 
+instance ToJSON a => ToJSON (WebSocketMessage a) where
+  toJSON (WebSocketMessage i a) = object [ "i" .= i, "d" .= a ]
+
 instance ToJSON StatusMessage where
   toJSON StatusOK               = Null
   toJSON (StatusFailed mreason) = object [ "fail" .= mreason ]
@@ -107,6 +119,13 @@ instance ToJSON ChatMessage where
 
 --------------------------------------------------------------------------------
 -- Aeson instances: From JSON
+
+instance FromJSON a => FromJSON (WebSocketMessage a) where
+  parseJSON (Object o) =
+    WebSocketMessage
+      <$> o .: "i"
+      <*> o .: "d"
+  parseJSON j = fail $ "Cannot parse WebSocketMessage from non-object: " ++ show j
 
 instance FromJSON Account where
   parseJSON (Object o) =

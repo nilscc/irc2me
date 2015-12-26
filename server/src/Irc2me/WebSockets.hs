@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Irc2me.WebSockets
   ( runWebSockets
@@ -11,9 +12,11 @@ import Control.Monad
 import Control.Monad.Except
 import Crypto.Scrypt
 import Data.Aeson
+import Data.Text as T
 import Data.Text.Encoding
+import Data.ByteString.Lazy (ByteString)
 
-import Network.WebSockets
+import Network.WebSockets as WS
 import Network.WebSockets.Routing
 import Network.WebSockets.TLS
 
@@ -48,24 +51,37 @@ mainRoute = msum
         -- store the encrypted pw in the DB. returns the ID if successful
         Just _id  <- runUpdate $ DB.createAccount login encpw
         send' con StatusOK
-
-    , dir "auth" $ accept (failMsg "Invalid login or password.") $ \con -> do
-        Account login (Just pw) <- receiveDecoded con
-        -- lookup the accounts encrypted password
-        Just epw <- runQuery $ DB.selectAccountPassword login
-        -- make sure the passwords match
-        guard $ verifyPass' (Pass $ encodeUtf8 pw) epw
-        send' con StatusOK
     ]
 
   ---------------------------------------------------------------------------
-  -- IRC ROUTES
+  -- MAIN ROUTE
 
-  , dir "irc" $ msum
+  , dir "main" $ accept (failMsg "Invalid login or password.") $ \con -> do
 
-    [
-    ]
+      Account login (Just pw) <- receiveDecoded con
+      -- lookup the accounts encrypted password
+      Just epw <- runQuery $ DB.selectAccountPassword login
+      -- make sure the passwords match
+      guard $ verifyPass' (Pass $ encodeUtf8 pw) epw
+      send' con StatusOK
 
+      forever $ do
+        (bs :: ByteString) <- receiveData con
+
+        let withData
+              :: (FromJSON a, MonadPlus m, MonadIO m, ToJSON b)
+              => (a -> m b) -> m ()
+            withData go = do
+              Just (WebSocketMessage i dat) <- return $ decode bs
+              response <- go dat
+              liftIO $ sendTextData con $ encode $ WebSocketMessage i response
+
+        let onFail msg go = go <|> withData (\(_ :: Value) -> return $ failMsg msg)
+
+        onFail "Unexpected/invalid request." $ msum
+          [ withData $ \(s::T.Text) -> do
+              return s
+          ]
   ]
  where
 
