@@ -76,7 +76,9 @@ mainRoute = msum
               response <- go dat
               liftIO $ sendTextData con $ encode $ WebSocketMessage i response
 
-        let onFail msg go = go <|> withData (\(_ :: Value) -> return $ failMsg msg)
+        let onFail msg go = go
+                         <|> withData (\(_ :: Value) -> return $ failMsg msg)
+                         <|> return ()
 
         onFail "Unexpected/invalid request." $ msum
           [ withData $ \(s::T.Text) -> do
