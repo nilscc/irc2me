@@ -91,7 +91,7 @@ ircConnect server ident
     mce <- liftIO $ handleIrcMessages con $ \tmsg@(_,msg) -> do
 
       if msgCmd msg == "PING" then
-        liftIO $ sendIrc con $ ircMsg "PONG" [] ""
+        sendIrc con $ ircMsg "PONG" [] ""
        else
         bcf tmsg
 
