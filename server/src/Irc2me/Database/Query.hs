@@ -78,6 +78,11 @@ convertOne f = listToMaybe . convertList f
 
 --
 
+toInt :: Converter Integer
+toInt s = case s of
+  [SqlInteger i] -> Just i
+  _              -> Nothing
+
 toBool :: Converter Bool
 toBool s = case s of
   [SqlBool b] -> Just b

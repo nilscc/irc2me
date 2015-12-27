@@ -5,7 +5,7 @@ module Irc2me
   , ServerConfig (..)
   ) where
 
-import Control.Concurrent
+--import Control.Concurrent
 import Control.Concurrent.Event
 --import Control.Exception
 import Control.Monad
@@ -30,18 +30,16 @@ runServer
 runServer conf = do
 
   -- start event loop
-  {-
   eq <- newEventQueue
-  void $ forkIO $ runEventTRW eq handleEvents
+  --void $ forkIO $ runEventTRW eq handleEvents
 
   -- start backends
   putStrLn "Starting backends"
 
   success <- runEventTWO eq runBackends
   unless success $ exitFailure
-  -}
 
-  runWebSockets conf
+  runWebSockets conf eq
 
   {- start frontend, accept client connections
   putStrLn $ "Starting server on " ++ show (serverPort conf)

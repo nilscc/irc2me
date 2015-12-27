@@ -27,8 +27,14 @@ createAccount login pw = UpdateReturning
 
 selectAccountPassword
   :: Text  -- ^ Account login
-  -> Query (Maybe EncryptedPass)
+  -> Query (Maybe (AccountID, EncryptedPass))
 selectAccountPassword login = Query
-  "SELECT password FROM accounts WHERE login = ?"
+  "SELECT id, password FROM accounts WHERE login = ?"
   [ toSql login ]
-  (convertOne $ fmap EncryptedPass . fromBytea)
+  (convertOne $ \s -> case s of
+    [s_i,s_pw] -> do
+      i  <- toInt     [s_i]
+      pw <- fromBytea [s_pw]
+      return (i, EncryptedPass pw)
+    _ -> Nothing
+  )

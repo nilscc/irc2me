@@ -6,7 +6,6 @@ module Irc2me.WebSockets
   ( runWebSockets
   ) where
 
---import Control.Concurrent.Event
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Except
@@ -20,7 +19,9 @@ import Network.WebSockets as WS
 import Network.WebSockets.Routing
 import Network.WebSockets.TLS
 
--- import Irc2me.Events
+import Control.Concurrent.Event
+--import Irc2me.Events
+import Irc2me.Events.Types
 import Irc2me.Types
 import qualified Irc2me.Database.Query as DB
 import qualified Irc2me.Database.Tables.Accounts as DB
@@ -29,15 +30,17 @@ import qualified Irc2me.Database.Tables.Accounts as DB
 runWebSockets
   :: MonadIO m
   => ServerConfig
-  -- -> EventQueue WO Event
+  -> EventQueue 'WO AccountEvent
   -> m ()
-runWebSockets (ServerConfig host port cert key mca) = liftIO $ do
+runWebSockets (ServerConfig host port cert key mca) eq = liftIO $ do
   runSimpleTLSServer host port cert key mca $
-    routeWebSockets mainRoute
+    routeWebSockets (mainRoute eq)
 
 -- | The main WebSockets route
-mainRoute :: WebSocketsRoute ()
-mainRoute = msum
+mainRoute
+  :: EventQueue 'WO AccountEvent
+  -> WebSocketsRoute ()
+mainRoute eq = msum
 
   ---------------------------------------------------------------------------
   -- ACCOUNT ROUTES
@@ -58,16 +61,30 @@ mainRoute = msum
 
   , dir "main" $ accept (failMsg "Invalid login or password.") $ \con -> do
 
+      --
+      -- Authetication
+      --
+
       Account login (Just pw) <- receiveDecoded con
       -- lookup the accounts encrypted password
-      Just epw <- runQuery $ DB.selectAccountPassword login
+      Just (aid, epw) <- runQuery $ DB.selectAccountPassword login
       -- make sure the passwords match
       guard $ verifyPass' (Pass $ encodeUtf8 pw) epw
       send' con StatusOK
 
+      -- raise event to notify any backends
+      raiseEvent' eq $ AccountEvent aid $ ClientConnected (liftIO . send' con)
+
+      --
+      -- Message processing
+      --
+
       forever $ do
+
+        -- incoming data
         (bs :: ByteString) <- receiveData con
 
+        -- data parsing
         let withData
               :: (FromJSON a, MonadPlus m, MonadIO m, ToJSON b)
               => (a -> m b) -> m ()
@@ -76,9 +93,14 @@ mainRoute = msum
               response <- go dat
               liftIO $ sendTextData con $ encode $ WebSocketMessage i response
 
+        -- MonadPlus fail catcher
         let onFail msg go = go
                          <|> withData (\(_ :: Value) -> return $ failMsg msg)
-                         <|> return ()
+                         <|> liftIO (putStrLn $ "Impossible parse: " ++ show bs)
+
+        --
+        -- Handle requests
+        --
 
         onFail "Unexpected/invalid request." $ msum
           [ withData $ \(s::T.Text) -> do

@@ -28,10 +28,10 @@ import Irc2me.Database.Tables.Accounts
 --------------------------------------------------------------------------------
 -- Managing IRC connections
 
-manageIrcConnections :: MonadIO m => IrcConnections -> EventT 'RW Event m ()
+manageIrcConnections :: MonadIO m => IrcConnections -> EventT 'RW AccountEvent m ()
 manageIrcConnections = fix $ \loop irc -> do
 
-  Event <- getEvent
+  AccountEvent aid ev <- getEvent
 
 {-
   AccountEvent aid ev <- getEvent

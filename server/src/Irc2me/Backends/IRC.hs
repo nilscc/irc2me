@@ -45,7 +45,7 @@ import Irc2me.Backends.IRC.Types
 import Irc2me.Backends.IRC.Connection as C
 
 runIrcBackend
-  :: (MonadIO m, MonadEventW m Event)
+  :: (MonadIO m, MonadEventW m AccountEvent)
   => m Bool
 runIrcBackend = do
   mcs <- runExceptT $ reconnectAll Map.empty
