@@ -78,8 +78,8 @@ reconnectAll con = withCon con $ do
     for servers $ \(netid, server) -> do
 
       -- lookup network to see if we're already connected
-      mbc <- preuse $ at accid . _Just . at netid
-      case mbc of
+      mc <- preuse $ at accid . _Just . at netid
+      case mc of
 
         -- network already connected
         Just _ -> return ()
@@ -105,7 +105,7 @@ reconnectAll con = withCon con $ do
                 ++ ")"
 
               -- store new connection
-              at accid . _Just . at netid .= Just c
+              at accid . non' _Empty . at netid .= Just c
 
             Nothing -> do
               log' $ "Failed to connect to Network " ++ show netid
