@@ -7,7 +7,9 @@ module Irc2me.Backends.IRC.Connection
   ) where
 
 import Control.Concurrent
+import Control.Concurrent.Broadcast
 import Control.Concurrent.STM
+import Control.Monad.Trans
 
 import Network
 
@@ -70,16 +72,12 @@ ircConnect server ident
         sendIrc con $ ircMsg "USER" [ nick, "*", "*", username ] ""
         sendIrc con $ ircMsg "NICK" [ nick ] ""
 
-        -- new broadcast channel
-        broadcast <- newBroadcastTChanIO
-
-        -- start new thread for IRC connection
-        tid <- forkIO $ handleIncoming con broadcast
+        -- start new broadcast thread for IRC connection
+        bc <- startBroadcasting $ handleIncoming con
 
         return $ Just $ IrcConnection
-          { _ircThread   = tid
-          , _ircSend     = sendIrc con
-          , _ircMessages = broadcast
+          { _ircSend      = sendIrc con
+          , _ircBroadcast = bc
           }
 
   | otherwise = do
@@ -88,20 +86,18 @@ ircConnect server ident
 
  where
   -- handle incoming messages
-  handleIncoming con bc = do
-    mce <- handleIrcMessages con $ \tmsg@(_,msg) -> do
+  handleIncoming con = do
+    bcf <- getBroadcastFunction
+    mce <- liftIO $ handleIrcMessages con $ \tmsg@(_,msg) -> do
 
       if msgCmd msg == "PING" then
-        sendIrc con $ ircMsg "PONG" [] ""
+        liftIO $ sendIrc con $ ircMsg "PONG" [] ""
        else
-        broadcast tmsg
+        bcf tmsg
 
     -- handle closed connections
     case mce of
       Nothing -> return ()
-      Just ce -> do
+      Just ce -> liftIO $ do
         hPutStrLn stderr $ "Connection error: " ++ show ce
         closeConnection con
-
-   where
-    broadcast = atomically . writeTChan bc

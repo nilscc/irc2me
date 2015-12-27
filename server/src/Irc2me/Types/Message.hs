@@ -8,6 +8,9 @@ import Data.Aeson
 import Data.Time
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+
+import Network.IRC.ByteString.Parser
 
 data OneOf a b c = First a | Second b | Third c
   deriving (Show, Eq, Ord)
@@ -80,6 +83,21 @@ data ChatMessage = ChatMessage
 
 --------------------------------------------------------------------------------
 -- Aeson instances: To JSON
+
+instance ToJSON IRCMsg where
+  toJSON (IRCMsg prefix cmd params trail) = object
+    [ "user"    .= fmap (either Just (const Nothing)) prefix
+    , "server"  .= fmap (either (const Nothing) (Just . Text.decodeUtf8)) prefix
+    , "cmd"     .= Text.decodeUtf8 cmd
+    , "params"  .= map Text.decodeUtf8 params
+    , "trail"   .= Text.decodeUtf8 trail
+    ]
+instance ToJSON UserInfo where
+  toJSON (UserInfo nick name host) = object
+    [ "nick" .= Text.decodeUtf8 nick
+    , "name" .= fmap Text.decodeUtf8 name
+    , "host" .= fmap Text.decodeUtf8 host
+    ]
 
 instance ToJSON a => ToJSON (WebSocketMessage a) where
   toJSON (WebSocketMessage i a) = object [ "i" .= i, "d" .= a ]

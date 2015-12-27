@@ -3,6 +3,7 @@
 module Irc2me.Backends.IRC.Types where
 
 import Control.Concurrent
+import Control.Concurrent.Broadcast
 import Control.Concurrent.STM.TChan (TChan)
 import Control.Lens hiding (Identity)
 
@@ -17,9 +18,8 @@ import Network.IRC.ByteString.Parser (IRCMsg)
 -- IRC connection
 
 data IrcConnection = IrcConnection
-  { _ircThread        :: ThreadId
-  , _ircSend          :: IRCMsg -> IO ()
-  , _ircMessages      :: TChan (UTCTime, IRCMsg)
+  { _ircSend          :: IRCMsg -> IO ()
+  , _ircBroadcast     :: Broadcast (UTCTime, IRCMsg)
   }
 
 makeLenses ''IrcConnection
